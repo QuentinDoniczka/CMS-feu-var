@@ -1,0 +1,37 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read",
+      "Read(//**)",
+      "Write",
+      "Write(//**)",
+      "Edit",
+      "Edit(//**)",
+      "MultiEdit",
+      "NotebookEdit",
+      "Glob",
+      "Grep",
+      "TodoWrite",
+      "Task",
+      "Agent",
+      "Skill",
+      "WebSearch",
+      "WebFetch",
+      "Bash",
+      "Bash(*)",
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)"
+    ],
+    "ask": [],
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(su:*)",
+      "Bash(gh pr close:*)",
+      "Bash(gh pr merge:*)"
+    ]
+  }
+}
