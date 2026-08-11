@@ -1,0 +1,15 @@
+{
+  "name": "massifs-referentiel-build",
+  "version": "1.0.0",
+  "description": "Import et recette du référentiel des massifs forestiers des Bouches-du-Rhône. Outillage de build seulement : rien de ce répertoire n'est exécuté à l'exécution du site.",
+  "private": true,
+  "type": "module",
+  "license": "GPL-2.0-or-later",
+  "scripts": {
+    "importer": "node importer.mjs",
+    "verifier": "node verifier.mjs"
+  },
+  "dependencies": {
+    "mapshaper": "0.6.102"
+  }
+}

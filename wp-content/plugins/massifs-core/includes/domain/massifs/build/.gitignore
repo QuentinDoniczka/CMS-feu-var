@@ -1,0 +1,14 @@
+# Le .gitignore racine ignore `node_modules/` de façon ANCRÉE (`/node_modules/`)
+# et ne couvre donc pas ce répertoire : on le réignore ici.
+node_modules/
+
+# En revanche, sa ligne `package-lock.json` n'est PAS ancrée : elle exclurait
+# notre lockfile à cette profondeur. Or c'est lui qui rend l'import reproductible
+# (mapshaper est épinglé à l'octet près). On le réintègre explicitement.
+!package-lock.json
+
+# Fichiers de travail de l'import : le pipeline les supprime, un import
+# interrompu peut en laisser.
+_src_code.geojson
+_simplifie.geojson
+*.tmp

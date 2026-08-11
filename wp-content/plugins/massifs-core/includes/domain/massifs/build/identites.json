@@ -1,0 +1,234 @@
+{
+  "schema": 1,
+  "a_propos": "Registre des identités gelées des massifs. ÉDITÉ À LA MAIN, EN AJOUT SEUL (append-only). C'est ce fichier, et non un artefact généré, qui fait autorité sur l'identité d'un massif : un `code` y est gelé à vie et n'est jamais recalculé depuis un nom source. Ne jamais renommer ni supprimer une entrée ; un massif disparu de la source reçoit `retire_le`. Procédure complète : ../README.md",
+  "gele_le": "2026-08-11",
+  "cle_de_rapprochement": "slug(source.nom_massif) — `source.gid` n'est qu'un indice de provenance, jamais une clé (c'est le rang alphabétique, il se renumérote à la moindre insertion).",
+  "regle_libelle": "Si `libelle` diffère de `source.nom_massif`, `note_provenance` doit être non vide et citer la source officielle qui atteste la forme retenue. L'import refuse d'émettre sinon.",
+  "identites": [
+    {
+      "code": "alpilles",
+      "libelle": "Alpilles",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 1, "nom_massif": "Alpilles" }
+    },
+    {
+      "code": "arbois",
+      "libelle": "Arbois",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 2, "nom_massif": "Arbois" }
+    },
+    {
+      "code": "calanques",
+      "libelle": "Calanques",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 3, "nom_massif": "Calanques" }
+    },
+    {
+      "code": "cap-canaille",
+      "libelle": "Cap Canaille",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 4, "nom_massif": "Cap Canaille" }
+    },
+    {
+      "code": "castillon",
+      "libelle": "Castillon",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 5, "nom_massif": "Castillon" }
+    },
+    {
+      "code": "chaine-des-cotes",
+      "libelle": "Chaîne des Côtes",
+      "note_provenance": "Diacritiques restaurés. Forme accentuée attestée par le bulletin journalier officiel de la préfecture des Bouches-du-Rhône et par la table des massifs de risque-prevention-incendie.fr/13 (consultés le 2026-08-11).",
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 6, "nom_massif": "Chaine des Cotes" }
+    },
+    {
+      "code": "chambremont",
+      "libelle": "Chambremont",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 7, "nom_massif": "Chambremont" }
+    },
+    {
+      "code": "collines-de-gardanne",
+      "libelle": "Collines de Gardanne",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 8, "nom_massif": "Collines de Gardanne" }
+    },
+    {
+      "code": "concors",
+      "libelle": "Concors",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 9, "nom_massif": "Concors" }
+    },
+    {
+      "code": "cote-bleue",
+      "libelle": "Cote Bleue",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 10, "nom_massif": "Cote Bleue" }
+    },
+    {
+      "code": "etoile",
+      "libelle": "Etoile",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 11, "nom_massif": "Etoile" }
+    },
+    {
+      "code": "garlaban",
+      "libelle": "Garlaban",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 12, "nom_massif": "Garlaban" }
+    },
+    {
+      "code": "grand-caunet",
+      "libelle": "Grand Caunet",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 13, "nom_massif": "Grand Caunet" }
+    },
+    {
+      "code": "lancon",
+      "libelle": "Lançon",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 14, "nom_massif": "Lançon" }
+    },
+    {
+      "code": "les-roques",
+      "libelle": "Les Roques",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 15, "nom_massif": "Les Roques" }
+    },
+    {
+      "code": "montagnette",
+      "libelle": "Montagnette",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 16, "nom_massif": "Montagnette" }
+    },
+    {
+      "code": "montaiguet",
+      "libelle": "Montaiguet",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 17, "nom_massif": "Montaiguet" }
+    },
+    {
+      "code": "pont-de-rhaud",
+      "libelle": "Pont de Rhaud",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 18, "nom_massif": "Pont de Rhaud" }
+    },
+    {
+      "code": "quatre-termes",
+      "libelle": "Quatre Termes",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 19, "nom_massif": "Quatre Termes" }
+    },
+    {
+      "code": "regagnas",
+      "libelle": "Regagnas",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 20, "nom_massif": "Regagnas" }
+    },
+    {
+      "code": "rougadou",
+      "libelle": "Rougadou",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 21, "nom_massif": "Rougadou" }
+    },
+    {
+      "code": "sainte-baume",
+      "libelle": "Sainte-Baume",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 22, "nom_massif": "Sainte-Baume" }
+    },
+    {
+      "code": "sainte-victoire",
+      "libelle": "Sainte-Victoire",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 23, "nom_massif": "Sainte-Victoire" }
+    },
+    {
+      "code": "sulauze",
+      "libelle": "Sulauze",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 24, "nom_massif": "Sulauze" }
+    },
+    {
+      "code": "trevaresse",
+      "libelle": "Trevaresse",
+      "note_provenance": null,
+      "communes": [],
+      "communes_source": "inconnue",
+      "retire_le": null,
+      "source": { "gid": 25, "nom_massif": "Trevaresse" }
+    }
+  ]
+}
