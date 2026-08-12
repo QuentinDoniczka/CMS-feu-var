@@ -530,9 +530,30 @@ raison est inscrite en commentaire dans le validateur pour empêcher leur réint
 - **Un saut d'amplitude de niveau n'est pas une aberration.** Le niveau peut légitimement passer de 1 à
   3 d'un jour à l'autre.
 
-Le seul cas réellement suspect est une réponse **strictement identique, empreinte comprise, servie pour
-une autre date de validité** : la source n'a alors pas encore publié. On retente, on n'écrit pas, on ne
-rejette pas, on ne compte pas d'échec.
+**Correction du 12 août 2026 — une quatrième non-règle, qui contredisait les trois premières.**
+
+Ce document a d'abord affirmé qu'une réponse « strictement identique, empreinte comprise, servie pour
+une autre date de validité » signalait une non-publication, et qu'il fallait alors ne pas écrire. C'était
+**faux, et directement contradictoire avec la deuxième non-règle ci-dessus**. Le code avait appliqué la
+mauvaise des deux règles : le jour J+1 d'un épisode stable était classé « doublon », rien n'était
+enregistré ni projeté, et le site aurait affiché « information non disponible » pendant toute la durée
+de l'épisode — c'est-à-dire précisément quand la donnée est bonne.
+
+Raison de l'erreur : le corps servi par la source **ne contient aucune date**
+(`{"massifs":{…},"zm":{…}}`). Deux journées où les 27 massifs portent les mêmes couples
+`[niveau, procedure]` produisent donc un corps octet pour octet identique. C'est le cas nominal, pas
+un signal.
+
+**Règle en vigueur, unique et sans exception : le hachage ne provoque jamais de rejet.**
+
+Le signal de non-publication est le **404** (§3.2, §4.6) : la source répond 404 sur `{date}.json` tant
+que la journée n'est pas publiée, et **un 200 sur cette URL est la publication de cette date**. Une
+charge identique à la veille est donc enregistrée et projetée normalement.
+
+Le hachage conserve deux usages, tous deux inoffensifs : éviter une réécriture inutile quand le corps
+est identique à l'instantané **déjà enregistré pour cette même date**, et **journaliser** qu'un contenu
+est identique à celui d'une autre journée, information d'exploitation utile et sans effet sur
+l'enregistrement.
 
 ### 7.3 La validation ne dépend pas du mode
 
@@ -640,12 +661,26 @@ Détecté par `function_exists`, le connecteur leur cède alors la main :
 
 - `massifs_niveaux_source_autorises(): array`
 - `massifs_procedures_source_autorisees(): array`
-- `massifs_referentiel_codes_source(): array` — codes source `'131'`…`'1327'`
 
-**#2 doit exposer, pour chaque massif du référentiel, son code source préfecture.** Sans cette
-correspondance, le garde-fou référentiel fonctionne sur l'ensemble semé mais reste déconnecté du
-référentiel réel. Le rapprochement par nom est explicitement exclu : c'est un fait de domaine, pas une
-heuristique de chaînes.
+**Aucune passerelle vers le référentiel — corrigé le 12 août 2026.** Ce document a d'abord réclamé une
+fonction `massifs_referentiel_codes_source()`, et le code l'appelait sous `function_exists`. Les deux
+ont été supprimés.
+
+Motif : le garde-fou référentiel compare les identifiants **émis par le flux** (`131`…`1327`), alors que
+le référentiel de la chaîne #2 est indexé par **codes métier kebab** (`alpilles`, `sainte-victoire`).
+Ce sont deux vocabulaires distincts ; les substituer ferait **rejeter 100 % des charges réelles**. Le
+contrat gelé de la chaîne #2 déclare d'ailleurs cette fonction interdite. Le danger n'était pas l'appel
+lui-même — inerte — mais le commentaire qui invitait à l'implémenter : un développeur qui l'aurait suivi
+cassait toute l'ingestion sans qu'aucun test ne le voie.
+
+La correspondance entre les deux vocabulaires existe bel et bien et reste nécessaire, mais elle
+appartient à #2 et s'emploie **en aval** de l'ingestion, jamais dedans :
+`massifs_code_depuis_source( '131' ): ?string` et `massifs_correspondance_source(): array`.
+Le rapprochement par nom reste explicitement exclu : c'est un fait de domaine, pas une heuristique de
+chaînes.
+
+Seul point de surcharge légitime de l'ensemble de référence côté ingestion : le filtre
+`massifs_prefecture_massifs_attendus`, qui reçoit des **identifiants source**.
 
 ### 8.7 Attribution imposée par cette source
 

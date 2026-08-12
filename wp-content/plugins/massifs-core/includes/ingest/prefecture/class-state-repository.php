@@ -43,7 +43,6 @@ final class StateRepository {
 	public const ISSUES = array(
 		'succes',
 		'non_publie',
-		'non_publie_doublon',
 		'reseau',
 		'source_indisponible',
 		'transport',

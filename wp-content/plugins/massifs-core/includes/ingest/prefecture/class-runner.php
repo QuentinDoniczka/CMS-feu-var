@@ -205,35 +205,45 @@ final class Runner {
 			return $instantane;
 		}
 
-		$deja = SnapshotRepository::find_by_hash( (string) $instantane['hash'] );
+		// Déjà enregistré à l'identique POUR CETTE DATE : rien à réécrire.
+		// La comparaison porte sur l'instantané de cette date précise, jamais
+		// sur un balayage par hachage : voir le bloc ci-dessous.
+		$existant = SnapshotRepository::get( $date_ymd );
 
-		if ( null !== $deja && $deja !== $date_ymd ) {
-			// Corps identique à celui d'une autre date : la source sert encore
-			// le fichier précédent. Ce n'est ni une publication, ni un rejet,
-			// ni un échec — simplement « pas encore publié ».
-			StateRepository::record_issue(
-				$date_ymd,
-				'non_publie_doublon',
-				sprintf( 'Corps identique à l\'instantané du %s.', $deja )
-			);
-
-			return new \WP_Error(
-				'non_publie_doublon',
-				sprintf( 'Corps servi identique à celui du %s : publication du %s non effectuée.', $deja, $date->format( 'Y-m-d' ) ),
-				array(
-					'couche' => 'transport',
-					'detail' => $deja,
-				)
-			);
-		}
-
-		if ( $deja === $date_ymd ) {
-			// Déjà enregistré à l'identique pour cette date : rien à écrire.
+		if ( null !== $existant
+			&& isset( $existant['hash'] )
+			&& hash_equals( (string) $existant['hash'], (string) $instantane['hash'] )
+		) {
 			return true;
 		}
 
+		/*
+		 * Le hachage NE PROVOQUE JAMAIS DE REJET. Il ne sert qu'à journaliser.
+		 *
+		 * Le corps servi par la source ne contient aucune date
+		 * (`{"massifs":{…},"zm":{…}}`). Deux journées où les 27 massifs portent
+		 * les mêmes couples `[niveau, procedure]` produisent donc un corps
+		 * octet pour octet identique — et c'est le CAS NOMINAL en juin comme
+		 * lors de tout épisode stable (constaté les 8 et 11 août 2026, et le
+		 * 15 août 2025 : les 27 massifs au même niveau).
+		 *
+		 * Le signal de « pas encore publié » n'est pas le hachage : c'est le
+		 * 404. La source répond 404 sur `{date}.json` tant que la journée
+		 * n'est pas publiée, et un 200 sur cette URL EST la publication de
+		 * cette date. Rejeter un corps identique à la veille reviendrait à
+		 * afficher « information non disponible » pendant toute la durée d'un
+		 * épisode stable, c'est-à-dire précisément quand la donnée est bonne.
+		 */
+		$identique_a = SnapshotRepository::find_by_hash( (string) $instantane['hash'] );
+
+		$note = sprintf( '%d octets, confiance %s.', (int) $instantane['octets'], (string) $instantane['confiance'] );
+
+		if ( null !== $identique_a && $identique_a !== $date_ymd ) {
+			$note .= sprintf( ' Contenu identique à celui du %s (information d\'exploitation, sans effet sur l\'enregistrement).', $identique_a );
+		}
+
 		SnapshotRepository::save( $instantane );
-		StateRepository::record_issue( $date_ymd, 'succes', sprintf( '%d octets, confiance %s.', (int) $instantane['octets'], (string) $instantane['confiance'] ) );
+		StateRepository::record_issue( $date_ymd, 'succes', $note );
 
 		/**
 		 * Unique couture d'intégration du connecteur.

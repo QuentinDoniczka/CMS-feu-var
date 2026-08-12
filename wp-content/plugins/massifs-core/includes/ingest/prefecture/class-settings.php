@@ -81,8 +81,10 @@ final class Settings {
 			// ont été observées en seconde position.
 			'procedures_autorisees' => array( 0, 1 ),
 			// Relevé du 2026-08-11, non officiel : 27 identifiants contigus
-			// « 13 » + 1..27. Remplacé par le référentiel de la chaîne #2 dès
-			// que `massifs_referentiel_codes_source()` existe.
+			// « 13 » + 1..27, tels qu'ÉMIS PAR LE FLUX. Ce ne sont pas les
+			// codes du référentiel métier et ils ne doivent jamais être
+			// remplacés par eux. Surcharge légitime : le filtre
+			// `massifs_prefecture_massifs_attendus`.
 			'massifs_attendus'      => self::codes_observes(),
 			// Fenêtre de publication en heures locales (Europe/Paris).
 			'fenetre_debut_heure'   => 16,
@@ -472,15 +474,11 @@ final class Settings {
 	 * @return string[]
 	 */
 	public static function massifs_attendus(): array {
-		$codes = null;
-
-		if ( function_exists( 'massifs_referentiel_codes_source' ) ) {
-			$codes = massifs_referentiel_codes_source();
-		}
-
-		if ( ! is_array( $codes ) || array() === $codes ) {
-			$codes = self::all()['massifs_attendus'];
-		}
+		// Aucune passerelle vers le référentiel métier ici : ce jeu contient
+		// les identifiants ÉMIS PAR LE FLUX préfectoral (`131`…`1327`), pas les
+		// codes du référentiel. Les substituer casserait toute l'ingestion.
+		// Le filtre ci-dessous reste le seul point de surcharge légitime.
+		$codes = self::all()['massifs_attendus'];
 
 		/**
 		 * Filtre l'ensemble de référence des identifiants attendus.

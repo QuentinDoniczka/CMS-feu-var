@@ -300,9 +300,27 @@ confiance.
 
 Passerelles attendues des chaînes voisines, utilisées si elles existent :
 
-- `massifs_referentiel_codes_source()` — chaîne #2 (référentiel) ;
 - `massifs_niveaux_source_autorises()` et `massifs_procedures_source_autorisees()`
   — chaîne #3 (modèle de statuts).
+
+### Référentiel : aucune passerelle, et c'est délibéré
+
+Le garde-fou référentiel compare les identifiants **émis par le flux**
+(`131`…`1327`, format `/^\d{3,4}$/`) — **pas** les codes du référentiel métier
+de la chaîne #2, qui sont des codes kebab (`alpilles`, `sainte-victoire`).
+
+Ce sont deux vocabulaires distincts. Y brancher le référentiel métier ferait
+**rejeter 100 % des charges réelles**. Le contrat de la chaîne #2 l'écrit
+explicitement : `massifs_referentiel_codes_source()` n'existe pas et ne doit pas
+être appelée. Aucun appel de ce genre ne subsiste dans ce connecteur.
+
+La correspondance entre les deux vocabulaires existe, mais elle appartient à la
+chaîne #2 et s'emploie **en aval** de l'ingestion, pas dedans :
+`massifs_code_depuis_source( '131' ): ?string`.
+
+Seul point de surcharge légitime de l'ensemble de référence : le filtre
+`massifs_prefecture_massifs_attendus`, qui doit recevoir des **identifiants
+source**.
 
 ## Actions
 
@@ -330,5 +348,18 @@ Ces trois cas sont documentés dans `class-validator.php` et ne doivent **jamais
 2. **Un lot identique à celui de la veille** — c'est le cas nominal en juin.
 3. **Un saut d'amplitude de niveau**, quelle qu'en soit la hauteur.
 
-Le seul rapprochement par hachage du connecteur sert à distinguer « pas encore
-publié » d'une vraie publication, jamais à rejeter une donnée.
+### Ce que fait le hachage — et ce qu'il ne fait pas
+
+Le hachage `sha256` du corps brut **ne provoque jamais de rejet et ne bloque
+jamais un enregistrement**. Il sert exactement à deux choses :
+
+1. **Éviter une réécriture inutile** quand le corps reçu est identique à
+   l'instantané *déjà enregistré pour cette même date* ;
+2. **Journaliser** qu'un contenu est identique à celui d'une autre journée —
+   information d'exploitation utile, sans aucun effet sur l'enregistrement.
+
+Le signal de « pas encore publié » n'est **pas** le hachage, c'est le **404** :
+la source répond 404 sur `{date}.json` tant que la journée n'est pas publiée, et
+un **200 sur cette URL EST la publication de cette date**. Le corps ne contient
+d'ailleurs aucune date, donc deux journées stables produisent nécessairement le
+même hachage — c'est le cas nominal, pas une anomalie.

@@ -301,9 +301,12 @@ final class Validator {
 	 * @return true|\WP_Error
 	 */
 	private static function couche_referentiel( array $massifs ) {
-		$reference = function_exists( 'massifs_referentiel_codes_source' )
-			? massifs_referentiel_codes_source()
-			: Settings::massifs_attendus();
+		// L'ensemble de référence est celui des identifiants ÉMIS PAR LE FLUX
+		// (`131`…`1327`), et non les codes du référentiel métier. Les deux
+		// vocabulaires sont distincts et ne doivent jamais être confondus :
+		// comparer les identifiants source à des codes métier rejetterait
+		// 100 % des charges réelles. Voir le README, section « Référentiel ».
+		$reference = Settings::massifs_attendus();
 
 		$reference = is_array( $reference ) ? array_values( array_unique( array_map( 'strval', $reference ) ) ) : array();
 
