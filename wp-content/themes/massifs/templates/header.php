@@ -31,10 +31,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 	// Les liens d'évitement sont les tout premiers éléments focusables du
 	// document. Le second n'est rendu que là où sa cible existe : un lien
 	// d'évitement vers une ancre absente est pire que son absence.
+	//
+	// La garde REFLÈTE celle de templates/parts/liste-statuts.php (chaîne #6) :
+	// #5 appelant la partie sans aucun $args, sa garde d'extension se réduit
+	// aux deux function_exists ci-dessous, et la partie rend alors zéro octet —
+	// donc pas d'ancre `liste`. Toute évolution de la garde de la partie doit
+	// être répercutée ici. Le test de locate_template() couvre en plus le cas
+	// où l'extension est active mais le fichier de partie absent.
+	$massifs_ancre_liste = is_front_page()
+		&& function_exists( 'massifs_referentiel' )
+		&& function_exists( 'massifs_statuts_du_jour' )
+		&& '' !== locate_template( 'templates/parts/liste-statuts.php' );
 	?>
 	<div class="liens-evitement">
 		<a class="lien-evitement" href="#contenu-principal">Aller au contenu</a>
-		<?php if ( is_front_page() ) : ?>
+		<?php if ( $massifs_ancre_liste ) : ?>
 			<a class="lien-evitement" href="#liste">Aller à la liste des statuts</a>
 		<?php endif; ?>
 	</div>

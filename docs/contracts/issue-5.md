@@ -229,6 +229,29 @@ massifs_partie( 'liste-statuts' );   // helper de functions.php
 > **A-6 est vérifié honoré dans le code** : `liste-statuts.php` (l. 418) appelle bien
 > `etats-vides` lui-même. Le principal risque de réconciliation du lot ne s'est pas matérialisé.
 
+> **RÉVISION 4 — 12 août 2026. Correction d'un défaut trouvé par `test-integration-cms` : le
+> lien d'évitement `#liste` pouvait rester orphelin.** La révision 3 documentait ce couplage
+> comme « accepté » ; **c'était une erreur d'arbitrage de ma part**. Deux chemins reproduits par
+> le test laissaient un lien d'évitement pointant vers une ancre inexistante — extension
+> désactivée, et partie `liste-statuts.php` absente. Attendu `[]`, obtenu `["#liste"]`.
+>
+> **Arbitrage A-26.** `is_front_page()` **n'est pas** la garde exigée par la dépendance 5-2 du
+> contrat #6. La garde du second lien d'évitement devient la **conjonction de trois conditions**,
+> évaluées dans `templates/header.php` :
+> 1. `is_front_page()` — l'ancre n'existe que sur l'accueil (comportement voulu, conservé) ;
+> 2. **l'API de lecture existe** : `function_exists( 'massifs_referentiel' ) && function_exists( 'massifs_statuts_du_jour' )` ;
+> 3. **la partie est localisable** : `'' !== locate_template( 'templates/parts/liste-statuts.php' )`.
+>
+> La condition 2 **reflète exactement** la garde de `liste-statuts.php` (l. 61-66) : #5 ne passant
+> **aucun `$args`**, `$massifs_fournis` et `$statuts_fournis` y valent `false`, et la garde de la
+> partie se réduit à ces deux `function_exists`. La partie le documente d'ailleurs elle-même :
+> « L'appelant garde son lien d'évitement sur la même condition ». La condition 3 couvre le cas
+> que la dépendance 5-2 **ne** couvre pas — fichier absent alors que les fonctions existent.
+>
+> **Écartées** : faire porter le lien par la partie (elle appartient à #6, **hors de mon
+> empreinte**) ; s'appuyer sur la valeur de retour de `massifs_partie()` (l'en-tête est rendu
+> **avant** la partie, la valeur n'existe pas encore à cet instant).
+
 ### Ce que la chaîne #6 peut tenir pour acquis
 
 - Les trois parties appelées par #5 le sont **dans l'ordre des bandes**, chacune **à l'intérieur** d'un
