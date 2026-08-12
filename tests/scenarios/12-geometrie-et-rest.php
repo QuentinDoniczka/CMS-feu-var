@@ -69,13 +69,45 @@ $nôtres = array_values( array_filter( $routes, static fn( $r ) => str_contains(
 t_egal( array(), $nôtres, 'aucune route REST « massifs » (conforme aux contrats #2 et #3)' );
 t_note( 'espaces de noms REST exposés : ' . implode( ', ', $serveur->get_namespaces() ) );
 
-// L'extension n'enfile aucun asset navigateur.
+// L'EXTENSION n'enfile aucun asset navigateur.
+//
+// Le critère est l'ORIGINE du fichier, jamais le nom de la poignée : depuis le
+// lot « design system », le THÈME enfile légitimement `massifs-fonts`,
+// `massifs-tokens` et `massifs-layout`. Filtrer sur la chaîne « massifs » les
+// prendrait pour des assets de l'extension et affirmerait un défaut qui n'existe
+// pas. Ce qui est interdit, c'est qu'un fichier servi depuis
+// `plugins/massifs-core/` atteigne le navigateur.
 do_action( 'wp_enqueue_scripts' );
 global $wp_scripts, $wp_styles;
 $scripts = is_object( $wp_scripts ) ? $wp_scripts->queue : array();
 $styles  = is_object( $wp_styles ) ? $wp_styles->queue : array();
 t_note( 'scripts en file : ' . wp_json_encode( $scripts ) . ' / styles : ' . wp_json_encode( $styles ) );
-$tiers = array_values( array_filter( array_merge( (array) $scripts, (array) $styles ), static fn( $h ) => str_contains( (string) $h, 'massifs' ) ) );
-t_egal( array(), $tiers, 'l\'extension n\'enfile aucun script ni style (aucune surface navigateur)' );
+
+$url_extension = MASSIFS_CORE_URL;
+$depuis_extension = static function ( $registre, array $file ) use ( $url_extension ): array {
+	$trouves = array();
+
+	foreach ( $file as $poignee ) {
+		$objet = is_object( $registre ) && isset( $registre->registered[ $poignee ] ) ? $registre->registered[ $poignee ] : null;
+		$src   = is_object( $objet ) && is_string( $objet->src ) ? $objet->src : '';
+
+		if ( '' !== $src && str_contains( $src, $url_extension ) ) {
+			$trouves[] = $poignee . ' → ' . $src;
+		}
+	}
+
+	return $trouves;
+};
+
+$tiers = array_merge(
+	$depuis_extension( $wp_scripts, (array) $scripts ),
+	$depuis_extension( $wp_styles, (array) $styles )
+);
+t_egal( array(), $tiers, 'aucun fichier servi depuis l\'extension n\'est enfilé pour le navigateur' );
+
+// Et le thème, lui, enfile bien ses trois feuilles — sans quoi les artefacts du
+// design system ne seraient chargés par rien.
+$feuilles_theme = array_values( array_intersect( array( 'massifs-fonts', 'massifs-tokens', 'massifs-layout' ), (array) $styles ) );
+t_egal( array( 'massifs-fonts', 'massifs-tokens', 'massifs-layout' ), $feuilles_theme, 'le thème enfile ses trois feuilles (jetons, polices, mise en page)' );
 
 t_bilan();

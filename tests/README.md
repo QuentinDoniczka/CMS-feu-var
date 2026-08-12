@@ -24,10 +24,14 @@ bash tests/run.sh jointure # ou par mot-clé
 bash tests/verifier-http.sh   # origines tierces, gardes 403, budget de transfert
 bash tests/module-absent.sh   # tolérance du chargeur à un module frère absent
 
+node tests/rendu/recette-rendu.mjs            # recette de rendu, vrai navigateur
+node tests/rendu/recette-rendu.mjs --filtre=tierce
+
 docker compose down        # ne rien laisser tourner
 ```
 
 `tests/run.sh` rend un code de sortie non nul dès qu'une assertion échoue, et affiche le total.
+`tests/rendu/recette-rendu.mjs` fait de même.
 
 ## Comment c'est fait
 
@@ -36,7 +40,30 @@ docker compose down        # ne rien laisser tourner
 | `tests/bootstrap.php` | assertions, purge d'état, fabriques de charges utiles, bouchons réseau |
 | `tests/scenarios/*.php` | un scénario par fichier, exécuté par `wp eval-file` dans le conteneur d'outillage |
 | `tests/outils/` | fichiers appelés par les scripts shell, hors de la boucle des scénarios |
+| `tests/rendu/etats.php` | fabrique d'états observables : place la base dans un état connu, puis rend la main |
+| `tests/rendu/recette-rendu.mjs` | recette de rendu — un vrai navigateur charge le site réel en HTTP |
 | `tests/run.sh`, `tests/verifier-http.sh`, `tests/module-absent.sh` | orchestration depuis l'hôte |
+
+### La recette de rendu
+
+Ce que PHP ne peut pas prouver de l'intérieur : les requêtes que le navigateur émet
+*réellement*, la page rendue sans JavaScript, la largeur à 360 px, l'arbre d'accessibilité,
+les octets transférés. Chaque scénario pose son état par `wp eval-file` dans la stack, puis
+observe le site en HTTP — jamais de source externe, jamais de fixture partagée entre
+scénarios.
+
+Dépendances hôte : `playwright-core` et `axe-core`, plus un Chromium. Si elles ne sont pas
+installées dans le dépôt, deux variables d'environnement suffisent :
+
+```bash
+MASSIFS_NODE_MODULES=/chemin/vers/node_modules   # où trouver playwright-core et axe-core
+MASSIFS_CHROME=/chemin/vers/chrome               # sinon, ~/AppData/Local/ms-playwright est fouillé
+```
+
+Deux scénarios (`ancre`, `extension`) provoquent volontairement une panne — renommage de
+`templates/parts/liste-statuts.php`, désactivation de `massifs-core` — et remettent l'arbre
+et la stack en état dans un `finally`, avec une assertion de remise en état. Lancés seuls,
+ils laissent le dépôt comme ils l'ont trouvé.
 
 **Chaque scénario est autonome** : il commence et finit par `t_reset()`, et doit passer lancé seul.
 Aucun ne dépend de l'ordre.
@@ -67,6 +94,25 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 | **`13-jours-consecutifs-identiques`** | **régression permanente — voir ci-dessous** | statut périmé |
 | `14-install-fraiche` | installation vierge : table créée, aucune erreur PHP, tout « indisponible » honnêtement | chaîne des données |
 | `20-cron-complet.arme` | enregistrement, planification horaire, filtre d'URL de bout en bout, hors-saison sans octet réseau, retrait à la désactivation | chaîne des données |
+| `21-rendu-etats-hors-saison` | les gabarits réels rendus hors saison, sur un jour futur, et avec une donnée de la veille en base | statut périmé, hors-saison |
+
+### Les scénarios de rendu (`tests/rendu/recette-rendu.mjs`)
+
+| Clé | Ce qu'il éprouve | Ligne du §12 |
+|---|---|---|
+| `tierce` | toute requête réellement émise par le navigateur, sur cinq pages, plus les `url()`/`@import` de chaque feuille servie | zéro requête tierce |
+| `sans-js` | JavaScript coupé : synthèse, fraîcheur, légende, 25 lignes de statut, bandeau | utilisable sans JS |
+| `structure` | un `h1` exposé, aucun `id` en double, aucune ancre d'évitement morte, focus visible | accessibilité |
+| `perime` | donnée de la veille en base : « information non disponible » sur la carte ET dans la liste | statut périmé |
+| `non-officialite` | bandeau présent dans les trois états de données | bandeau de non-officialité |
+| `couleur` | chaque marque colorée est suivie de son libellé en toutes lettres | jamais la couleur seule |
+| `mobile` | 360 px, 320 px, zoom texte 200 % | mobile réel |
+| `a11y` | axe-core sur les pages servies, zéro violation bloquante | vérifications automatisées |
+| `budgets` | octets réellement transférés, nombre de polices, double téléchargement, géométrie | budgets de perf |
+| `api` | racine REST publique, écriture anonyme refusée | API publique |
+| `ancre` | panne provoquée : la partie « liste » manque | — |
+| `extension` | panne provoquée : `massifs-core` est désactivée | — |
+| `artefacts` | sha256 de `tokens.css`, 111 jetons, identité au bloc normatif de MASTER §12, 2 polices | design system |
 
 ### `13-jours-consecutifs-identiques` — à ne jamais supprimer
 
@@ -95,7 +141,15 @@ en vigueur est sans exception :
 ## Ce que cette suite ne couvre pas
 
 Elle ne remplace ni un contrôle humain au lecteur d'écran, ni un vrai téléphone à 360 px, ni une
-restauration de sauvegarde, ni HTTPS en production. Tant qu'aucun gabarit de thème n'affiche les
-statuts, tout ce qui se prouve sur une page rendue — utilisabilité sans JavaScript, parcours clavier,
-contrastes, bandeau de non-officialité affiché — reste hors d'atteinte, et n'est déclaré nulle part
-comme couvert.
+restauration de sauvegarde, ni HTTPS en production, ni un rendu à l'imprimante (aucun `print.css`
+n'existe encore).
+
+Ne sont pas couverts non plus, faute d'exister : la carte et son repli statique sans JavaScript,
+la couche EFFIS, l'indicateur Météo-France, le point d'accès JSON public, les pages « La démarche »,
+« Accessibilité » et « Mentions légales », et **tout le portail** — écran de mise à jour, journal
+d'audit, limitation des tentatives de connexion, double authentification. Ces lignes du §12 ne sont
+déclarées couvertes nulle part.
+
+Enfin, l'horloge du domaine n'est pilotée par aucun filtre : « hors saison » et « demain non publié »
+sont donc éprouvés en demandant explicitement un jour aux gabarits (`21-rendu-etats-hors-saison`),
+jamais sur la page d'accueil servie, qui suit l'horloge réelle du conteneur.
