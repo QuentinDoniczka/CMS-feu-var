@@ -33,4 +33,4 @@ done
 echo "Provisionnement (wp-cli)..."
 docker compose run --rm wpcli sh /provision/provision.sh
 
-echo "Stack prête : http://localhost:${WORDPRESS_PORT:-8080}/"
+echo "Stack prête : http://localhost:${WORDPRESS_PORT:-3002}/"

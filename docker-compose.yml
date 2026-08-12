@@ -51,9 +51,11 @@ services:
       # vers le serveur de la préfecture depuis une machine de dev est le genre
       # d'incident qui fait bannir notre IP et abîme la relation avec la source.
       WP_ENVIRONMENT_TYPE: local
-      # WP-Cron loopback cassé dans ce conteneur : `http://localhost:8080/wp-cron.php`
+      # WP-Cron loopback cassé dans ce conteneur : `http://localhost:<WORDPRESS_PORT>/wp-cron.php`
       # (l'URL de site, port hôte) n'est pas joignable depuis l'intérieur du
-      # conteneur (rien n'écoute sur 8080 en interne — Apache y écoute sur 80).
+      # conteneur (rien n'écoute sur ce port en interne — Apache y écoute sur
+      # 80). Vrai quel que soit le port hôte choisi (3002 par défaut, ou tout
+      # autre via .env) : ce n'est pas spécifique à un numéro de port.
       # Plutôt que de laisser WordPress tenter silencieusement et échouer à
       # chaque chargement de page, on coupe le déclenchement automatique
       # explicitement et on documente le déclenchement manuel dans
@@ -61,7 +63,12 @@ services:
       WORDPRESS_CONFIG_EXTRA: |
         define( 'DISABLE_WP_CRON', true );
     ports:
-      - "${WORDPRESS_PORT:-8080}:80"
+      # Port hôte canonique : 3002 par défaut (voir .env.example). C'est aussi
+      # l'adresse provisionnée en base (`siteurl`/`home`, voir
+      # docker/provision/provision.sh) — les deux doivent toujours bouger
+      # ensemble, jamais l'un sans l'autre (docker/README.md, « Changer de
+      # port »).
+      - "${WORDPRESS_PORT:-3002}:80"
     volumes:
       - massifs_wp_data:/var/www/html
       # Thème et extension : montés depuis le dépôt, jamais copiés dans l'image.
@@ -95,7 +102,7 @@ services:
       WORDPRESS_DB_NAME: ${DB_NAME:-massifs}
       WORDPRESS_DB_USER: ${DB_USER:-massifs}
       WORDPRESS_DB_PASSWORD: ${DB_PASSWORD:-massifs}
-      WORDPRESS_PORT: ${WORDPRESS_PORT:-8080}
+      WORDPRESS_PORT: ${WORDPRESS_PORT:-3002}
       WP_TITLE: ${WP_TITLE:-MASSIFS}
       WP_ADMIN_USER: ${WP_ADMIN_USER:-admin}
       WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD:-admin}

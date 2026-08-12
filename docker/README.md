@@ -8,14 +8,14 @@ copiés dans une image). Sert de socle pour `test-integration-cms`.
 
 | Service     | Rôle                                                                 | Port hôte (défaut) |
 |-------------|-----------------------------------------------------------------------|---------------------|
-| `wordpress` | PHP 8.3 + WordPress (Apache), thème et extension montés depuis le dépôt | `8080`              |
+| `wordpress` | PHP 8.3 + WordPress (Apache), thème et extension montés depuis le dépôt | `3002`              |
 | `db`        | MariaDB 11.4, données dans un volume nommé                            | `3306`              |
 | `wpcli`     | WP-CLI — installation, activation, rôles, fixtures (outil, pas un service persistant) | — |
 | `tiles`     | Source de tuiles locale (nginx statique), reversée en même origine sous `/tiles/` par `wordpress` | `8081` (accès direct, debug uniquement) |
 
 Les ports sont fixés dans `.env` (voir `.env.example`) : `WORDPRESS_PORT`,
-`TILES_PORT`, `DB_PORT`. Modifiez-les si ces ports sont déjà pris sur votre
-machine.
+`TILES_PORT`, `DB_PORT`. Le site est sur `http://localhost:3002/` par défaut
+— voir « Changer de port » ci-dessous si vous devez modifier `WORDPRESS_PORT`.
 
 ## Démarrer
 
@@ -29,7 +29,8 @@ construit et démarre `db`, `wordpress`, `tiles`, attend qu'ils soient
 **healthy** (pas de `sleep` à l'aveugle — poll actif sur l'état des
 healthchecks), puis lance le provisionnement WP-CLI.
 
-Le site est alors sur `http://localhost:8080/` (ou le port choisi dans `.env`).
+Le site est alors sur `http://localhost:3002/` (ou le port choisi dans `.env`,
+voir « Changer de port »).
 
 ## Arrêter
 
@@ -50,6 +51,43 @@ bash docker/reset.sh
 Supprime les volumes (`docker compose down -v` — base de données et fichiers
 WordPress perdus) puis relance `docker/up.sh` : repart d'un état strictement
 vierge.
+
+## Changer de port
+
+Si `3002` (port canonique du site, y compris `wp-admin`) est déjà pris sur
+votre machine, changez `WORDPRESS_PORT` dans `.env` — pas dans
+`docker-compose.yml`, qui ne fait que lire cette variable :
+
+```
+WORDPRESS_PORT=3010
+```
+
+Puis, selon l'état de la stack :
+
+- **Pas encore démarrée** : `bash docker/up.sh` suffit — le port publié et
+  `siteurl`/`home` en base sont alignés dès l'installation initiale.
+- **Déjà démarrée/provisionnée** (volume WordPress existant, éventuellement
+  installé avec un autre port) : republiez le port puis **rejouez le
+  provisionnement**, dans cet ordre :
+  ```bash
+  docker compose up -d
+  docker compose run --rm wpcli sh /provision/provision.sh
+  ```
+  Le script compare `siteurl` en base à `http://localhost:$WORDPRESS_PORT` et
+  le corrige si besoin (étape « Adresse du site (siteurl / home) »).
+  **Ne sautez pas le rejeu du provisionnement après un changement de port** :
+  sans lui, WordPress continue de répondre sur l'ancien port et une requête
+  sur le nouveau port est silencieusement redirigée dessus — panne apparente,
+  pas un vrai incident, mais qui trompe qui l'ignore. Aucune destruction de
+  volume n'est nécessaire : le rejeu suffit à faire retomber une stack déjà
+  provisionnée sur ses pieds, quel que soit le port avec lequel elle a été
+  installée à l'origine.
+
+Le port hôte publié (`docker-compose.yml`, piloté par `WORDPRESS_PORT`) et
+l'adresse provisionnée en base (`siteurl`/`home`) doivent toujours bouger
+ensemble — c'est précisément le rôle de l'étape « Adresse du site » du
+provisionnement de garantir ça, y compris rétroactivement sur une stack qui
+existait déjà avant un changement de port.
 
 ## Provisionner manuellement / rejouer le provisionnement
 
@@ -126,7 +164,7 @@ ponctuelle.
 Tous dans `.env` (copié depuis `.env.example`, jamais commité) :
 
 - **Administrateur WordPress** : `WP_ADMIN_USER` / `WP_ADMIN_PASSWORD` —
-  accès complet, `http://localhost:8080/wp-admin/`.
+  accès complet, `http://localhost:3002/wp-admin/`.
 - **Gestionnaire de démonstration** : `WP_MANAGER_USER` /
   `WP_MANAGER_PASSWORD` — rôle restreint, préfigure le compte de démo public
   du brief (§6).
@@ -144,7 +182,7 @@ Le service `tiles` sert des fichiers statiques depuis
 `docker/tiles/data/README.md`). Le conteneur `wordpress` reverse-proxifie
 `/tiles/` vers ce service (`docker/wordpress/tiles-proxy.conf`) : même en
 local, le navigateur n'a jamais besoin de contacter un domaine tiers pour le
-fond de carte, seulement `http://localhost:8080/tiles/...`. C'est
+fond de carte, seulement `http://localhost:3002/tiles/...`. C'est
 structurel — il n'y a pas de CDN de tuiles public configuré nulle part dans
 la stack.
 
@@ -188,12 +226,14 @@ section « Coupe-circuit et profil de test ».
 ### WP-Cron : désactivé délibérément, déclenchement manuel
 
 Le loopback WordPress (`http://<siteurl>/wp-cron.php`, appelé par
-`spawn_cron()` à chaque chargement de page) est **cassé dans cette stack** :
-le `siteurl` provisionné est `http://localhost:${WORDPRESS_PORT:-8080}`, un
-port publié côté hôte sur lequel rien n'écoute *à l'intérieur* du conteneur
-`wordpress` (Apache y écoute sur le port 80). Une requête vers
-`http://localhost:8080/...` lancée depuis l'intérieur du conteneur échoue
-donc en connexion refusée.
+`spawn_cron()` à chaque chargement de page) est **cassé dans cette stack**,
+quel que soit le port choisi : le `siteurl` provisionné est
+`http://localhost:${WORDPRESS_PORT:-3002}`, un port publié côté hôte sur
+lequel rien n'écoute *à l'intérieur* du conteneur `wordpress` (Apache y
+écoute sur le port 80). Une requête vers `http://localhost:$WORDPRESS_PORT/...`
+lancée depuis l'intérieur du conteneur échoue donc en connexion refusée —
+changer `WORDPRESS_PORT` ne résout pas ce point, il ne fait que déplacer le
+même problème sur un autre numéro de port.
 
 Plutôt que de laisser WordPress retenter silencieusement cet appel voué à
 l'échec à chaque page, `WORDPRESS_CONFIG_EXTRA` définit

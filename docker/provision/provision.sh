@@ -10,10 +10,12 @@ set -eu
 
 WP="wp --path=/var/www/html --allow-root"
 
+TARGET_URL="http://localhost:${WORDPRESS_PORT:-3002}"
+
 echo "==> Installation de WordPress"
 if ! $WP core is-installed 2>/dev/null; then
 	$WP core install \
-		--url="http://localhost:${WORDPRESS_PORT:-8080}" \
+		--url="$TARGET_URL" \
 		--title="${WP_TITLE:-MASSIFS}" \
 		--admin_user="${WP_ADMIN_USER:-admin}" \
 		--admin_password="${WP_ADMIN_PASSWORD:-admin}" \
@@ -23,6 +25,23 @@ if ! $WP core is-installed 2>/dev/null; then
 	echo "   WordPress installé."
 else
 	echo "   déjà installé, on continue."
+fi
+
+echo "==> Adresse du site (siteurl / home)"
+# `core install` ne fixe siteurl/home qu'à la création. Sur une stack déjà
+# provisionnée (volume existant), changer WORDPRESS_PORT dans .env ne les met
+# pas à jour tout seul — WordPress continuerait de répondre sur l'ancien port
+# et un accès au nouveau port serait redirigé vers l'ancien (panne apparente
+# pour qui ne connaît pas cette mécanique). On resynchronise donc les deux
+# options à chaque provisionnement, idempotent (aucun changement si déjà à
+# jour) : le port hôte publié et l'adresse en base bougent toujours ensemble.
+CURRENT_SITEURL="$($WP option get siteurl 2>/dev/null || true)"
+if [ "$CURRENT_SITEURL" != "$TARGET_URL" ]; then
+	$WP option update siteurl "$TARGET_URL"
+	$WP option update home "$TARGET_URL"
+	echo "   siteurl/home : '$CURRENT_SITEURL' -> '$TARGET_URL'."
+else
+	echo "   siteurl/home déjà à jour ($TARGET_URL)."
 fi
 
 echo "==> Locale fr_FR"
