@@ -3,11 +3,40 @@ Theme Name: Massifs
 Theme URI: https://github.com/QuentinDoniczka/CMS-feu-var
 Author: MASSIFS
 Author URI: https://github.com/QuentinDoniczka/CMS-feu-var
-Description: Thème sur mesure pour l'affichage de l'accès quotidien aux massifs forestiers des Bouches-du-Rhône. Squelette d'amorçage — le rendu réel est développé par les chaînes fonctionnelles dédiées (voir docs/BRIEF.md et CLAUDE.md).
-Version: 0.1.0
+Description: Thème sur mesure du site MASSIFS — présentation uniquement. Aucun constructeur de pages, aucun framework CSS générique, aucun theme.json : la structure et le CSS sont écrits à la main. Les statuts du jour sont rendus par PHP et lus auprès de l'extension massifs-core ; le thème n'interroge jamais une source externe et ne porte aucune règle métier. Voir docs/BRIEF.md, CLAUDE.md et design-system/MASTER.md.
+Version: 0.2.0
 Requires at least: 6.4
 Requires PHP: 8.1
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: massifs
 */
+
+/*
+ * Ce fichier ne porte AUCUNE règle CSS. Il est la feuille d'identité du thème,
+ * et il n'est pas enfilé : une requête HTTP pour zéro effet.
+ *
+ * Où vit le CSS :
+ *   assets/fonts/fonts.css  — les deux @font-face, et rien d'autre  (handle massifs-fonts)
+ *   assets/css/tokens.css   — les jetons du design system, §12 de MASTER.md (handle massifs-tokens)
+ *   assets/css/layout.css   — la structure du thème                 (handle massifs-layout)
+ * Aucune custom property n'est définie hors de tokens.css ; aucun @font-face
+ * hors de fonts.css.
+ *
+ * AUCUN theme.json dans ce thème. En poser un réarmerait la feuille inline
+ * « global-styles » du cœur, c'est-à-dire un second système de custom properties
+ * (--wp--preset--*) en concurrence avec le §12 de MASTER.md.
+ *
+ * get_header() et get_footer() sont INTERDITS dans ce thème. Ils chargeraient
+ * header.php et footer.php à la RACINE du thème, fichiers qui n'existent pas et
+ * ne doivent pas exister. L'inclusion passe par
+ * get_template_part( 'templates/header' ) et get_template_part( 'templates/footer' ).
+ *
+ * « Requires at least: 6.4 » est un plancher exact, pas un chiffre décoratif :
+ * wp_body_open() (5.2), valeur de retour de get_template_part() (5.5),
+ * container_aria_label de wp_nav_menu() (5.5), handle « classic-theme-styles »
+ * (6.1), wp_enqueue_emoji_styles() (6.4).
+ *
+ * Licence GPL v2 or later. Références : docs/BRIEF.md, CLAUDE.md,
+ * design-system/MASTER.md.
+ */

@@ -1,0 +1,527 @@
+@charset "UTF-8";
+/*
+ * MASSIFS — layout.css
+ * Feuille de structure du thème : réinitialisation minimale, typographie de
+ * base, bandes et gouttières, ardoise, chrome sombre, liens d'évitement,
+ * anneau de focus, repère (élément de signature).
+ *
+ * Dépend de assets/css/tokens.css (handle « massifs-tokens », chaîne #4).
+ *
+ * Règles de fabrication, vérifiables :
+ * - AUCUNE custom property n'est définie ici. Les valeurs vivent dans
+ *   tokens.css (design-system/MASTER.md §12) ; ce fichier ne fait que les
+ *   consommer. --repere-couleur est posée par les composants, pas par nous.
+ * - AUCUN littéral de couleur, d'espacement ni de durée. Les seules valeurs
+ *   nues sont les zéros, les mots-clés, et les trois mesures verbatim du
+ *   repère (MASTER §3.1, référence normative sans jeton au §12).
+ * - AUCUN url(), AUCUN @import : zéro requête vers un domaine tiers.
+ * - Aucune animation, aucune transition : rien à neutraliser sous
+ *   prefers-reduced-motion (tokens.css neutralise déjà les jetons de durée).
+ *
+ * Licence : GPL v2 or later.
+ */
+
+
+/* ═══ 1. Réinitialisation minimale ═══════════════════════════════════════ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Arbitrage A-22 (décision D-23 de la chaîne #4) : sans déclaration
+     explicite, un système en thème sombre fait assombrir d'office les
+     contrôles natifs par le navigateur, ce qui invalide les contrastes
+     mesurés au §10 de MASTER. Aucune palette sombre alternative n'existe. */
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  /* Garde-fou 360 px : une URL, un toponyme ou un code long ne pousse jamais
+     la mise en page hors du cadre. */
+  overflow-wrap: break-word;
+  /* Arbitrage A-22 : les deux familles sont variables et portent leurs poids
+     réels — aucun gras ni italique synthétisé par le navigateur. */
+  font-synthesis: none;
+}
+
+img,
+svg {
+  max-inline-size: 100%;
+}
+
+
+/* ═══ 2. Typographie de base et échelle de titres ════════════════════════ */
+
+body {
+  background-color: var(--c-calcaire);
+  color: var(--c-charbon);
+  font-family: var(--police-texte);
+  font-size: var(--fs-300);
+  font-weight: var(--poids-texte);
+  line-height: var(--lh-corps);
+}
+
+/* MASTER §5.1. Les titres sont écrits en casse normale dans le HTML et mis en
+   capitales ici : plusieurs lecteurs d'écran épellent un mot écrit tout en
+   capitales dans le balisage. La casse est donc une affaire de CSS.
+   h1 : MASTER demande un interligne 1,05 et une approche 0,005em, sans jeton
+   au §12 — arbitrage A-13, emploi des jetons voisins --lh-titre / --ls-titre.
+   h3 : MASTER demande un poids 600, qui contredit §5.1 lui-même (« la famille
+   de titrage n'a que deux poids en service, 700 et 800 ») et n'a pas de
+   jeton — arbitrage A-13, emploi de --poids-titre. h3 reste en casse normale :
+   les capitales ne s'appliquent qu'au-dessus de --fs-500. */
+h1,
+h2,
+h3 {
+  font-family: var(--police-titre);
+  font-weight: var(--poids-titre);
+  letter-spacing: var(--ls-titre);
+}
+
+h1 {
+  font-size: var(--fs-700);
+  line-height: var(--lh-titre);
+  text-transform: uppercase;
+}
+
+h2 {
+  font-size: var(--fs-600);
+  line-height: var(--lh-titre);
+  text-transform: uppercase;
+}
+
+h3 {
+  font-size: var(--fs-500);
+  line-height: var(--lh-sous);
+}
+
+/* Rythme du document. Les marges par défaut du navigateur sont remises à zéro
+   puis reposées depuis l'échelle d'espacement, dans un seul sens (bloc de
+   début) pour que deux marges ne se rencontrent jamais.
+   Toute la section est en :where() — spécificité nulle — pour qu'une feuille
+   de composant à venir n'ait jamais à surenchérir. */
+:where(h1, h2, h3, h4, p, ul, ol, dl, figure, blockquote) {
+  margin-block: 0;
+}
+
+:where(.bande__contenu, .pied__contenu) > * + * {
+  margin-block-start: var(--esp-l);
+}
+
+:where(.bande__contenu) > * + :where(h2, h3) {
+  margin-block-start: var(--esp-xl);
+}
+
+/* Mesure de ligne du corps éditorial (MASTER §5.1). */
+:where(.bande__contenu) > p {
+  max-inline-size: var(--mesure);
+}
+
+/* MASTER §9.2 : les liens de contenu sont soulignés en permanence.
+   L'offset 0,18em et l'épaisseur 1,5 px de §9.2 n'ont pas de jeton au §12 —
+   arbitrage A-13, ils ne sont pas écrits. */
+a {
+  color: var(--c-mistral);
+  text-decoration-line: underline;
+}
+
+
+/* ═══ 3. Bandes, gouttières et chrome ════════════════════════════════════ */
+
+/* Le plein cadre sans --sortie-cadre (jeton nommé au §6.1 de MASTER mais
+   absent de la liste normative du §12, donc inexistant) : c'est la BANDE qui
+   est pleine largeur et le CONTENU qui est bridé, jamais l'inverse. Une bande
+   qui n'émet pas de .bande__contenu touche les deux bords à toutes les
+   tailles — sans une seule marge négative, et sans qu'un futur
+   « overflow: hidden » posé sur un ancêtre puisse casser la règle. */
+.bande {
+  inline-size: 100%;
+}
+
+.bande__contenu {
+  max-inline-size: var(--largeur-max);
+  margin-inline: auto;
+  padding-inline: var(--gouttiere);
+  padding-block: var(--esp-section);
+}
+
+/* La bande carte n'émet PAS de .bande__contenu : elle est plein cadre par
+   construction, et aucune hauteur ne lui est imposée ici (elle appartient à la
+   chaîne « carte »).
+   MASTER §6.3 encadre la carte de --bord-fort en haut et en bas. Le cadre est
+   conditionné à la présence d'un enfant réel : sur la bande encore vide de
+   l'issue #5, deux filets de 4 px se toucheraient et dessineraient un trait
+   noir sans objet au milieu de la page. Le cadre apparaît de lui-même le jour
+   où la carte est posée, sans modification de cette feuille. */
+.bande--carte:has(*) {
+  border-block: var(--bord-fort);
+}
+
+/* Bandeau de non-officialité (MASTER §7.1) : slab --c-calcaire-ombre,
+   --bord-fort en haut, bande fine — donc un rythme vertical plus court que
+   celui d'une section. Encre laissée en --c-charbon : 12,80:1 sur
+   calcaire-ombre. La classe est confirmée par dev-front-cms ; on la préfère à
+   l'identifiant d'ancrage, dont la spécificité écraserait toute feuille de
+   composant à venir. */
+.bande--non-officialite {
+  background-color: var(--c-calcaire-ombre);
+  border-block-start: var(--bord-fort);
+  font-size: var(--fs-200);
+}
+
+.bande--non-officialite > .bande__contenu {
+  padding-block: var(--esp-m);
+}
+
+
+/* L'ardoise (MASTER §8.2). Le chiffre du jour n'est émis que dans l'état
+   « disponible » (arbitrage A-5 : le mot « INDISPONIBLE » n'est pas rendu) ;
+   la pile reste donc correcte quand son premier bloc n'existe pas, et
+   .ardoise__texte est toujours présent. */
+.ardoise__chiffre {
+  font-family: var(--police-titre);
+  line-height: var(--lh-affiche);
+  letter-spacing: var(--ls-affiche);
+  /* Inerte sur la police de titrage (voir la réserve de largeur ci-dessous),
+     mais actif sur le repli système — réellement servi au premier affichage à
+     cause de « font-display: optional » (D-22) — qui, lui, expose « tnum ». */
+  font-variant-numeric: tabular-nums;
+}
+
+/* MASTER §8.2 : la largeur en ligne du chiffre est RÉSERVÉE. « tabular-nums »
+   serait un no-op — Big Shoulders Display n'expose pas « tnum », et au poids
+   800 le « 1 » avance de 511 unités contre 961 pour le « 5 ». La réserve de
+   deux caractères couvre tout le référentiel (25 massifs) et suit la police
+   réellement employée, repli système compris. §8.2 délègue explicitement la
+   technique aux chaînes d'intégration en citant « ch de réserve » ; seul le
+   résultat est normatif : rien ne bouge autour du chiffre. */
+.ardoise__chiffre-valeur {
+  display: inline-block;
+  min-inline-size: 2ch;
+  text-align: end;
+  font-size: var(--fs-800);
+  font-weight: var(--poids-affiche);
+}
+
+/* Le dénominateur reste sur la ligne de base basse du chiffre. */
+.ardoise__chiffre-total {
+  font-size: var(--fs-500);
+  font-weight: var(--poids-titre);
+}
+
+.ardoise__texte > * + * {
+  margin-block-start: var(--esp-s);
+}
+
+/* Le h1 peut porter un lien (état indisponible : fin de la phrase §11.3).
+   MASTER §5.1 interdit « titre en --c-mistral » et « titre souligné », mais
+   WCAG 1.4.1 interdit de distinguer un lien par la seule couleur. Compromis :
+   la couleur du titre est conservée (calcaire sur mistral-nuit, 12,66:1) et le
+   soulignement reste le seul indice — non chromatique. Écart signalé. */
+.ardoise__titre a {
+  color: inherit;
+}
+
+/* Méta de l'ardoise : MASTER §8.2 la met en mistral-clair et §5.1 donne
+   --fs-200 à la fraîcheur. */
+.ardoise__fraicheur {
+  font-size: var(--fs-200);
+  line-height: var(--lh-dense);
+}
+
+/* La teinte est portée par .sur-sombre, jamais par .ardoise__fraicheur seule :
+   --c-mistral-clair vaut 7,73:1 sur --c-mistral-nuit mais 1,64:1 sur fond
+   clair, où MASTER §4.2 l'INTERDIT. Ainsi, si l'ardoise perdait un jour son
+   chrome sombre, la ligne retomberait sur le --c-charbon hérité (14,74:1) au
+   lieu de devenir illisible. Le repli est sûr par construction. */
+.sur-sombre .ardoise__fraicheur {
+  color: var(--c-mistral-clair);
+}
+
+/* MASTER §8.3 : la péremption S'AJOUTE aux statuts, elle ne les remplace ni ne
+   les masque — le chiffre, le titre et la ligne de fraîcheur restent intacts
+   au-dessus d'elle. Elle se détache par le corps et par le poids, jamais par la
+   teinte : aucune couleur n'est posée ici, la phrase hérite du --c-calcaire du
+   chrome (12,66:1), comme le titre. Le sens est porté par son premier mot,
+   « Donnée périmée. », écrit par le gabarit — ni couleur, ni icône (§2.1).
+   Le bandeau d'alerte complet du §8.3 n'appartient pas à cette feuille. */
+.ardoise__peremption {
+  font-weight: var(--poids-texte-fort);
+}
+
+/* Barre haute et pied : ce sont des bandes pleine largeur (elles portent le
+   chrome sombre) dont le contenu est bridé par une enveloppe intérieure, sur
+   le même modèle que .bande__contenu. Sans elle, le nom du site se collait au
+   bord de la fenêtre au-dessus de 1280 px pendant que tout le reste de la page
+   était aligné sur --largeur-max. Aucune largeur fixe, aucun min-width en px. */
+.barre__contenu,
+.pied__contenu {
+  max-inline-size: var(--largeur-max);
+  margin-inline: auto;
+  padding-inline: var(--gouttiere);
+}
+
+/* Aucune hauteur fixe de barre : MASTER §7.1 en dessine une de 48 px, sans
+   jeton au §12 (arbitrage A-13). La hauteur vient du plancher de cible de ses
+   liens. */
+.barre__contenu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: var(--esp-l);
+  row-gap: var(--esp-s);
+}
+
+/* Cause n° 1 de défilement horizontal : la valeur « auto » par défaut de la
+   taille minimale d'un élément de grille ou de flex. */
+.barre__contenu > * {
+  min-inline-size: 0;
+}
+
+.barre__nom,
+.barre__liens {
+  font-size: var(--fs-200);
+  line-height: var(--lh-dense);
+}
+
+.barre__liens,
+.pied__liens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-xs) var(--esp-l);
+  margin-block: 0;
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+/* Cibles ≥ 44 px obtenues par du remplissage, jamais par une hauteur fixe.
+   Les liens de menu seulement : un lien au fil d'une phrase reste en flux (il
+   doit pouvoir se couper en fin de ligne, et l'exception « en ligne » de WCAG
+   2.5.8 s'y applique). */
+.barre__nom a,
+.barre__liens a,
+.pied__liens a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--cible-min);
+  padding-block: var(--esp-s);
+}
+
+.pied {
+  font-size: var(--fs-100);
+  line-height: var(--lh-dense);
+}
+
+.pied__contenu {
+  padding-block: var(--esp-xl);
+}
+
+.pied__attribution {
+  max-inline-size: var(--mesure);
+}
+
+
+/* ═══ 4. Chrome sombre ═══════════════════════════════════════════════════ */
+
+/* MASTER §4.2 : calcaire sur mistral-nuit 12,66:1 ; mistral-clair sur
+   mistral-nuit 7,73:1. tokens.css bascule déjà, sous cette même classe, le
+   liseré et les encres de motif des statuts. */
+.sur-sombre {
+  background-color: var(--c-mistral-nuit);
+  color: var(--c-calcaire);
+}
+
+.sur-sombre a {
+  color: var(--c-mistral-clair);
+}
+
+
+/* ═══ 5. Liens d'évitement ═══════════════════════════════════════════════ */
+
+/* MASTER §9.3 : cachés hors focus, visibles au focus en haut à gauche, fond
+   mistral-nuit, texte calcaire. Positionnement absolu, jamais fixed (§7.1
+   réserve le fixed à la feuille du bas et à la barre d'action du portail).
+   Ils restent dans l'ordre du document et dans l'arbre d'accessibilité : ils
+   sont déplacés hors cadre, jamais masqués. */
+.lien-evitement {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: var(--z-evitement);
+  transform: translateY(-100%);
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--cible-min);
+  padding-block: var(--esp-s);
+  padding-inline: var(--esp-m);
+  background-color: var(--c-mistral-nuit);
+  color: var(--c-calcaire);
+  font-size: var(--fs-200);
+  line-height: var(--lh-dense);
+  text-decoration-line: underline;
+}
+
+/* :focus et non :focus-visible — un lien d'évitement doit apparaître quelle que
+   soit la manière dont le focus lui est arrivé. Le décalage d'un cran vers
+   l'intérieur laisse la place à l'anneau, qui serait sinon rogné par les bords
+   de la fenêtre. L'anneau est posé ici en variante inverse : le lien est sur
+   fond mistral-nuit, où --focus-trait serait invisible (1:1). */
+.lien-evitement:focus {
+  inset-block-start: var(--esp-xs);
+  inset-inline-start: var(--esp-xs);
+  transform: none;
+  outline: var(--focus-epaisseur) solid var(--focus-trait-inverse);
+  outline-offset: var(--focus-ecart);
+  box-shadow: 0 0 0 var(--focus-halo-epaisseur) var(--c-mistral);
+}
+
+
+/* ═══ 6. Anneau de focus (MASTER §9.1) ═══════════════════════════════════ */
+
+/* Spécification unique, reproduite avec les jetons du §12. Jamais
+   « outline: none » sans remplacement. Le halo est un confort visuel : c'est
+   le trait qui porte le contraste (§10.5). Mesuré : mistral-nuit sur calcaire
+   12,66:1, sur calcaire-ombre 10,99:1 ; calcaire sur mistral-nuit 12,66:1. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--focus-epaisseur) solid var(--focus-trait);
+  outline-offset: var(--focus-ecart);
+  box-shadow: 0 0 0 var(--focus-halo-epaisseur) var(--focus-halo);
+}
+
+.sur-sombre :focus-visible {
+  outline-color: var(--focus-trait-inverse);
+  box-shadow: 0 0 0 var(--focus-halo-epaisseur) var(--c-mistral);
+}
+
+
+/* ═══ 7. Le repère — élément de signature (MASTER §3.1) ══════════════════ */
+
+/* Implémentation normative, reproduite verbatim. Là où le §12 fournit un
+   jeton, c'est le jeton qui est employé ; les trois mesures restantes
+   (0.14em, 0.86em, 20px) n'ont aucun jeton et sont celles du §3.1 —
+   arbitrage A-13 : on ne crée pas de jeton, on reproduit la référence.
+   Le repère ne porte aucune information (§3.4) : il est décoratif, et sa
+   disparition ne retire rien. Il n'est jamais animé. */
+.repere {
+  position: relative;
+  /* MASTER §3.4 : retrait réduit à 360 px (8 px de barre + 3 px de décalage
+     tiennent dans 16 px). Il repasse à --esp-l à partir de --bp-s. */
+  padding-inline-start: var(--esp-m);
+}
+
+.repere::before,
+.repere::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 0.14em;   /* aligné sur la hauteur de capitale */
+  inline-size: var(--repere-largeur);
+  block-size: 0.86em;
+  min-block-size: 20px;
+}
+
+/* La trace : l'ancienne peinture. */
+.repere::before {
+  transform: translate(var(--repere-decalage-x), var(--repere-decalage-y));
+  background-color: var(--c-trace);
+}
+
+/* Le repère : la peinture du jour. */
+.repere::after {
+  background-color: var(--repere-couleur, var(--c-mistral-nuit));
+}
+
+/* Variante longue : bord gauche d'un panneau ou d'un bandeau. */
+.repere--bloc::before,
+.repere--bloc::after {
+  inset-block-start: 0;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+/* Variante inversée sur chrome sombre. MASTER §3.1 n'écrit que le sélecteur
+   descendant ; or le bandeau d'alerte porte .sur-sombre ET .repere sur le MÊME
+   élément (templates/parts/etats-vides.php ligne 153), cas qu'un descendant ne
+   peut pas atteindre — le repère y serait mistral-nuit sur mistral-nuit, donc
+   invisible, à l'emplacement n° 6 de la liste fermée du §3.2. Le cas
+   auto-porté est ajouté ; aucune valeur du §3.1 n'est modifiée. */
+.sur-sombre .repere::before,
+.repere.sur-sombre::before {
+  background-color: var(--c-mistral);
+}
+
+.sur-sombre .repere::after,
+.repere.sur-sombre::after {
+  background-color: var(--c-calcaire);
+}
+
+/* MASTER §3.4 : en couleurs forcées, les deux peintures survivent en couleurs
+   système. Ce sont des mots-clés, pas des littéraux de couleur. */
+@media (forced-colors: active) {
+  .repere::after {
+    background-color: CanvasText;
+  }
+
+  .repere::before {
+    background-color: GrayText;
+  }
+}
+
+
+/* ═══ 8. Points de rupture (MASTER §7.1) ═════════════════════════════════ */
+
+/* Deux requêtes, en rem, mobile-first. Les valeurs sont recopiées de --bp-s et
+   --bp-m : @media n'accepte pas var(), et le §12 le prévoit explicitement.
+   La gouttière, elle, bascule toute seule — tokens.css redéfinit --gouttiere
+   au même point de rupture, il n'y a rien à dupliquer ici. */
+
+/* --bp-s : 37.5rem (600 px) */
+@media (min-width: 37.5rem) {
+  .repere {
+    padding-inline-start: var(--esp-l);
+  }
+}
+
+/* --bp-m : 56.25rem (900 px) */
+@media (min-width: 56.25rem) {
+  /* MASTER §6.1 : --esp-4xl est la respiration de l'ardoise. En dessous de ce
+     point, --esp-section suffit et garde la page courte sur mobile. */
+  .bande--ardoise .bande__contenu {
+    padding-block: var(--esp-4xl);
+  }
+
+  /* Ardoise en deux colonnes : le chiffre, puis le texte. Une rangée flex, et
+     non une grille à deux pistes, parce que .ardoise__chiffre n'est pas émis
+     hors de l'état « disponible » : la rangée se réduit alors d'elle-même à sa
+     seule colonne de texte, sans piste vide ni gouttière orpheline.
+     Aucun align-items n'est posé : l'étirement par défaut fait courir le repère
+     --bloc du chiffre sur toute la hauteur de la rangée, soit « pleine hauteur,
+     à gauche du slab » (MASTER §3.2, emplacement n° 1 de la liste fermée).
+     Centrer les colonnes rabattrait la signature à la hauteur du seul chiffre. */
+  .ardoise {
+    display: flex;
+    gap: var(--esp-l);
+  }
+
+  /* Le rythme vertical de bande ne s'applique plus en rangée : il décalerait le
+     texte vers le bas au lieu de l'aligner sur le chiffre. */
+  .ardoise > * + * {
+    margin-block-start: 0;
+  }
+
+  .ardoise__texte {
+    flex: 1 1 0;
+    min-inline-size: 0;
+  }
+}
+
+/* Au-delà de --bp-l (80rem), aucune requête média n'est nécessaire :
+   max-inline-size: var(--largeur-max) produit le même effet, et la bande carte
+   reste plein cadre par construction. */
