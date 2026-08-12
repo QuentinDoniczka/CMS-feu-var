@@ -134,6 +134,8 @@ Tout le reste (bibliothèque cartographique, format des fonds de carte, outillag
 
 ## 7. Design — direction « atelier », pas « template »
 
+Le destinataire du rendu est un **décideur communal** — l'élu ou le directeur général des services qui évalue une offre (§1, §6). Il borne le registre du rendu, jamais son ancrage : celui décrit à la puce « Ancrage dans le sujet » reste entier.
+
 - **Processus attendu** : un plan de design d'abord (palette nommée, deux familles typographiques libres et auto-hébergées — une de caractère pour les titres, une de labeur pour le texte —, concept de mise en page, **un élément signature unique**), autocritique ensuite (tout choix qui ressemble à ce qu'on produirait pour n'importe quel site carto est refait), intégration enfin. Le plan de design est un livrable (§11).
 - **Ancrage dans le sujet** : la garrigue, le calcaire, le pin, le mistral, la signalétique de sentier (balisage peint, panneaux DFCI). La palette et l'iconographie viennent de là, pas d'un nuancier générique. Éviter les tells « design IA » (crème + serif + terracotta ; noir + accent acide ; look journal à filets fins) sauf choix délibéré et justifié.
 - **La carte est le héros** : elle ouvre la page ; le reste est discipliné et silencieux autour. Une seule audace, tenue partout.

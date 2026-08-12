@@ -18,7 +18,7 @@ Elles conditionnent chaque décision technique. Un agent qui en viole une doit s
 | 1 | **WordPress, thème sur mesure + extension dédiée** | Aucun page builder, aucun thème tiers/par défaut, aucun framework CSS générique (Bootstrap, Tailwind…). CSS écrit à la main. |
 | 2 | **Zéro requête navigateur vers un domaine tiers** | Tuiles OSM, polices, JS carto, images : tout auto-hébergé. Sources externes (préfecture, Météo-France, EFFIS) consommées **côté serveur** via cron, mises en cache, re-servies depuis notre domaine. |
 | 3 | **Site utilisable JavaScript désactivé** | Les statuts sont dans le HTML rendu par PHP. La carte est un enrichissement progressif, jamais un prérequis. |
-| 4 | **Rendu « atelier », jamais « template »** | Le design suit `design-system/MASTER.md` produit par `lead-design-massifs` : palette nommée ancrée garrigue/calcaire/pin/DFCI, 2 familles typo auto-hébergées, un élément signature. |
+| 4 | **Rendu « atelier », jamais « template »** | Le design suit `design-system/MASTER.md` produit par `lead-design-massifs` : palette nommée ancrée garrigue/calcaire/pin/DFCI, 2 familles typo auto-hébergées, un élément signature. **Registre borné par la négative** : jamais ludique, jamais « produit grand public », jamais registre marketing ou landing page — le rendu vise un **décideur communal** (l'élu ou le directeur général des services qui évalue une offre), ce qui n'autorise ni thème acheté, ni kit UI, ni esthétique « template institutionnel » ; l'ancrage garrigue/calcaire/pin/DFCI du §7 du brief reste entier. |
 
 Deux règles transverses de même niveau :
 

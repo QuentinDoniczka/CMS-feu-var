@@ -1,6 +1,6 @@
 # MASSIFS — Design System
 
-**Version 2.1** · **Date** 12 août 2026 · **Auteur** `lead-design-cms`
+**Version 2.2** · **Date** 12 août 2026 · **Auteur** `lead-design-cms`
 **Statut** source de vérité visuelle. Tout travail d'intégration (`dev-ux-cms`, `dev-front-cms`) et toute
 relecture (`review-cms`) s'y réfèrent. Livrable §11 du brief (« plan de design »).
 
@@ -16,6 +16,7 @@ relecture (`review-cms`) s'y réfèrent. Livrable §11 du brief (« plan de desi
 | 1.0 | 11 août 2026 | Première édition. Légende officielle **inconnue** : 5 niveaux gradués **substituts**, marqués `À CONFIRMER`, accompagnés de 8 questions bloquantes. | Bootstrap |
 | **2.0** | 11 août 2026 | **La légende officielle est établie.** Les 5 niveaux substituts sont **supprimés** et remplacés par les **2 états d'accès réels** + la **dimension ZAPEF** + 3 états hors niveau. Sections refaites : §2.1, §4.1, §4.2, §7.1, §8.1, §8.2, §8.5 (nouveau), §9.1, §10 (preuve d'accessibilité, refaite intégralement), §11.2, §12, §13, §14 (passe 2 bis), §15 (D-11 à D-19), §16. Les 8 questions du §4.1 v1.0 sont **répondues sauf deux**, conservées et re-marquées `OUVERT`. | `docs/decisions/source-prefecture.md` §4 (chaîne #1) et `docs/contracts/issue-3.md` révision 2 |
 | **2.1** | 12 août 2026 | **Révision d'artefacts — par ajout et correction ciblée, jamais par réécriture.** Les polices sont vendorisées (`latin` seul, D-20), avec `tokens.css`, `fonts.css` (D-21), les deux licences OFL et `PROVENANCE.md`. **§5** : les deux `OUVERT` typographiques sont **clos** (variable d'Atkinson confirmée sous OFL 1.1, repli `Public Sans` retiré ; capitales accentuées vérifiées), sous-ensemble corrigé en `latin`, **`size-adjust` retiré** au profit de `font-display: optional` + preload (D-22), repli `Arial Narrow` documenté comme absent d'Android/ChromeOS/Linux. **§8.2** : la promesse `tabular-nums` est corrigée — `tnum` absent de la police de titrage, largeur du chiffre désormais **réservée**. **§10.5** : six corrections mesurées, **aucun verdict ne bascule**. Ajouts : **§4.1.d règle 8** (ordre des couches), **§10.7** (paires non mesurées), **§10.8** (`forced-colors` reporté aux chaînes d'intégration), **§14.3** (passe 2 ter, motifs de mise en page et d'interaction), **dix lignes au §16**, **D-20 à D-25**. **Le §12 n'est pas touché — aucun jeton renommé, aucune valeur de couleur modifiée, aucune section réécrite.** | `docs/contracts/issue-4.md` (chaîne #4), arbitrages A-1 à A-6 |
+| **2.2** | 12 août 2026 | **Cible de réception consignée, compte corrigé, parti typographique levé — par correction ciblée, jamais par réécriture.** (a) Le **destinataire du rendu** est désormais écrit : un **décideur communal**, l'élu ou le directeur général des services qui évalue une offre (§7 du brief, `CLAUDE.md` n°4). (b) **Le compte de massifs passe de 27 à 25** — §1, §3.3, §7.1, §7.2, §8.2, §11.1, §14.3 — **y compris dans les sections d'archive §14.2 et §15 D-19**. Le référentiel réglementaire porte **25** massifs ; les **27** identifiants sont ceux du **flux préfectoral**, et les deux affirmations ne doivent jamais être confondues. Les archives sont corrigées parce qu'**une correction de compte n'est pas une réécriture de décision** : D-19 a décidé « une frise, une marque par massif », et cette décision reste vraie — seul le cardinal était faux. La correction est **déclarée ici**, non faite en silence. Au passage, deux citations apocryphes du §6 du brief (§7.2, §14.3 entrée 4) sont **recoupées sur ses mots réels**, le compte sortant des guillemets. (c) Le **renoncement aux capitales condensées sur `h1`/`h2`** est consigné en **D-26** ; **son application normative — §5.1, §7.3, §14.3 entrée 5 (b), §16 — appartient à l'issue #23**, et jusque-là ces sections restent en vigueur. (d) Quatre « 17 h » passent en **espace insécable** (§7.1, §11.1 règles 1 et 6, §11.3), le document se conformant enfin à sa propre règle 6 ; **aucun fichier de gabarit n'est touché — le code portait déjà l'insécable.** **Le §12 n'est pas touché — aucun jeton renommé, aucune valeur modifiée, aucune section réécrite.** | `docs/contracts/issue-21.md` (chaîne #21), arbitrages A-1 à A-6 |
 
 **Ce que la v1.0 avait raison de faire, et qui est conservé sans changement** : le pari du fond de carte
 monochrome (§1), la signature « le repère » (§3), les deux familles typographiques et le budget de 2
@@ -49,7 +50,7 @@ Tout le système en découle.
 **Ce que la légende binaire change, et c'est un gain** : avec **deux** aplats seulement, la carte devient
 lisible **à quatre mètres**. Ce n'est plus une carte à déchiffrer, c'est une réponse. La complexité
 libérée par la disparition de 3 crans inventés est réinvestie **dans la lisibilité de loin** — aplats
-opaques, liseré épais, hachure grossière, un chiffre géant, une frise de 27 marques (§8.2) — et
+opaques, liseré épais, hachure grossière, un chiffre géant, une frise de 25 marques (§8.2) — et
 **nulle part ailleurs**. Aucun ornement n'a été ajouté par cette révision.
 
 ---
@@ -206,7 +207,7 @@ signature dans un objet trop petit pour la porter. La discipline l'emporte sur l
 - Sur les `h3`, `h4` (la hiérarchie basse se fait à la taille et à la casse).
 - Sur les boutons, les champs de formulaire, les liens.
 - Dans le pied de page, sur les logos, en filet décoratif horizontal.
-- **Sur les jalons ZAPEF** et sur les 27 marques de la frise (§8.2) — trop petits, trop nombreux.
+- **Sur les jalons ZAPEF** et sur les 25 marques de la frise (§8.2) — trop petits, trop nombreux.
 - **Plus d'une fois par bloc visuel** : deux repères adjacents cassent la métaphore (on ne repeint pas deux
   fois la même balise). Si deux candidats coexistent, le plus proche de l'information de statut gagne.
 - **Jamais animé.** La peinture ne bouge pas.
@@ -582,11 +583,11 @@ Composition en **bandes horizontales pleine largeur** (strates calcaires), de ha
 ├────────────────────────────────────────────────────────────┤
 │ ▌                                                          │
 │ ▌ L'ARDOISE   mistral-nuit, pleine largeur, ~34vh          │
-│ ▌  ┌────────┐  AUJOURD'HUI, 12 MASSIFS SUR 27              │
+│ ▌  ┌────────┐  AUJOURD'HUI, 12 MASSIFS SUR 25              │
 │ ▌  │   12   │  SONT D'ACCÈS AUTORISÉ.        (fs-700, caps)│
-│ ▌  │ /27    │  Statuts du mardi 11 août 2026, publiés la   │
-│ ▌  └────────┘  veille à 17 h par la préfecture             │
-│ ▌  ▪▪▪▪▪▨▨▪▪▪▨▨▨▪▪▪▪▨▨▪▪▪▪▨▨   ← LA FRISE, 27 marques      │
+│ ▌  │ /25    │  Statuts du mardi 11 août 2026, publiés la   │
+│ ▌  └────────┘  veille à 17 h par la préfecture             │
+│ ▌  ▪▪▪▪▪▨▨▪▪▪▨▨▨▪▪▪▪▨▨▪▪▪▪▨▨   ← LA FRISE, 25 marques      │
 │ ▲ le repère, version bloc, pleine hauteur                  │
 ├────────────────────────────────────────────────────────────┤
 │ NON-OFFICIALITÉ  calcaire-ombre · bord-fort en haut · fs-200│
@@ -666,10 +667,10 @@ Même système, chrome plus dense — c'est un outil, pas une vitrine, mais il d
   = liseré 4 px `--c-mistral-nuit` + repère à gauche. Navigation clavier par flèches (rôle `radiogroup`),
   `Tab` passe à la ligne suivante.
 - **Conséquence directe de la légende binaire** : deux cibles au lieu de cinq divisent par deux et demi le
-  temps de saisie d'une ligne. L'objectif « moins d'une minute pour 27 massifs » du §6 du brief devient
-  atteignable **sans raccourci de masse**. Un bouton « tout autoriser / tout interdire » reste néanmoins
-  offert au-dessus du tableau, car les journées où les 27 massifs partagent le même état sont le cas
-  nominal observé.
+  temps de saisie d'une ligne. L'objectif « mise à jour complète en moins d'une minute » (§6 du brief)
+  pour les 25 massifs devient atteignable **sans raccourci de masse**. Un bouton « tout autoriser / tout
+  interdire » reste néanmoins offert au-dessus du tableau, car les journées où les 25 massifs partagent
+  le même état sont le cas nominal observé.
 - **Barre d'action collée en bas**, `--c-mistral-nuit`, repère sur son bord gauche : compteur « 7 statuts
   modifiés » + bouton unique **« Publier les statuts »**. Aucune étape intermédiaire, aucune modale de
   confirmation *avant*, une confirmation *après* (annoncée en `aria-live="polite"`).
@@ -799,13 +800,13 @@ panneau massif, dans la liste du jour et dans la légende. Le jalon décrit ici 
   technique de mise en page (largeur fixe, grille, `ch` de réserve…) appartient aux chaînes d'intégration ;
   ce qui est normatif ici, c'est le résultat : **rien ne bouge autour du chiffre.**
   *(La police de labeur, elle, expose bien `tnum` : `tabular-nums` reste légitime dans les tableaux.)*
-- Le dénominateur (« /27 ») est en `--fs-500`, aligné sur la ligne de base basse du chiffre.
+- Le dénominateur (« /25 ») est en `--fs-500`, aligné sur la ligne de base basse du chiffre.
 - Repère version `--bloc` sur toute la hauteur du slab, à gauche : `::after` `--c-calcaire`, `::before`
   `--c-mistral`.
 
 **La frise — ce que la légende binaire permet et qu'une échelle à 5 crans interdisait.**
 
-Une rangée de **27 marques** — une par massif, dans l'ordre exact de la liste du jour — chacune étant la
+Une rangée de **25 marques** — une par massif, dans l'ordre exact de la liste du jour — chacune étant la
 pastille du §8.1 réduite à 14 × 10 px, `--esp-2xs` de gouttière. Sur un dispositif binaire, cette rangée
 donne **la forme de la journée en un coup d'œil**, à quatre mètres, sans lire un mot : un bloc
 majoritairement nu = journée ouverte ; un bloc majoritairement hachuré = journée fermée.
@@ -1237,16 +1238,16 @@ qui garantit que même un motif perdu ne rend aucun statut ambigu. À contrôler
 
 ### 11.1 Règles de voix
 
-1. **Voix active, sujet explicite.** « La préfecture publie les statuts vers 17 h », pas « les statuts sont publiés ».
+1. **Voix active, sujet explicite.** « La préfecture publie les statuts vers 17 h », pas « les statuts sont publiés ».
 2. **Le libellé nomme l'action**, jamais son mécanisme : « Publier les statuts », « Afficher les zones
    parcourues par le feu », « Fermer le panneau ». Interdits : « Valider », « OK », « Soumettre », « En savoir plus ».
 3. **Les erreurs disent quoi faire, sans s'excuser.** « Choisissez un niveau pour chaque massif modifié. »
    Interdits : « Oups », « Désolé », « Une erreur est survenue ».
 4. **Aucune promesse d'officialité.** Le site « relaie », « reprend », « d'après » — il ne « garantit » jamais.
 5. **Aucun superlatif, aucune exclamation, aucun emoji, aucune icône seule** porteuse de sens.
-6. **Dates et heures en français long** : « mardi 11 août 2026 », « 17 h 00 » (espace insécable, pas de `:`).
+6. **Dates et heures en français long** : « mardi 11 août 2026 », « 17 h 00 » (espace insécable, pas de `:`).
    Le thème ne compose **jamais** une date lui-même : il consomme `massifs_horodatage()`.
-7. **Chiffres écrits en chiffres** dès qu'ils sont des données (« 12 massifs sur 27 »).
+7. **Chiffres écrits en chiffres** dès qu'ils sont des données (« 12 massifs sur 25 »).
 8. **[v2.0] Les libellés officiels sont reproduits mot pour mot, jamais paraphrasés, jamais corrigés,
    jamais abrégés.** Ni « Autorisé » seul, ni « Massif ouvert », ni « Accès autorisé » sans « au massif ».
    Les incohérences de la source sont conservées (§11.4). Une paraphrase d'un libellé officiel est un
@@ -1284,7 +1285,7 @@ l'écran reproduit la formulation de la carte.
   ce site le {date} à {heure}. »
 - Indisponible : « Information du jour non disponible. Consultez la carte officielle de la préfecture. »
 - Hors saison : « Dispositif estival inactif. Reprise le {date}. »
-- Non encore publié : « Les statuts de demain ne sont pas encore publiés. La préfecture publie vers 17 h. »
+- Non encore publié : « Les statuts de demain ne sont pas encore publiés. La préfecture publie vers 17 h. »
 - Consigne absente (§8.4) : « Cette carte ne publie pas de consigne détaillée. L'arrêté préfectoral en
   vigueur fait foi : [lien]. »
 - EFFIS : « Périmètres estimés par satellite (feux d'environ 30 ha et plus). Zone déjà parcourue par le
@@ -1598,8 +1599,8 @@ décoration ?*
 | Décision v2.0 | Question posée | Verdict | Ce qui a été fait |
 |---|---|---|---|
 | **Reproduire `#22B14C` / `#E63A3C` sans les retoucher** | Un designer ne devrait-il pas « corriger » ces teintes criardes ? | **Non — et la tentation était forte.** Ce vert et ce rouge sont typiques d'un nuancier logiciel des années 2000, pas d'un choix chromatique. Les désaturer aurait « embelli » la carte. | **Reproduits à l'identique.** §4.2 du brief. Ce ne sont pas mes couleurs, et le seul endroit du site où je n'ai pas le droit de dessiner est précisément celui qui compte. La palette du site, elle, est entièrement mienne — et c'est son écart minéral avec ces deux teintes qui les fait exister. |
-| **Deux états au lieu de cinq** | Est-ce un appauvrissement visuel ? | **Non — c'est le contraire.** Cinq aplats sur une carte donnent une mosaïque à déchiffrer ; deux donnent une réponse lisible à quatre mètres. | Complexité libérée **réinvestie dans la lisibilité de loin** : aplats opaques, liseré 2 px, hachure grossie de 2 px/pas 6 px à 2,5 px/pas 10 px, frise de 27 marques. **Zéro ornement ajouté.** |
-| **La frise des 27 marques** | Est-ce une deuxième audace, une décoration ? | **Risque réel, examiné sérieusement.** | **Conservée, mais bornée** : elle n'introduit **aucune forme nouvelle** (c'est la pastille du §8.1, réduite), elle est **de la donnée**, pas du décor, et elle est cantonnée à **un seul emplacement**, `aria-hidden`, immobile, et absente si la journée n'est pas connue. Si un doute subsiste en revue, elle est le premier élément à retirer — et le système tient sans elle. |
+| **Deux états au lieu de cinq** | Est-ce un appauvrissement visuel ? | **Non — c'est le contraire.** Cinq aplats sur une carte donnent une mosaïque à déchiffrer ; deux donnent une réponse lisible à quatre mètres. | Complexité libérée **réinvestie dans la lisibilité de loin** : aplats opaques, liseré 2 px, hachure grossie de 2 px/pas 6 px à 2,5 px/pas 10 px, frise de 25 marques. **Zéro ornement ajouté.** |
+| **La frise des 25 marques** | Est-ce une deuxième audace, une décoration ? | **Risque réel, examiné sérieusement.** | **Conservée, mais bornée** : elle n'introduit **aucune forme nouvelle** (c'est la pastille du §8.1, réduite), elle est **de la donnée**, pas du décor, et elle est cantonnée à **un seul emplacement**, `aria-hidden`, immobile, et absente si la journée n'est pas connue. Si un doute subsiste en revue, elle est le premier élément à retirer — et le système tient sans elle. |
 | **Deux silhouettes : rectangle massif / carré planté ZAPEF** | Idée dispersée ? Un troisième langage de forme ? | **Non.** C'est une contrainte de domaine, pas une envie : le `level` 3 affiche un jalon vert sur un massif rouge. | Même vocabulaire (rectangle, angle vif, liseré 2 px, `--r-0`) ; seule la **proportion** distingue surface et point. Aucun pictogramme, aucune icône, aucun jeu de formes libre. |
 | **Le repère non étendu aux jalons ZAPEF** | Incohérence ? | **Non, discipline.** | La liste des 7 emplacements **n'est pas allongée**. Un décalage de 3–4 px sur un objet de 18 px détruirait la silhouette. La cohérence de façade aurait dilué la signature. |
 | **Re-dérivation de la règle chromatique** | Ai-je juste retouché des chiffres ? | **Non — la bande jaune est ré-argumentée.** L'ancienne raison (« elle appartient à la préfecture ») était devenue fausse. | Nouvelle raison, **plus forte** : un ambre saturé entre un vert et un rouge invente visuellement un cran intermédiaire qui n'existe pas dans le 13. Plus un **audit chiffré** des 12 tokens contre la règle, qui a fait **supprimer `--c-pin-alep`**. Une règle qu'on n'audite pas n'est pas une règle. |
@@ -1669,14 +1670,14 @@ composé dans la **famille de titrage** en `--poids-affiche`, la même voix que 
 police « métrique » séparée ; (d) il n'est **jamais animé** (§9.4 : aucun compteur qui s'incrémente).
 **Risque résiduel à écrire** : c'est une **statistique dérivée**. La règle 6 du §11.1 interdit déjà au
 thème de composer une date lui-même ; **la même interdiction couvre le chiffre et son dénominateur**. « 12
-sur 27 » est une valeur de l'extension, pas un `count()` de gabarit — sans quoi une liste partielle
+sur 25 » est une valeur de l'extension, pas un `count()` de gabarit — sans quoi une liste partielle
 produirait un chiffre faux et confiant. Ligne de revue ajoutée au §16.
 
 **4. La barre d'action collée du portail (§7.2).** Risque : motif d'UI applicative, doublé d'un danger
 d'accessibilité documenté — elle **recouvre le contenu**, et à 200 % de zoom une barre fixe peut manger
 **plus de 30 % de la hauteur utile**. **Verdict : conservé, pour le portail uniquement** : c'est elle qui
-rend atteignable le « moins d'une minute pour 27 massifs » du §6 du brief, en supprimant l'aller-retour
-vers un bouton de bas de page. **Deux bornes que le document ne portait pas** : (a) la **dernière ligne du
+rend atteignable la « mise à jour complète en moins d'une minute » (§6 du brief) pour les 25 massifs, en
+supprimant l'aller-retour vers un bouton de bas de page. **Deux bornes que le document ne portait pas** : (a) la **dernière ligne du
 tableau réserve un `padding-block-end` égal à la hauteur de la barre**, pour qu'aucune ligne ne soit
 jamais inatteignable sous elle ; (b) **en dessous d'une hauteur de fenêtre réduite — ou à 200 % de zoom —
 la barre revient dans le flux statique**, en fin de tableau, plutôt que de recouvrir des lignes. Une barre
@@ -1743,13 +1744,14 @@ n'est introduit, aucun jeton n'est ajouté : ce qui manquait n'était pas du des
 | **D-16** | **Motif binaire nu/barré, et suppression de la densité graduée** | Sur deux états, « plus dense = plus grave » n'a plus de référent et suggérerait des crans intermédiaires inexistants | Conserver une gradation de densité « au cas où » |
 | **D-17** | **Encre des motifs hors niveau passée de `--c-trace` à `--c-charbon-doux`** | Mesure de la passe 3 : 1,96:1 contre 6,33:1. Le motif était invisible | Garder `--c-trace` pour la cohérence métaphorique avec le repère |
 | **D-18** | **Emplacement de consigne présent, silencieux quand vide, sans hauteur réservée** | Le §5.2 du brief promet une consigne ; la préfecture n'en publie aucune et l'arrêté est illisible. Un emplacement qui se signale ferait croire à une donnée manquante | Afficher « — » ou « non renseigné » ; ou rédiger nous-mêmes une consigne plausible (interdit par le §4.2) |
-| **D-19** | **Ajout de la frise des 27 marques dans l'ardoise, bornée à un emplacement et `aria-hidden`** | La légende binaire rend la forme de la journée lisible d'un coup d'œil, à quatre mètres. Réinvestit la complexité libérée dans la lisibilité, pas dans le décor | Ne rien ajouter (défendable) ; ou une jauge / un graphique en anneau (kit UI, deuxième audace) |
+| **D-19** | **Ajout de la frise des 25 marques dans l'ardoise, bornée à un emplacement et `aria-hidden`** | La légende binaire rend la forme de la journée lisible d'un coup d'œil, à quatre mètres. Réinvestit la complexité libérée dans la lisibilité, pas dans le décor | Ne rien ajouter (défendable) ; ou une jauge / un graphique en anneau (kit UI, deuxième audace) |
 | **D-20** | **[v2.1] Sous-ensemble `latin` seul pour les deux familles** | Vérifié sur la cmap réelle des binaires embarqués : `latin` contient tout le bloc U+00C0–U+00FF, U+00A0, U+2019, `*`, guillemets, tirets, `°`, `œ`/`æ` et les chiffres. `latin-ext` ne contient que `U+0100` et au-delà — **sans emploi pour le français** (brief §2 : français uniquement). Prendre les deux ferait **4 fichiers contre un budget dur de 2**, pour zéro glyphe utile | `latin + latin-ext`, ce qu'écrivait le §5 de la v2.0 — cela cassait le budget du §10 du brief |
 | **D-21** | **[v2.1] Les `@font-face` vivent dans `assets/fonts/fonts.css`**, ni dans `tokens.css`, ni dans `style.css` | Le répertoire des polices devient **autosuffisant** : octets, licences, provenance et déclarations au même endroit ; les `url("./…")` relatives sont incassables ; `@font-face` étant insensible à la cascade, ce fichier n'entre en concurrence avec aucune feuille des chaînes #5/#6 quel que soit l'ordre d'enqueue. Et surtout : **le bloc normatif §12 reste intact** pendant que deux chaînes le lisent | `@font-face` en tête de `tokens.css` — inclination initiale, écartée : elle aurait modifié le §12 au pire moment |
 | **D-22** | **[v2.1] `font-display: optional` + preload obligatoire des deux fichiers ; aucun descripteur de métriques** | Seule option qui garantisse **structurellement** le « pas de sauts perceptibles » du §10 du brief sans inventer un `size-adjust` indérivable. **Coût assumé et écrit** : un visiteur de première visite sur connexion lente voit la police système sur la première vue ; l'identité du site (ardoise sombre, aplats, liseré charbon, repère, rayon nul, fond monochrome) survit intégralement à cette vue, et la police s'applique dès la suivante | `swap` — saut garanti sur l'élément LCP et sur les points de retour à la ligne via `68ch` ; `fallback` — saute encore dans la fenêtre nominale ; face de repli aliasée à descripteurs — exige un **3ᵉ fichier** ou une valeur inventée, `system-ui` désignant quatre polices selon l'OS et `Arial Narrow` étant absent d'Android et de la plupart des Linux |
 | **D-23** | **[v2.1] Pas de mode sombre ; `color-scheme: light` déclaré par les chaînes d'intégration** | Toute la preuve du §10 est calculée contre la palette claire, et les deux teintes officielles **ne sont pas re-tonalisables** : un thème sombre exigerait une seconde preuve complète. Le §2.1 borne la palette du site ; une palette sombre inventée en aval en sortirait. Et un panneau de sentier peint n'a pas de mode sombre. Sans `color-scheme: light`, un OS en thème sombre fait assombrir les contrôles natifs par le navigateur et invalide les hypothèses de `--bord-champ` | Un bloc `prefers-color-scheme: dark` dans `tokens.css` ; ou laisser la question ouverte, c'est-à-dire la laisser trancher par le premier agent qui passe |
 | **D-24** | **[v2.1] Ordre des couches : étiquettes du fond de carte sous les aplats de statut ; chrome de carte flottant sur aplat opaque `--c-calcaire`** | Mesuré : `--c-carte-encre` plafonne à **2,03:1 sur `#E63A3C`** et 3,02:1 sur `#22B14C` (§10.7). Aucune encre ne passe sur le rouge officiel — **l'ordre des couches est le seul mécanisme disponible** pour appliquer la règle 3 du §4.1.d sur une carte. Coût nul : en raster les étiquettes sont cuites dans la tuile, en vectoriel c'est un ordre explicite | Un pane « étiquettes au-dessus » ; un halo ou un contour sur les toponymes — sur 2,03:1, un halo ne rattrape rien |
 | **D-25** | **[v2.1] La flèche `→` (U+2192) est rendue en SVG en ligne, jamais en caractère** | Mesuré : U+2192 est **hors du sous-ensemble `latin` et absent des deux polices**. Écrit en caractère, il afficherait un rectangle vide dans l'historique du portail (§7.2). Cohérent avec le §16 en vigueur : « les rares symboles sont du SVG en ligne » | Taper `→` dans le gabarit ; ou élargir le sous-ensemble pour un seul glyphe — ce qui rouvrirait D-20 |
+| **D-26** | **[v2.2] Renoncement aux capitales condensées comme parti de titrage.** Borne dure : capitales admises **uniquement sur les étiquettes**, **interdites sur `h1` et `h2`**. Ce qui est perdu est nommé : le §2, ligne « Panneaux DFCI », tire de la signalétique **trois gestes** — capitales condensées, sérigraphie, rayon nul — et **le premier est abandonné**. Le §14.3 entrée 5 le **défendait explicitement** : « **Verdict : conservé** — c'est le langage du panneau DFCI, il est le sujet et non un effet ». Cette défense est **levée, elle n'est pas invalidée** : elle était juste sur la cible qu'elle connaissait. Restent la sérigraphie, le rayon nul, et la condensée elle-même, qui **demeure la famille de titrage** | **Le déplacement de la cible de réception, et lui seul.** Le rendu vise un **décideur communal** — l'élu ou le directeur général des services qui évalue une offre (§7 du brief, `CLAUDE.md` n°4). Pour ce destinataire, un `h1`/`h2` intégralement en capitales condensées lit comme de la signalétique ou de la campagne, pas comme un service. Le §1 l. 41-42 énonçait déjà la tension — « sobriété de service public, mais avec la brutalité graphique d'une signalétique de terrain » : l'arbitrage bascule vers le premier pôle **pour la typographie seule**, la couleur, les formes, le rayon nul, le repère et le fond monochrome restant au second. **Cette décision n'est pas motivée par l'accessibilité.** Le §14.3 entrée 5 avait déjà relevé le risque — « les capitales dégradent la vitesse de lecture », « certains lecteurs d'écran épellent » les chaînes courtes — et l'avait **borné**, donc tenu pour couvert : rien de neuf n'est apparu de ce côté. Le gain de lisibilité est un **effet secondaire, non recherché**, et **ne doit jamais être cité comme la raison** — ce serait attribuer à l'accessibilité un arbitrage de registre, et rendre D-26 illisible pour qui le relira. **Référence avant.** L'application normative — §5.1, §7.3, §14.3 entrée 5 (b), §16 — appartient à l'issue #23. Jusqu'à son exécution, ces sections restent en vigueur et cette contradiction est **connue et assumée** | Maintenir le parti de la v2.0/v2.1, capitales sur tout le titrage — conclusion de bonne foi du §14.3 entrée 5, prise sur une cible de réception qui n'était alors écrite nulle part ; ou abandonner la condensée elle-même, ce qui ferait tomber les deux autres gestes du §2 avec elle et viderait l'ancrage DFCI de sa substance typographique |
 
 ---
 
