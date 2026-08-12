@@ -1,0 +1,50 @@
+/* MASSIFS — déclarations de fontes auto-hébergées.
+   SEUL fichier du thème autorisé à porter un @font-face (décision D-21).
+   Il ne contient QUE des @font-face : aucun sélecteur, aucun :root, aucune
+   requête média. @font-face étant insensible à la cascade, ce fichier ne peut
+   entrer en concurrence avec aucune autre feuille, quel que soit l'ordre
+   d'enqueue.
+
+   Provenance, empreintes et relevés de vérification : ./PROVENANCE.md
+   Sous-ensemble `latin` seul (D-20) — un fichier par famille, budget de
+   2 fichiers saturé exactement.
+   font-display: optional (D-22) — impose le préchargement des deux .woff2
+   dans wp_head, avec crossorigin. Sans preload, D-22 perd tout son intérêt.
+
+   Pas de local() : une copie locale divergente gagnerait sur le fichier servi
+   et rendrait le rendu non reproductible ; c'est aussi un vecteur d'empreinte
+   numérique.
+   Pas de unicode-range : une seule face par famille, la restriction n'ajoute
+   que du risque.
+   Pas de font-stretch : vérifié, aucun axe `wdth` dans les deux fichiers.
+   Pas de size-adjust ni de descripteur de métriques : aucune valeur défendable
+   n'est dérivable (system-ui désigne quatre polices selon l'OS, Arial Narrow
+   est absent d'Android et de la plupart des Linux) et la technique correcte
+   exigerait une 3e face, interdite par le budget. Voir l'arbitrage A-3. */
+
+/* Big Shoulders Display — titrage.
+   Version amont 2.002 · sha256 698f9960…4e39401
+   SIL Open Font License 1.1 — voir ./LICENSE-big-shoulders-display.txt
+   Le fichier expose wght 100–900 ; la plage déclarée ci-dessous est celle
+   du tableau MASTER.md §5 (500–800), volontairement plus étroite : c'est
+   un garde-fou, pas une description du fichier. Seuls 700 et 800 sont
+   réellement en service (§5.1). */
+@font-face {
+  font-family: "Big Shoulders Display";
+  src: url("./big-shoulders-display-var.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 500 800;
+  font-display: optional;
+}
+
+/* Atkinson Hyperlegible Next — labeur.
+   Version amont 2.001 · sha256 18b2a1a3…0e1bbaf
+   SIL Open Font License 1.1 — voir ./LICENSE-atkinson-hyperlegible-next.txt
+   Le fichier expose wght 200–800 ; plage en service 400–700 (MASTER.md §5). */
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  src: url("./atkinson-hyperlegible-next-var.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: optional;
+}

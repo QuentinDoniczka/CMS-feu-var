@@ -1,0 +1,174 @@
+/* MASSIFS — jetons du design system. Voir design-system/MASTER.md (v2.0).
+   Ne pas ajouter de valeur hors échelle. Ne pas redéfinir hors :root, sauf
+   les deux exceptions documentées : --repere-couleur (§3.1) et le groupe
+   liseré/encre sous .sur-sombre (fin de ce fichier). */
+
+:root {
+  /* ── Surfaces et encres ─────────────────────────────────── */
+  --c-calcaire:        #EDEEEC;
+  --c-calcaire-ombre:  #DEDFD9;
+  --c-poussiere:       #C3C5BC;
+  --c-trace:           #9EA197;   /* décor uniquement — jamais un motif de statut */
+  --c-garrigue:        #5F6B5A;
+  --c-charbon-doux:    #4A4E48;
+  --c-charbon:         #1A1C19;
+  --c-mistral-nuit:    #0B2B3C;
+  --c-mistral:         #17567A;
+  --c-mistral-clair:   #8FC3DD;   /* interdit sur fond clair : 1,64:1 */
+
+  /* ── Fond de carte monochrome ───────────────────────────── */
+  --c-carte-fond:       #E6E7E1;
+  --c-carte-terre:      #DEDFD9;
+  --c-carte-vegetation: #D6DBD3;
+  --c-carte-eau:        #CBD5D8;
+  --c-carte-trait:      #B4B7AC;
+  --c-carte-encre:      #4A4E48;
+
+  /* ══ STATUTS OFFICIELS — REPRODUITS, NON MODIFIABLES ══════════════════
+     Source : docs/decisions/source-prefecture.md §4.2 et §4.3.
+     Deux états d'accès au massif + une dimension ZAPEF indépendante.
+     Relevé au pixel sur les pastilles de légende publiées par la préfecture.
+     NE JAMAIS harmoniser, éclaircir, désaturer ni « adapter » ces valeurs.
+     NE JAMAIS créer de jeton numéroté (--statut-1…) : un jeton numéroté
+     réutilisé après un changement de légende repeint des massifs interdits
+     dans la mauvaise couleur, en silence. Un jeton sémantique manquant ne
+     produit aucune couleur : l'échec est bruyant, donc sûr.               */
+
+  --statut-autorise:        #22B14C;   /* Accès au massif autorisé  */
+  --statut-interdit:        #E63A3C;   /* Accès au massif interdit  */
+  --statut-zapef-autorise:  #22B14C;   /* Accès à la ZAPEF* autorisé */
+  --statut-zapef-interdit:  #E63A3C;   /* Accès à la ZAPEF* interdite */
+
+  /* Encres des MOTIFS posés sur l'aplat — jamais des encres de texte :
+     aucun texte n'est posé sur un aplat de statut (§10.4). */
+  --statut-autorise-encre:        var(--c-charbon);
+  --statut-interdit-encre:        var(--c-charbon);
+  --statut-zapef-autorise-encre:  var(--c-charbon);
+  --statut-zapef-interdit-encre:  var(--c-charbon);
+
+  /* États HORS NIVEAU — des absences d'information, pas des niveaux.
+     Ceux-ci nous appartiennent : aucune couleur officielle en jeu. */
+  --statut-indisponible:        var(--c-calcaire-ombre);
+  --statut-indisponible-encre:  var(--c-charbon-doux);  /* 6,33:1 */
+  --statut-hors-saison:         var(--c-calcaire-ombre);
+  --statut-hors-saison-encre:   var(--c-charbon-doux);
+  --statut-non-publie:          var(--c-calcaire-ombre);
+  --statut-non-publie-encre:    var(--c-charbon-doux);
+
+  /* Le liseré porte la conformité AA, pas la teinte (§10.2).
+     Minimum mesuré sur tout le système : 4,11:1 (charbon sur #E63A3C). */
+  --statut-lisere:            var(--c-charbon);
+  --statut-lisere-epaisseur:  2px;
+  --statut-motif-trait:       2.5px;
+  --statut-motif-pas:         10px;
+
+  /* ── Typographie ────────────────────────────────────────── */
+  --police-titre: "Big Shoulders Display", "Arial Narrow", sans-serif;
+  --police-texte: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+
+  --fs-100: 0.8125rem;
+  --fs-200: 0.9375rem;
+  --fs-250: 0.8125rem;
+  --fs-300: 1.0625rem;
+  --fs-400: 1.1875rem;
+  --fs-500: clamp(1.375rem, 1.2rem + 0.9vw, 1.75rem);
+  --fs-600: clamp(1.75rem,  1.4rem + 1.8vw, 2.5rem);
+  --fs-700: clamp(2.25rem,  1.6rem + 3.2vw, 3.75rem);
+  --fs-800: clamp(3.5rem,   2rem   + 7.5vw, 8rem);
+
+  --lh-affiche: 0.92;
+  --lh-titre:   1.08;
+  --lh-sous:    1.15;
+  --lh-dense:   1.35;
+  --lh-corps:   1.6;
+
+  --ls-affiche:   -0.01em;
+  --ls-titre:      0.01em;
+  --ls-etiquette:  0.08em;
+
+  --poids-titre: 700;
+  --poids-affiche: 800;
+  --poids-texte: 400;
+  --poids-texte-fort: 700;
+
+  --mesure: 68ch;
+  --mesure-etroite: 46ch;
+
+  /* ── Espacement ─────────────────────────────────────────── */
+  --esp-3xs: 2px;  --esp-2xs: 4px;  --esp-xs: 8px;  --esp-s: 12px;
+  --esp-m: 16px;   --esp-l: 24px;   --esp-xl: 32px; --esp-2xl: 48px;
+  --esp-3xl: 64px; --esp-4xl: 96px;
+  --esp-section: clamp(48px, 6vw, 96px);
+  --gouttiere: var(--esp-m);
+  --largeur-max: 1200px;
+
+  /* ── Rayons, bordures, élévation ────────────────────────── */
+  --r-0: 0;
+  --r-1: 2px;      /* champs et boutons seulement — jamais une pastille */
+  --bord-fin:   1px solid var(--c-poussiere);
+  --bord-champ: 2px solid var(--c-garrigue);
+  --bord-moyen: 2px solid var(--c-charbon);
+  --bord-fort:  4px solid var(--c-charbon);
+  --ombre-0: none;
+  --ombre-decalee: 3px 4px 0 var(--c-trace);
+  --ombre-decalee-sombre: 3px 4px 0 var(--c-mistral);
+
+  /* ── Signature ──────────────────────────────────────────── */
+  --repere-largeur: 8px;
+  --repere-decalage-x: 3px;
+  --repere-decalage-y: 4px;
+  --repere-couleur: var(--c-mistral-nuit);
+
+  /* ── Pastilles, jalons, frise ───────────────────────────── */
+  --pastille-l: 26px;   --pastille-h: 16px;
+  --jalon-cote: 18px;   --jalon-hampe: 8px;
+  --frise-l: 14px;      --frise-h: 10px;
+
+  /* ── Focus ──────────────────────────────────────────────── */
+  --focus-trait: var(--c-mistral-nuit);
+  --focus-trait-inverse: var(--c-calcaire);
+  --focus-halo: var(--c-mistral-clair);
+  --focus-epaisseur: 3px;
+  --focus-ecart: 2px;
+  --focus-halo-epaisseur: 6px;
+
+  /* ── Cibles ─────────────────────────────────────────────── */
+  --cible-min: 2.75rem;   /* 44px */
+
+  /* ── Mouvement ──────────────────────────────────────────── */
+  --duree-court: 120ms;
+  --duree-moyen: 200ms;
+  --duree-long:  320ms;
+  --ease-net:     cubic-bezier(0.2, 0, 0, 1);
+  --ease-retrait: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ── Points de rupture (documentaires : @media n'accepte pas les vars) ── */
+  --bp-s: 37.5rem;   /* 600px  */
+  --bp-m: 56.25rem;  /* 900px  */
+  --bp-l: 80rem;     /* 1280px */
+
+  /* ── Plans (Leaflet occupe 200–1000) ────────────────────── */
+  --z-carte: 0;
+  --z-panneau: 1100;
+  --z-barre-action: 1200;
+  --z-bandeau: 1300;
+  --z-evitement: 1400;
+}
+
+/* Exception documentée n° 2 : sur chrome sombre, le liseré et les encres de
+   motif basculent en calcaire. Les TEINTES officielles ne changent jamais.
+   Mesuré : liseré calcaire sur mistral-nuit 12,66:1 ; hachure calcaire sur
+   #E63A3C 3,58:1. Voir §10.2 et §10.3. */
+.sur-sombre {
+  --statut-lisere:                var(--c-calcaire);
+  --statut-autorise-encre:        var(--c-calcaire);
+  --statut-interdit-encre:        var(--c-calcaire);
+  --statut-zapef-autorise-encre:  var(--c-calcaire);
+  --statut-zapef-interdit-encre:  var(--c-calcaire);
+}
+
+@media (min-width: 37.5rem) { :root { --gouttiere: var(--esp-l); } }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duree-court: 0.01ms; --duree-moyen: 0.01ms; --duree-long: 0.01ms; }
+}

@@ -1,6 +1,6 @@
 # MASSIFS — Design System
 
-**Version 2.0** · **Date** 11 août 2026 · **Auteur** `lead-design-cms`
+**Version 2.1** · **Date** 12 août 2026 · **Auteur** `lead-design-cms`
 **Statut** source de vérité visuelle. Tout travail d'intégration (`dev-ux-cms`, `dev-front-cms`) et toute
 relecture (`review-cms`) s'y réfèrent. Livrable §11 du brief (« plan de design »).
 
@@ -15,6 +15,7 @@ relecture (`review-cms`) s'y réfèrent. Livrable §11 du brief (« plan de desi
 |---|---|---|---|
 | 1.0 | 11 août 2026 | Première édition. Légende officielle **inconnue** : 5 niveaux gradués **substituts**, marqués `À CONFIRMER`, accompagnés de 8 questions bloquantes. | Bootstrap |
 | **2.0** | 11 août 2026 | **La légende officielle est établie.** Les 5 niveaux substituts sont **supprimés** et remplacés par les **2 états d'accès réels** + la **dimension ZAPEF** + 3 états hors niveau. Sections refaites : §2.1, §4.1, §4.2, §7.1, §8.1, §8.2, §8.5 (nouveau), §9.1, §10 (preuve d'accessibilité, refaite intégralement), §11.2, §12, §13, §14 (passe 2 bis), §15 (D-11 à D-19), §16. Les 8 questions du §4.1 v1.0 sont **répondues sauf deux**, conservées et re-marquées `OUVERT`. | `docs/decisions/source-prefecture.md` §4 (chaîne #1) et `docs/contracts/issue-3.md` révision 2 |
+| **2.1** | 12 août 2026 | **Révision d'artefacts — par ajout et correction ciblée, jamais par réécriture.** Les polices sont vendorisées (`latin` seul, D-20), avec `tokens.css`, `fonts.css` (D-21), les deux licences OFL et `PROVENANCE.md`. **§5** : les deux `OUVERT` typographiques sont **clos** (variable d'Atkinson confirmée sous OFL 1.1, repli `Public Sans` retiré ; capitales accentuées vérifiées), sous-ensemble corrigé en `latin`, **`size-adjust` retiré** au profit de `font-display: optional` + preload (D-22), repli `Arial Narrow` documenté comme absent d'Android/ChromeOS/Linux. **§8.2** : la promesse `tabular-nums` est corrigée — `tnum` absent de la police de titrage, largeur du chiffre désormais **réservée**. **§10.5** : six corrections mesurées, **aucun verdict ne bascule**. Ajouts : **§4.1.d règle 8** (ordre des couches), **§10.7** (paires non mesurées), **§10.8** (`forced-colors` reporté aux chaînes d'intégration), **§14.3** (passe 2 ter, motifs de mise en page et d'interaction), **dix lignes au §16**, **D-20 à D-25**. **Le §12 n'est pas touché — aucun jeton renommé, aucune valeur de couleur modifiée, aucune section réécrite.** | `docs/contracts/issue-4.md` (chaîne #4), arbitrages A-1 à A-6 |
 
 **Ce que la v1.0 avait raison de faire, et qui est conservé sans changement** : le pari du fond de carte
 monochrome (§1), la signature « le repère » (§3), les deux familles typographiques et le budget de 2
@@ -316,6 +317,17 @@ couleur officielle : ils sont **à nous**, et la §11.3 fixe leurs phrases.
    repeindrait silencieusement des massifs interdits dans la mauvaise couleur — `--statut-2` valait un
    **jaune** en v1.0. Un jeton sémantique manquant ne produit **aucune** couleur : l'échec est bruyant et
    visible à la première intégration. Sur une donnée de sécurité, l'échec bruyant est toujours le bon choix.
+8. **[v2.1] Aucune couche d'étiquettes cartographiques n'est jamais rendue au-dessus d'un aplat de
+   statut.** Les toponymes du fond de carte vivent **sous** la couche des polygones de statut ; un nom de
+   lieu intérieur à un massif est **occulté**, et c'est voulu. **Corollaire, de même force** : tout élément
+   de chrome de carte flottant — attribution OSM, contrôles de zoom, bascule EFFIS, sélecteur de date —
+   repose sur un **aplat opaque `--c-calcaire`**, jamais sur la toile nue.
+   *Pourquoi c'est une règle et non une préférence* : mesuré, `--c-carte-encre` `#4A4E48` plafonne à
+   **2,03:1 sur `#E63A3C`** et tombe à **3,02:1 sur `#22B14C`** (§10.7). **Aucune encre ne passe sur le
+   rouge officiel** — c'est le même mur que la règle 3, et sur la carte il n'existe qu'un seul mécanisme
+   pour l'appliquer : **l'ordre des couches**. Ni halo, ni contour, ni assombrissement de l'aplat (interdit
+   par le §9.2) ne rattrapent 2,03:1. Le coût est nul : en raster, les étiquettes sont cuites dans la
+   tuile, donc déjà sous le calque SVG ; en vectoriel, c'est un ordre de couches explicite. (D-24)
 
 #### 4.1.e Ce qui reste `OUVERT` — à ne jamais combler par déduction
 
@@ -381,8 +393,8 @@ Tons de carte dérivés (fond OSM auto-hébergé, restylé monochrome) :
 | `--c-carte-terre` | `#DEDFD9` | Terre |
 | `--c-carte-vegetation` | `#D6DBD3` | Bois et végétation (calcaire + 10 % pin d'Alep) |
 | `--c-carte-eau` | `#CBD5D8` | Eau — **désaturée**, ne doit jamais lire comme « bleu carte » |
-| `--c-carte-trait` | `#B4B7AC` | Routes, limites administratives |
-| `--c-carte-encre` | `#4A4E48` | Toponymes |
+| `--c-carte-trait` | `#B4B7AC` | Routes, limites administratives — **jamais porteur d'une limite qui compte** (§10.7 : 1,64:1 sur le fond, 1,52:1 sur la terre) |
+| `--c-carte-encre` | `#4A4E48` | Toponymes — **rendus exclusivement sous les aplats de statut** (§4.1.d règle 8) |
 
 > Note d'implémentation : si le fond retenu est **raster**, le rendu monochrome est produit **à la génération
 > des tuiles côté serveur**, pas par un `filter: grayscale()` navigateur (le filtre casse les ratios mesurés
@@ -397,12 +409,25 @@ Tons de carte dérivés (fond OSM auto-hébergé, restylé monochrome) :
 
 | Rôle | Famille | Licence | Fichier | Poids | Sous-ensemble |
 |---|---|---|---|---|---|
-| Titrage — *de caractère* | **Big Shoulders Display** | SIL Open Font License 1.1 | `big-shoulders-display-var.woff2` (variable, axe `wght`) | 500 → 800 | latin + latin-ext (accents FR **capitales comprises**) |
-| Texte — *de labeur* | **Atkinson Hyperlegible Next** | SIL Open Font License 1.1 | `atkinson-hyperlegible-next-var.woff2` (variable, axe `wght`) | 400 → 700 | latin + latin-ext |
+| Titrage — *de caractère* | **Big Shoulders Display** | SIL Open Font License 1.1 | `big-shoulders-display-var.woff2` (variable, axe `wght`) | 500 → 800 | **`latin` seul** (D-20) — accents FR **capitales comprises**, vérifié sur la cmap réelle |
+| Texte — *de labeur* | **Atkinson Hyperlegible Next** | SIL Open Font License 1.1 | `atkinson-hyperlegible-next-var.woff2` (variable, axe `wght`) | 400 → 700 | **`latin` seul** (D-20) |
 
-**Total : 2 fichiers `woff2`, auto-hébergés.** Aucun service tiers, aucun CDN, `@font-face` local avec
-`font-display: swap` et `size-adjust` calibré pour supprimer le saut de mise en page (§10 du brief :
-« pas de sauts perceptibles »).
+**Total : 2 fichiers `woff2`, auto-hébergés.** Aucun service tiers, aucun CDN. Les deux `@font-face`
+vivent dans `assets/fonts/fonts.css` et **nulle part ailleurs** (D-21), avec
+**`font-display: optional`** et **preload obligatoire des deux fichiers**, **sans aucun descripteur de
+métriques** — ni `size-adjust`, ni `ascent-override`, ni `descent-override` (D-22).
+
+> **[v2.1] Correction — le `size-adjust` promis par la v2.0 est retiré.** La v2.0 annonçait
+> « `font-display: swap` et `size-adjust` calibré pour supprimer le saut de mise en page ». Mesuré,
+> cette promesse n'est pas tenable, pour deux raisons distinctes et suffisantes chacune. **(a)** Posé sur
+> la face *web*, `size-adjust` ne supprime aucun saut : il met la police à l'échelle en permanence. La
+> technique qui supprime réellement le saut exige une **seconde face `@font-face` de repli, aliasée et
+> dotée de descripteurs**, par famille — soit deux déclarations de plus, que le **budget de 2 fichiers
+> interdit**. **(b)** Aucune valeur unique n'est de toute façon dérivable : `system-ui` désigne quatre
+> polices différentes selon l'OS, et `Arial Narrow` est absent d'Android et de la plupart des Linux.
+> `optional` est la seule option qui garantisse **structurellement** le « pas de sauts perceptibles » du
+> §10 du brief. Coût assumé, écrit sans détour : sur connexion lente, le **tout premier** affichage se
+> fait en police système ; la police s'applique dès la vue suivante.
 
 **Pourquoi celles-là :**
 - *Big Shoulders Display* est une typographie de **signalétique civique** (dessinée pour un système
@@ -416,15 +441,41 @@ Tons de carte dérivés (fond OSM auto-hébergé, restylé monochrome) :
   mémorable — c'est exactement l'effet recherché.
 
 **Vérifications à faire au build (`dev-front-cms`) :**
-- `OUVERT` — confirmer que le **fichier variable** d'Atkinson Hyperlegible Next est disponible sous OFL
-  et auto-hébergeable. Si seuls des statiques existent, **repli documenté : `Public Sans` variable**
-  (OFL 1.1, USWDS) — un seul fichier, registre service public, même rôle. Ne jamais dépasser 2 fichiers.
-- Confirmer que le sous-ensemble Big Shoulders contient **É È À Ç Ô Û Î** en capitales (les titres sont
-  en capitales) ; sinon, corriger le sous-ensemble avant intégration.
-- Le sous-ensemble de la police de texte doit contenir **`’` (U+2019)** et **`*`** : la note ZAPEF
+- **[v2.1] CLOS, affirmativement.** Le **fichier variable** d'Atkinson Hyperlegible Next **existe**, sous
+  **OFL 1.1 sans Reserved Font Name**, et il est auto-hébergeable : version 2.001, axe unique
+  `wght 200–800`. **Le repli `Public Sans` est retiré** — il n'a plus d'objet. La règle qui l'accompagnait
+  reste entière : **ne jamais dépasser 2 fichiers.**
+- **[v2.1] CLOS.** Big Shoulders Display 2.002, axe `wght 100–900`, contient bien **É È À Ç Ô Û Î** en
+  capitales. Relevé complet ci-dessous.
+- Le sous-ensemble de la police de texte contient **`’` (U+2019)** et **`*`** : la note ZAPEF
   officielle en dépend, et un glyphe manquant afficherait un rectangle dans une chaîne reproduite verbatim.
+  **Vérifié** (voir ci-dessous).
 - Piles de repli système : `--police-titre` → `"Big Shoulders Display", "Arial Narrow", sans-serif` ;
   `--police-texte` → `"Atkinson Hyperlegible Next", system-ui, sans-serif`.
+  **[v2.1] `Arial Narrow` est absent d'Android, de ChromeOS et de la plupart des Linux** : sur ces
+  plateformes, le repli de titrage est une `sans-serif` **non condensée**, sensiblement plus large.
+  La composition de l'ardoise et des `h1` en `--fs-700` / `--fs-800` **doit être contrôlée polices
+  désactivées**, à 360 px et à 200 % de zoom, par les chaînes d'intégration. C'est une conséquence
+  directe de D-22 : avec `optional`, cette vue est réellement servie à certains visiteurs.
+
+**[v2.1] Provenance et vérification des glyphes — enregistrées.** URL source, version amont, empreinte
+**sha256**, date de récupération et relevés de vérification sont consignés dans
+`wp-content/themes/massifs/assets/fonts/PROVENANCE.md`, à côté des deux fichiers de licence OFL 1.1
+reproduits verbatim. **L'empreinte n'est pas recopiée ici** : deux copies d'un hachage sont deux choses
+qui divergeront. Le fichier fait foi.
+
+Résultat de la vérification, mené sur les binaires réellement embarqués : le sous-ensemble `latin` seul
+contient **la totalité du bloc U+00C0–U+00FF** (donc tous les accents français, capitales comprises),
+**U+00A0**, **U+2019**, **`*`**, les guillemets `« »`, les tirets `–` `—`, les points de suspension `…`,
+le degré `°` et les ligatures `œ Œ æ Æ`, ainsi que les chiffres. **`latin-ext` ne contient que
+`U+0100` et au-delà** : il est sans emploi pour le français, et le prendre coûterait **4 fichiers contre
+un budget dur de 2**, pour zéro glyphe utile (D-20). Attention également : la **valeur par défaut de
+l'axe `wght` de Big Shoulders Display est `100`** — un titre dont le poids n'est pas explicitement posé
+s'affiche en filet ; `--poids-titre` / `--poids-affiche` ne sont donc jamais facultatifs.
+
+**[v2.1] La flèche `→` (U+2192) de §7.2 est hors du sous-ensemble `latin` et absente des deux polices.**
+Elle est donc rendue en **SVG en ligne, jamais en caractère** (D-25) — un caractère afficherait un
+rectangle vide. C'est l'application du §16 en vigueur : « les rares symboles sont du SVG en ligne ».
 
 ### 5.1 Échelle
 
@@ -441,7 +492,7 @@ Les niveaux 500 à 800 sont **fluides** (`clamp`) : pas de media query typograph
 | `--fs-500` | `clamp(1.375rem, 1.2rem + 0.9vw, 1.75rem)` | `h3` | titre 600 | 1,15 | 0,01em |
 | `--fs-600` | `clamp(1.75rem, 1.4rem + 1.8vw, 2.5rem)` | `h2` | titre 700, capitales | 1,08 | 0,01em |
 | `--fs-700` | `clamp(2.25rem, 1.6rem + 3.2vw, 3.75rem)` | `h1` | titre 700, capitales | 1,05 | 0,005em |
-| `--fs-800` | `clamp(3.5rem, 2rem + 7.5vw, 8rem)` | **Le chiffre du jour** | titre 800, chiffres tabulaires | 0,92 | −0,01em |
+| `--fs-800` | `clamp(3.5rem, 2rem + 7.5vw, 8rem)` | **Le chiffre du jour** | titre 800, **largeur réservée** (§8.2 — `tabular-nums` inopérant) | 0,92 | −0,01em |
 
 **Règle de hiérarchie** : la famille de titrage n'a **que deux poids en service (700 et 800)** et s'emploie
 **toujours en capitales** au-dessus de `--fs-500`. La hiérarchie vient de la taille, pas du poids ni de la
@@ -738,8 +789,16 @@ panneau massif, dans la liste du jour et dans la légende. Le jalon décrit ici 
 ### 8.2 L'ardoise — le chiffre du jour et **la frise**
 
 - Fond `--c-mistral-nuit`, texte `--c-calcaire` (12,66:1 conforme), méta en `--c-mistral-clair` (7,73:1).
-- Chiffre en `--fs-800`, chiffres **tabulaires** (`font-variant-numeric: tabular-nums`) pour qu'il ne
-  saute pas quand il passe de 9 à 12.
+- Chiffre en `--fs-800`. **[v2.1] Correction d'une promesse fausse.** La v2.0 obtenait la stabilité du
+  chiffre par `font-variant-numeric: tabular-nums`. **Sur la police de titrage, cette déclaration est un
+  no-op silencieux** : Big Shoulders Display **n'expose pas la fonction OpenType `tnum`**, et ses chiffres
+  sont fortement proportionnels — au poids 800, le `1` avance de 511 unités contre 961 pour le `5`, soit
+  un écart de 450/2000 em, **≈ 29 px à `--fs-800`**. Un passage de 9 à 12, ou de 11 à 25, déplace donc
+  réellement ce qui suit. **Règle qui remplace la promesse : la largeur en ligne du chiffre est réservée**,
+  de sorte que la variation d'avance des chiffres ne provoque **aucun reflux du texte environnant**. La
+  technique de mise en page (largeur fixe, grille, `ch` de réserve…) appartient aux chaînes d'intégration ;
+  ce qui est normatif ici, c'est le résultat : **rien ne bouge autour du chiffre.**
+  *(La police de labeur, elle, expose bien `tnum` : `tabular-nums` reste légitime dans les tableaux.)*
 - Le dénominateur (« /27 ») est en `--fs-500`, aligné sur la ligne de base basse du chiffre.
 - Repère version `--bloc` sur toute la hauteur du slab, à gauche : `::after` `--c-calcaire`, `::before`
   `--c-mistral`.
@@ -1069,14 +1128,26 @@ ses deux moitiés atteint 3:1.
 | Surface | `--c-mistral-nuit` | `--c-calcaire` | `--c-charbon` | Verdict |
 |---|---|---|---|---|
 | `--c-calcaire` `#EDEEEC` | **12,66:1** | — | 14,74:1 | conforme |
-| `--c-calcaire-ombre` `#DEDFD9` | **10,93:1** | — | 12,80:1 | conforme |
-| `--c-carte-fond` `#E6E7E1` | 11,79:1 | 1,07:1 | **13,79:1** | conforme par le charbon |
-| `--c-carte-vegetation` `#D6DBD3` | 10,43:1 | 1,21:1 | **12,20:1** | conforme par le charbon |
-| `--c-carte-eau` `#CBD5D8` | 9,82:1 | 1,29:1 | **11,48:1** | conforme par le charbon |
-| **`#22B14C`** (aplat autorisé) | 5,26:1 | 2,42:1 | **6,10:1** | conforme par le charbon |
+| `--c-calcaire-ombre` `#DEDFD9` | **10,99:1** | — | 12,80:1 | conforme |
+| `--c-carte-fond` `#E6E7E1` | 11,85:1 | 1,07:1 | **13,79:1** | conforme par le charbon |
+| `--c-carte-vegetation` `#D6DBD3` | 10,48:1 | 1,21:1 | **12,20:1** | conforme par le charbon |
+| `--c-carte-eau` `#CBD5D8` | 9,86:1 | 1,29:1 | **11,48:1** | conforme par le charbon |
+| **`#22B14C`** (aplat autorisé) | 5,24:1 | 2,42:1 | **6,10:1** | conforme par le charbon |
 | **`#E63A3C`** (aplat interdit) | 3,53:1 | 3,58:1 | **4,11:1** | conforme par les deux |
 | `--c-mistral-nuit` `#0B2B3C` (chrome) | — | **12,66:1** | 1,16:1 | conforme par le calcaire |
-| `--c-mistral` `#17567A` (bouton) | — | **6,81:1** | 1,35:1 | conforme par le calcaire |
+| `--c-mistral` `#17567A` (bouton) | — | **6,81:1** | 2,16:1 | conforme par le calcaire |
+
+> **[v2.1] Correction de la passe 3 ter.** Les 9 lignes ci-dessus ont été **recalculées une à une**, de
+> façon indépendante. Six cellules bougent, toutes dans la colonne `--c-mistral-nuit` sauf une :
+> `--c-calcaire-ombre` 10,93 → **10,99** · `--c-carte-fond` 11,79 → **11,85** · `--c-carte-vegetation`
+> 10,43 → **10,48** · `--c-carte-eau` 9,82 → **9,86** · `#22B14C` 5,26 → **5,24** (alignement sur §10.1,
+> qui était juste) ; et, seule erreur véritable, `--c-mistral` contre `--c-charbon` **1,35 → 2,16**, une
+> erreur **conservatrice** qui sous-estimait le ratio. **Aucun verdict ne bascule** : la ligne
+> `--c-mistral` reste « conforme par le calcaire » à 6,81:1, et 2,16:1 demeure sous le seuil de 3:1.
+> Les cellules `--c-calcaire` 12,66 et `#E63A3C` 3,53 sont exactes ; **toute la colonne `--c-charbon`
+> est exacte**. Recontrôle complet du §10 : **17 des 17 affirmations porteuses se reproduisent à
+> l'identique**, dont le **pire cas à 4,11:1** et le **vert contre rouge à 1,48:1**. Le mécanisme de
+> preuve est sain ; ce qui a été corrigé, ce sont des arrondis dans des cellules non porteuses.
 
 **Aucune surface du système ne laisse le focus invisible.** Sur les surfaces claires et sur les deux aplats
 officiels, c'est la moitié charbon qui porte ; sur le chrome sombre, la moitié calcaire. Le halo
@@ -1099,6 +1170,66 @@ insuffisant sur plusieurs surfaces et ne doit jamais être livré sans son trait
    site doit y rester intégralement compréhensible. À vérifier explicitement en revue.
 6. **Zoom 200 % et 360 px** : aucun défilement horizontal, aucune pastille sous 12 px de haut, aucun
    libellé tronqué ni remplacé par une abréviation non explicitée.
+
+### 10.7 [v2.1] Paires non mesurées jusqu'ici
+
+Trois paires que la palette autorise et que les passes 3 et 3 bis n'avaient pas chiffrées. Les mesurer
+ne change aucune valeur de jeton : cela **ferme trois angles morts** et transforme deux tolérances
+implicites en règles écrites.
+
+**1. Les traits du fond de carte — sous 3:1, accepté et argumenté.**
+
+| Paire | Ratio | Seuil 1.4.11 |
+|---|---|---|
+| `--c-carte-trait` `#B4B7AC` vs `--c-carte-fond` `#E6E7E1` | **1,64:1** | échec |
+| `--c-carte-trait` vs `--c-carte-terre` `#DEDFD9` | **1,52:1** | échec |
+
+**Accepté**, et sans exception de complaisance : le filaire du fond de carte — routes, limites
+administratives — **ne porte aucune information de statut**, et le §1.4.11 de WCAG ne s'applique qu'aux
+éléments porteurs de sens. Un fond de carte contrasté serait d'ailleurs contraire au pari central du §1 :
+il concurrencerait les aplats. **Corollaire ferme, qui est la contrepartie de cette acceptation** :
+`--c-carte-trait` **ne doit jamais porter une limite qui compte**. Les limites de massif sont, et restent,
+le **liseré `--c-charbon` 2 px** du §10.2. Un jour où quelqu'un aura l'idée de dessiner une frontière de
+massif « en discret », c'est cette ligne-ci qui l'en empêche.
+
+**2. Les toponymes contre les aplats officiels — pas une exception à accorder, un ordre à imposer.**
+
+| Paire | Ratio | AA texte normal |
+|---|---|---|
+| `--c-carte-encre` `#4A4E48` sur `#22B14C` | **3,02:1** | **ÉCHEC** |
+| `--c-carte-encre` sur `#E63A3C` | **2,03:1** | **ÉCHEC, sévère** |
+
+C'est le même mur que le §10.4 : **aucune encre ne passe sur le rouge officiel**, et l'encre de carte y
+plafonne encore plus bas que le charbon (2,03:1 contre 4,11:1). Il n'y a donc **rien à négocier au niveau
+de la couleur** : la seule réponse disponible sur une carte est **l'ordre des couches**. D'où la règle
+inviolable **§4.1.d n°8** : étiquettes cartographiques **sous** les aplats de statut, chrome de carte
+flottant sur un **aplat opaque `--c-calcaire`**. Un toponyme intérieur à un massif est occulté ; c'est le
+comportement voulu, pas une perte à compenser par un halo — un halo sur 2,03:1 ne rattrape rien.
+
+**3. `--c-garrigue` sur `--c-calcaire-ombre` — 4,19:1, échec AA en texte normal.**
+
+La valeur était déjà mesurée au §4.2, mais **aucune ligne de revue ne la faisait respecter**. Elle en a
+une désormais (§16). Conséquence pratique : `--c-garrigue` **ne peut pas** servir de texte courant sur une
+ligne alternée, dans un encart ou dans un slab `--c-calcaire-ombre`. Il reste conforme en **grand texte
+≥ 24 px** et en **bordure** (`--bord-champ`, seuil 3:1). Sur `--c-calcaire`, il tient 4,83:1 et reste le
+ton du texte tertiaire.
+
+### 10.8 [v2.1] Exigence reportée aux chaînes d'intégration — `forced-colors: active`
+
+Constat honnête, écrit plutôt que masqué : le §3.4 et le §10.6 règle 5 **exigent** un comportement en
+couleurs forcées, mais le §12 **ne fournit ni jeton ni bloc** pour l'obtenir — et les motifs de statut
+sont des `background-image` (`repeating-linear-gradient`), dont la survie sous couleurs forcées dépend de
+l'implémentation. Or le motif porte **la moitié** de l'information (§10.3).
+
+**Décision : aucun ajout au §12** (arbitrage A-4 de `docs/contracts/issue-4.md`). Ce n'est pas un problème
+de jetons, c'est un problème de **règles de rendu** ; y répondre par un jeton spéculatif aurait modifié le
+bloc normatif pendant que deux chaînes le lisent, sans bénéfice certain.
+
+**Ce qui est exigé des chaînes d'intégration, et vérifiable en revue :** sous `forced-colors: active`, les
+aplats passent en `Canvas`, les liserés et les motifs en `CanvasText` ; si un motif en dégradé n'y survit
+pas, il est **remplacé par un mécanisme qui survit** (bordure, trait `currentColor`, `forced-color-adjust`
+maîtrisé) — jamais supprimé. Et dans tous les cas, **le libellé officiel reste le porteur de sens**, ce
+qui garantit que même un motif perdu ne rend aucun statut ambigu. À contrôler explicitement (§16).
 
 ---
 
@@ -1378,10 +1509,18 @@ normative** attendue par la chaîne front.
 | `--statut-lisere-n5` | Le niveau 5 n'existe pas. Le liseré est unique et bascule par contexte, pas par niveau |
 | `--c-pin-alep` | H 146°, S 25 % : viole la règle §2.1 s'il est peint. Reste un ingrédient de mélange documenté, dont le produit `--c-carte-vegetation` est, lui, un jeton |
 
-**Correspondance avec le contrat de l'issue #3** — les noms ci-dessous sont ceux que l'extension émet, et
-ils existent tous dans le bloc précédent : `--statut-autorise`, `--statut-interdit`,
-`--statut-autorise-encre`, `--statut-interdit-encre`, `--statut-zapef-autorise`, `--statut-zapef-interdit`,
-`--statut-indisponible`, `--statut-lisere`.
+**Correspondance avec le contrat de l'issue #3 — [v2.1] corrigée.** L'extension émet **quatorze** noms de
+jetons, par les clés `jeton_css` / `jeton_encre_css` de `legende.config.php` : `--statut-autorise`,
+`--statut-interdit`, `--statut-zapef-autorise`, `--statut-zapef-interdit`, `--statut-indisponible`,
+`--statut-hors-saison`, `--statut-non-publie`, et les sept `-encre` correspondants. Tous existent dans le
+bloc précédent.
+
+**`--statut-lisere` n'en fait pas partie** — la v2.0 le rangeait par erreur parmi eux. Il n'est émis par
+**personne** côté extension : avec `--statut-lisere-epaisseur`, `--statut-motif-trait` et
+`--statut-motif-pas`, il forme les **quatre jetons de statut que le thème possède seul** (18 déclarés dans
+`tokens.css` = 14 émis + 4 propres au thème). La distinction n'est pas comptable : `--statut-lisere` est
+précisément celui qui **porte la conformité AA** (§10.2), et le chercher côté extension le jour d'une
+panne ferait perdre du temps là où il ne faut pas en perdre.
 
 **Trois jetons sont ajoutés par ce document et doivent être reflétés dans `legende.config.php`** pour la
 clé `etats_hors_niveau` : `--statut-hors-saison`, `--statut-non-publie`, et les `-encre` associés. Ce ne
@@ -1483,6 +1622,103 @@ quatrième (les jetons numérotés) a été bannie pour une raison de sécurité
 écarté en v1.0 le reste, et la légende binaire renforce ce refus — avec deux états, une iconographie
 supplémentaire n'aurait plus rien à encoder.
 
+### 14.3 [v2.1] Passe 2 ter — motifs de mise en page et d'interaction
+
+**Pourquoi cette passe existe.** Les passes 2 et 2 bis sont sérieuses, mais elles n'interrogent que la
+**couleur, la forme, la signature et le nommage des jetons**. Elles n'ont examiné **aucun motif de mise en
+page ni d'interaction** : ni la feuille du bas, ni la typographie fluide, ni le grand chiffre, ni la barre
+d'action collée, ni le parti des capitales. Le §7 du brief demande explicitement cet examen : c'était une
+ligne de DoD non tenue, et la tenir *après coup* vaut mieux que de la déclarer tenue.
+
+Mêmes quatre questions que les passes précédentes, plus une cinquième propre à celle-ci :
+***ce motif vient-il du sujet, ou d'une bibliothèque de motifs d'application ?***
+
+**1. La feuille du bas façon Material (§7.1).** Le risque est réel et il faut le nommer : le *bottom
+sheet* est un **composant signature de Material Design**, et personne ne le confond avec autre chose.
+**Verdict : conservé.** Le §5.2 du brief demande littéralement un « panneau en bas d'écran », et le motif
+est **déjà dé-materialisé par des règles en vigueur** : `--r-0` interdit les coins supérieurs arrondis,
+`--ombre-0` / `--ombre-decalee` interdisent l'élévation floue, le §9.4 interdit la physique à ressort.
+**Ce qui manquait et qui est écrit ici** : la poignée de 44 px **n'est pas une pilule** — le §6.2 les
+bannit — mais un **bouton rectangulaire portant le libellé « Fermer le panneau »** ; et tout
+*swipe-to-dismiss* **double toujours un bouton**, jamais l'inverse. Un composant qui ne se ferme qu'au
+geste est inatteignable au clavier et au lecteur d'écran : ce serait un défaut bloquant, pas une
+commodité tactile.
+
+**2. La typographie fluide `clamp()` + `vw` (§5.1).** Risque double : c'est **le réflexe par défaut de
+tous les design systems des années 2020**, et le `vw` dans la taille de texte est un **piège WCAG 1.4.4**
+connu (le texte cesse de répondre au zoom texte). **Verdict : conservé**, mais **la défense écrite en
+v2.0 était la mauvaise**. « Les `clamp` restent bornés par leur minimum en `rem` » ne prouve rien : un
+plancher en `rem` n'empêche pas un terme médian insensible à la préférence utilisateur. **La vraie
+défense, celle qui tient** : le terme médian est **toujours `rem + vw`, jamais `vw` seul** — il grandit
+donc avec la taille de police racine et **répond au zoom texte**, la part `vw` n'ajoutant qu'une réponse à
+la largeur du cadre.
+**Observation à consigner, parce qu'elle a l'air d'une incohérence et n'en est pas** : l'échelle
+d'espacement est **entièrement en `px`** alors que `--cible-min` est en **`rem`**. Cette asymétrie est
+délibérée et bonne : **les cibles suivent la préférence de l'utilisateur** (une cible de 44 px doit
+grandir avec son texte), **les gouttières restent physiques** — si elles grandissaient au zoom, un écran
+de 360 px à 200 % verrait ses marges exploser et **imposerait un défilement horizontal**, c'est-à-dire
+exactement l'échec que le §10.6 règle 6 interdit. Rien n'était écrit : un intégrateur consciencieux
+« harmoniserait » l'échelle en `rem` et casserait le 360 px à 200 %.
+
+**3. Le chiffre du jour géant en `--fs-800` (§8.2).** Risque : le **« big number » de tableau de bord
+SaaS**, motif d'application s'il en est. **Verdict : conservé**, et différencié sur quatre points déjà
+vrais dans ce document — (a) il vit dans une **bande sombre pleine largeur**, pas dans une carte ; (b) il
+ne porte **ni sparkline, ni flèche de tendance, ni pourcentage, ni couleur de tendance**, le §2.1
+interdisant toute couleur sémantique et la passe 2 bis ayant déjà refusé la jauge et l'anneau ; (c) il est
+composé dans la **famille de titrage** en `--poids-affiche`, la même voix que le `h1`, et non dans une
+police « métrique » séparée ; (d) il n'est **jamais animé** (§9.4 : aucun compteur qui s'incrémente).
+**Risque résiduel à écrire** : c'est une **statistique dérivée**. La règle 6 du §11.1 interdit déjà au
+thème de composer une date lui-même ; **la même interdiction couvre le chiffre et son dénominateur**. « 12
+sur 27 » est une valeur de l'extension, pas un `count()` de gabarit — sans quoi une liste partielle
+produirait un chiffre faux et confiant. Ligne de revue ajoutée au §16.
+
+**4. La barre d'action collée du portail (§7.2).** Risque : motif d'UI applicative, doublé d'un danger
+d'accessibilité documenté — elle **recouvre le contenu**, et à 200 % de zoom une barre fixe peut manger
+**plus de 30 % de la hauteur utile**. **Verdict : conservé, pour le portail uniquement** : c'est elle qui
+rend atteignable le « moins d'une minute pour 27 massifs » du §6 du brief, en supprimant l'aller-retour
+vers un bouton de bas de page. **Deux bornes que le document ne portait pas** : (a) la **dernière ligne du
+tableau réserve un `padding-block-end` égal à la hauteur de la barre**, pour qu'aucune ligne ne soit
+jamais inatteignable sous elle ; (b) **en dessous d'une hauteur de fenêtre réduite — ou à 200 % de zoom —
+la barre revient dans le flux statique**, en fin de tableau, plutôt que de recouvrir des lignes. Une barre
+collée qui reste collée quand la hauteur ne le permet plus est un défaut, pas une fidélité au dessin.
+
+**5. Le parti des capitales condensées lui-même.** C'est le risque le plus aigu de cette passe, et il
+n'est pas esthétique : **les capitales dégradent la vitesse de lecture**, suppriment la reconnaissance de
+la silhouette du mot, et **certains lecteurs d'écran épellent** les chaînes courtes tout en capitales.
+**Verdict : conservé** — c'est le langage du panneau DFCI, il est le sujet et non un effet — mais **borné
+par trois règles, dont deux n'étaient pas écrites** :
+(a) les capitales sont produites par **`text-transform: uppercase`** sur une source **normalement
+casée** ; **jamais** saisies en capitales dans le HTML. Ainsi le lecteur d'écran, le `Ctrl+F` et le
+copier-coller reçoivent la casse véritable.
+(b) capitales **uniquement au-dessus de `--fs-500`** et sur les étiquettes `--fs-250` — le §5.1 le dit
+déjà ; jamais sur du texte courant, jamais sur un paragraphe.
+(c) **un conflit non vu jusqu'ici, tranché ici.** `Légende de la carte` est **à la fois** une chaîne
+officielle *verbatim* (§11.4, où toute modification est un défaut bloquant) **et** un `h2` (§8.5), donc
+capitalisé par le §5.1. Ces deux règles ont l'air de se contredire. **Résolution : `text-transform` est un
+rendu, pas une édition.** Le texte du DOM reste `Légende de la carte`, mot pour mot, apostrophes et casse
+d'origine comprises ; seul l'affichage est en capitales. Le §11.4 est donc honoré. Sans cette phrase,
+`review-cms` signalerait un faux défaut — ou, bien pire, un intégrateur « corrigerait » en tapant
+`LÉGENDE DE LA CARTE` dans le gabarit et **casserait le §11.4 pour de bon**.
+
+**6. La décision `prefers-color-scheme` manquante.** Ce n'était pas un motif douteux : c'était un
+**silence**. Le document n'a jamais dit s'il existe un mode sombre, et un silence de 1580 lignes se remplit
+tout seul par le premier agent qui passe. **Verdict — D-23 : pas de mode sombre**, consigné, pas laissé
+ouvert. Trois raisons : (a) un thème sombre exigerait une **seconde preuve §10 complète**, car `#22B14C`
+et `#E63A3C` **ne sont pas re-tonalisables** et toute la conformité repose sur des ratios calculés contre
+la palette claire ; (b) le §2.1 borne la palette du site, et une palette sombre inventée en aval tomberait
+hors de ces bornes ; (c) **un panneau de sentier peint n'a pas de mode sombre** — le registre du site est
+un objet physique éclairé par le jour. **Conséquence pratique à écrire** : `tokens.css` ne porte **aucun**
+bloc `prefers-color-scheme`, **et** `html { color-scheme: light; }` doit être déclaré par les chaînes
+d'intégration. Sans cette déclaration, sous un OS en thème sombre, Chrome assombrit de lui-même les
+contrôles natifs et les barres de défilement, ce qui **invalide les hypothèses de `--bord-champ`** et les
+ratios du portail.
+
+**Verdict global de la passe 2 ter.** Cette passe **n'infirme aucune décision de mise en page**. Elle
+ajoute des **bornes** à quatre motifs empruntés qui avaient été retenus sans être argumentés (feuille du
+bas, typographie fluide, chiffre géant, barre collée), elle **tranche un conflit non vu** entre le §5.1 et
+le §11.4, et elle **ferme une question restée ouverte pendant 1580 lignes**. Aucun élément visuel nouveau
+n'est introduit, aucun jeton n'est ajouté : ce qui manquait n'était pas du dessin, c'était de l'écrit.
+
 ---
 
 ## 15. Journal des décisions (extrait pour le §11 du brief)
@@ -1508,6 +1744,12 @@ supplémentaire n'aurait plus rien à encoder.
 | **D-17** | **Encre des motifs hors niveau passée de `--c-trace` à `--c-charbon-doux`** | Mesure de la passe 3 : 1,96:1 contre 6,33:1. Le motif était invisible | Garder `--c-trace` pour la cohérence métaphorique avec le repère |
 | **D-18** | **Emplacement de consigne présent, silencieux quand vide, sans hauteur réservée** | Le §5.2 du brief promet une consigne ; la préfecture n'en publie aucune et l'arrêté est illisible. Un emplacement qui se signale ferait croire à une donnée manquante | Afficher « — » ou « non renseigné » ; ou rédiger nous-mêmes une consigne plausible (interdit par le §4.2) |
 | **D-19** | **Ajout de la frise des 27 marques dans l'ardoise, bornée à un emplacement et `aria-hidden`** | La légende binaire rend la forme de la journée lisible d'un coup d'œil, à quatre mètres. Réinvestit la complexité libérée dans la lisibilité, pas dans le décor | Ne rien ajouter (défendable) ; ou une jauge / un graphique en anneau (kit UI, deuxième audace) |
+| **D-20** | **[v2.1] Sous-ensemble `latin` seul pour les deux familles** | Vérifié sur la cmap réelle des binaires embarqués : `latin` contient tout le bloc U+00C0–U+00FF, U+00A0, U+2019, `*`, guillemets, tirets, `°`, `œ`/`æ` et les chiffres. `latin-ext` ne contient que `U+0100` et au-delà — **sans emploi pour le français** (brief §2 : français uniquement). Prendre les deux ferait **4 fichiers contre un budget dur de 2**, pour zéro glyphe utile | `latin + latin-ext`, ce qu'écrivait le §5 de la v2.0 — cela cassait le budget du §10 du brief |
+| **D-21** | **[v2.1] Les `@font-face` vivent dans `assets/fonts/fonts.css`**, ni dans `tokens.css`, ni dans `style.css` | Le répertoire des polices devient **autosuffisant** : octets, licences, provenance et déclarations au même endroit ; les `url("./…")` relatives sont incassables ; `@font-face` étant insensible à la cascade, ce fichier n'entre en concurrence avec aucune feuille des chaînes #5/#6 quel que soit l'ordre d'enqueue. Et surtout : **le bloc normatif §12 reste intact** pendant que deux chaînes le lisent | `@font-face` en tête de `tokens.css` — inclination initiale, écartée : elle aurait modifié le §12 au pire moment |
+| **D-22** | **[v2.1] `font-display: optional` + preload obligatoire des deux fichiers ; aucun descripteur de métriques** | Seule option qui garantisse **structurellement** le « pas de sauts perceptibles » du §10 du brief sans inventer un `size-adjust` indérivable. **Coût assumé et écrit** : un visiteur de première visite sur connexion lente voit la police système sur la première vue ; l'identité du site (ardoise sombre, aplats, liseré charbon, repère, rayon nul, fond monochrome) survit intégralement à cette vue, et la police s'applique dès la suivante | `swap` — saut garanti sur l'élément LCP et sur les points de retour à la ligne via `68ch` ; `fallback` — saute encore dans la fenêtre nominale ; face de repli aliasée à descripteurs — exige un **3ᵉ fichier** ou une valeur inventée, `system-ui` désignant quatre polices selon l'OS et `Arial Narrow` étant absent d'Android et de la plupart des Linux |
+| **D-23** | **[v2.1] Pas de mode sombre ; `color-scheme: light` déclaré par les chaînes d'intégration** | Toute la preuve du §10 est calculée contre la palette claire, et les deux teintes officielles **ne sont pas re-tonalisables** : un thème sombre exigerait une seconde preuve complète. Le §2.1 borne la palette du site ; une palette sombre inventée en aval en sortirait. Et un panneau de sentier peint n'a pas de mode sombre. Sans `color-scheme: light`, un OS en thème sombre fait assombrir les contrôles natifs par le navigateur et invalide les hypothèses de `--bord-champ` | Un bloc `prefers-color-scheme: dark` dans `tokens.css` ; ou laisser la question ouverte, c'est-à-dire la laisser trancher par le premier agent qui passe |
+| **D-24** | **[v2.1] Ordre des couches : étiquettes du fond de carte sous les aplats de statut ; chrome de carte flottant sur aplat opaque `--c-calcaire`** | Mesuré : `--c-carte-encre` plafonne à **2,03:1 sur `#E63A3C`** et 3,02:1 sur `#22B14C` (§10.7). Aucune encre ne passe sur le rouge officiel — **l'ordre des couches est le seul mécanisme disponible** pour appliquer la règle 3 du §4.1.d sur une carte. Coût nul : en raster les étiquettes sont cuites dans la tuile, en vectoriel c'est un ordre explicite | Un pane « étiquettes au-dessus » ; un halo ou un contour sur les toponymes — sur 2,03:1, un halo ne rattrape rien |
+| **D-25** | **[v2.1] La flèche `→` (U+2192) est rendue en SVG en ligne, jamais en caractère** | Mesuré : U+2192 est **hors du sous-ensemble `latin` et absent des deux polices**. Écrit en caractère, il afficherait un rectangle vide dans l'historique du portail (§7.2). Cohérent avec le §16 en vigueur : « les rares symboles sont du SVG en ligne » | Taper `→` dans le gabarit ; ou élargir le sous-ensemble pour un seul glyphe — ce qui rouvrirait D-20 |
 
 ---
 
@@ -1520,12 +1762,19 @@ Tout élément ci-dessous constaté par `review-cms` est un **défaut bloquant**
 - Toute requête navigateur vers un domaine tiers : police, icône, script, tuile, image.
 - Police servie depuis un service de polices, même « via » un plugin tiers. Aucun CDN, aucun asset distant.
 - Plus de 2 fichiers de police. Icônes en police d'icônes (les rares symboles sont du SVG en ligne).
+- **[v2.1]** Bloc `prefers-color-scheme`, ou palette sombre alternative, sous quelque forme que ce soit (D-23).
+- **[v2.1]** Fichier de police servi hors de `assets/fonts/`, ou `@font-face` déclaré ailleurs que dans
+  `assets/fonts/fonts.css` (D-21).
+- **[v2.1]** `→` — ou tout autre symbole hors du sous-ensemble `latin` — écrit en caractère plutôt qu'en
+  SVG en ligne (D-25).
 
 **Formes**
 - `border-radius` > 2 px. Pilules, avatars ronds, boutons arrondis, **pastille de statut arrondie**.
 - Ombre floue (`blur-radius` ≠ 0), dégradé décoratif, verre dépoli, néomorphisme.
 - Ombre portée sur autre chose que le panneau massif et le bloc de légende.
 - Repère hors des 7 emplacements du §3.2, deux repères dans le même bloc, repère sur un jalon ou sur la frise.
+- **[v2.1]** Poignée de la feuille du bas rendue en **pilule** ; **coins supérieurs arrondis** sur la
+  feuille ; fermeture par **glissement sans bouton équivalent** (§14.3 entrée 1).
 - Carte enfermée dans un conteneur centré à coins arrondis.
 - Frise ailleurs que dans l'ardoise, frise focusable, frise animée.
 
@@ -1543,6 +1792,12 @@ Tout élément ci-dessous constaté par `review-cms` est un **défaut bloquant**
 - ZAPEF et massif rendus avec la même silhouette, ou fusionnés en un seul indicateur.
 - Un statut périmé présenté comme courant ; un chiffre de la veille conservé en l'absence de donnée ;
   `level` 0 rendu comme « autorisé ».
+- **[v2.1]** `--c-garrigue` employé comme **texte courant sur `--c-calcaire-ombre`** — lignes alternées,
+  encarts, slabs : **mesuré 4,19:1, échec AA**. Réservé au texte ≥ 24 px et aux bordures (§10.7).
+- **[v2.1]** Couche d'étiquettes cartographiques rendue **au-dessus** des aplats de statut ; chrome de
+  carte (attribution, zoom, bascule EFFIS, sélecteur de date) posé sur la toile nue sans aplat opaque (D-24).
+- **[v2.1]** Motif de statut qui disparaît sous **`forced-colors: active`** sans mécanisme de
+  remplacement, ou statut dont le sens n'est plus porté que par la teinte dans ce mode (§10.8).
 
 **Contenu officiel**
 - Libellé officiel paraphrasé, abrégé, tronqué ou « corrigé » — y compris `autorisé`/`interdite` uniformisés.
@@ -1555,6 +1810,8 @@ Tout élément ci-dessous constaté par `review-cms` est un **défaut bloquant**
 - États hors niveau (`information non disponible`, `dispositif estival inactif`) présentés dans la légende
   officielle sans la séparation `SUR CE SITE`.
 - Jalon ZAPEF rendu sur la carte sans géométrie établie (§4.1.e).
+- **[v2.1]** Libellé officiel **saisi en capitales dans le HTML**. Les capitales sont un rendu
+  `text-transform`, **jamais** une édition de la chaîne (§11.4, §14.3 entrée 5).
 
 **Interaction**
 - `outline: none` sans remplacement ; focus invisible sur une surface quelconque de la palette.
@@ -1564,6 +1821,9 @@ Tout élément ci-dessous constaté par `review-cms` est un **défaut bloquant**
 - Animation d'apparition au défilement, parallaxe, compteur animé, spinner, marqueur pulsant.
 - Mouvement subsistant sous `prefers-reduced-motion: reduce`, y compris côté Leaflet.
 - Motif de statut qui s'étire ou se densifie au zoom de la carte.
+- **[v2.1]** Barre d'action collée **recouvrant la dernière ligne** du tableau du portail, ou restant
+  collée quand la hauteur utile ne le permet plus (fenêtre basse, zoom 200 %) — elle doit alors revenir
+  dans le flux, en fin de tableau (§14.3 entrée 4).
 
 **Contenu éditorial**
 - « Valider », « OK », « Soumettre », « En savoir plus », « Oups », « Désolé ».
@@ -1572,6 +1832,8 @@ Tout élément ci-dessous constaté par `review-cms` est un **défaut bloquant**
 - Bandeau de non-officialité absent d'une page affichant un statut.
 - Attribution préfecture, OSM, DDTM, Météo-France ou EFFIS manquante.
 - Bandeau de consentement aux cookies (il n'y a rien à consentir — §9 du brief).
+- **[v2.1]** Le thème calculant lui-même **le chiffre du jour, son dénominateur, un décompte ou une
+  date** : ces valeurs viennent de l'extension (§11.1 règle 6, §14.3 entrée 3).
 
 
 
