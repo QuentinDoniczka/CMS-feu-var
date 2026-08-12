@@ -425,9 +425,17 @@ async function s03_structureEtAncres( navigateur ) {
 	poserEtat( 'jour-nominal' );
 
 	const contexte = await navigateur.newContext();
+	const titres = [];
 
 	for ( const cible of PAGES ) {
-		const { page } = await charger( contexte, cible.chemin );
+		const { page, statut } = await charger( contexte, cible.chemin );
+
+		// Le code HTTP est relevé ET affirmé : si `/hello-world/` répondait 404, la
+		// page serait servie par `404.php` et « un seul h1 » passerait pour la
+		// mauvaise raison — un vert obtenu ainsi est un faux vert.
+		egal( cible.chemin === '/?p=99999999' ? 404 : 200, statut, `${ cible.nom } : code HTTP attendu` );
+
+		titres.push( { nom: cible.nom, titre: await page.title() } );
 
 		const structure = await page.evaluate( () => {
 			const ids = [ ...document.querySelectorAll( '[id]' ) ].map( ( e ) => e.id );
@@ -489,6 +497,19 @@ async function s03_structureEtAncres( navigateur ) {
 
 		await page.close();
 	}
+
+	// « Titres de page uniques » (brief §8) : le <title> est produit par
+	// `wp_get_document_title()` dans templates/header.php, donc par le mécanisme
+	// standard — mais rien ne le prouvait tant que le repli hors accueil
+	// imprimait `bloginfo( 'name' )` sur toutes ses pages. On mesure les titres
+	// réellement servis, jamais le code qui les compose.
+	note( `titres servis : ${ titres.map( ( t ) => `${ t.nom } → « ${ t.titre } »` ).join( ' · ' ) }` );
+	egal( [], titres.filter( ( t ) => t.titre.trim() === '' ).map( ( t ) => t.nom ), 'aucune page servie sans <title>' );
+	egal(
+		titres.length,
+		new Set( titres.map( ( t ) => t.titre ) ).size,
+		'chaque page porte un <title> distinct des autres'
+	);
 
 	await contexte.close();
 }
@@ -639,6 +660,22 @@ async function s07_mobile360 ( navigateur ) {
 			`scrollWidth ≤ ${ mesure.fenetre }`,
 			`scrollWidth = ${ mesure.scroll } · premiers débordants : ${ mesure.debordants.join( ', ' ) || '(aucun)' }`
 		);
+
+		// Ce contexte a JavaScript COUPÉ : le titre de premier niveau qu'on lit ici
+		// est celui que PHP a rendu, sur les cinq pages et non sur la seule
+		// accueil. C'est la contrainte n° 3 vérifiée hors de la page d'accueil —
+		// le repli `index.php` / `page.php` / `404.php` n'a aucun script pour
+		// rattraper un titre manquant.
+		const titre = await page.evaluate( () => {
+			const h = document.querySelector( 'h1' );
+			return { texte: h ? h.textContent.replace( /\s+/g, ' ' ).trim() : null, scripts: document.querySelectorAll( 'script[src]' ).length };
+		} );
+		assert(
+			titre.texte !== null && titre.texte !== '',
+			`${ cible.nom } : sans JavaScript, le h1 est déjà dans le HTML servi`,
+			'un titre non vide',
+			titre.texte === null ? '(aucun h1)' : '(h1 vide)'
+		);
 		await page.close();
 	}
 
@@ -717,6 +754,16 @@ async function s08_accessibiliteAutomatisee( navigateur ) {
 		if ( mineures.length ) {
 			note( `${ cible.nom } : violations mineures — ${ mineures.map( ( v ) => `${ v.id } (${ v.impact })` ).join( ', ' ) }` );
 		}
+
+		// `page-has-heading-one` est classée `moderate` par axe : elle ne serait
+		// donc PAS attrapée par le filtre bloquant ci-dessus, alors que « une seule
+		// h1 par page » est une exigence explicite du brief §8. On l'affirme
+		// séparément, quel que soit son impact.
+		egal(
+			[],
+			resultat.violations.filter( ( v ) => v.id === 'page-has-heading-one' ).map( ( v ) => `${ v.impact } — ${ v.nodes.length } nœud(s)` ),
+			`${ cible.nom } : la règle axe « page-has-heading-one » passe`
+		);
 		await page.close();
 	}
 
@@ -1436,9 +1483,34 @@ async function s18_impressionA4etA5( navigateur ) {
 			const d = ( s ) => ( q( s ) ? getComputedStyle( q( s ) ).display : 'ABSENT' );
 			const cellule = q( '.liste-statuts__cellule[data-etiquette]' );
 			const lien = q( '.bandeau-non-officialite a[href^="http"]' );
+			const thead = q( '.liste-statuts__tableau thead' );
+			const styleThead = thead ? getComputedStyle( thead ) : null;
 			return {
 				tableau: d( '.liste-statuts__tableau' ),
-				thead: q( '.liste-statuts__tableau thead' ) ? getComputedStyle( q( '.liste-statuts__tableau thead' ) ).display : 'ABSENT',
+				thead: thead ? styleThead.display : 'ABSENT',
+				// Les deux propriétés qui font de ce scénario la SEULE sonde
+				// automatisée capable de détecter le retrait de la garde
+				// `@media screen` du §7 bis de composants.css — obligation (b)
+				// de l'invariant I-5 (rév. #28). `print.css` ne réinitialise que
+				// `display` : si le déport de l'en-tête n'était plus gardé, sa
+				// `position: absolute` BLOCKIFIERAIT le thead — son `display`
+				// calculé deviendrait `block` quoi que déclare print.css, sans
+				// qu'aucune spécificité n'entre en jeu — et l'en-tête répété du
+				// §13 disparaîtrait de la feuille, A4 comme A5. Mesurer
+				// `display` seul ne suffit donc pas : c'est `position` et
+				// `clip-path` qui disent que la garde est là.
+				theadPosition: thead ? styleThead.position : 'ABSENT',
+				theadClipPath: thead ? styleThead.clipPath : 'ABSENT',
+				// Les quatre libellés doivent être présents ET peints : une
+				// boîte de 2 px (le déport) ou un `clip-path` survivant les
+				// rendrait invisibles sur le papier sans changer le HTML.
+				entetes: thead
+					? [ ...thead.querySelectorAll( 'th' ) ].map( ( e ) => ( {
+						texte: e.textContent.trim(),
+						largeur: Math.round( e.getBoundingClientRect().width ),
+						clip: getComputedStyle( e ).clipPath,
+					} ) )
+					: [],
 				ligne: d( '.liste-statuts__ligne' ),
 				massif: d( '.liste-statuts__massif' ),
 				cellule: d( '.liste-statuts__cellule' ),
@@ -1457,6 +1529,18 @@ async function s18_impressionA4etA5( navigateur ) {
 
 		egal( 'table', mesure.tableau, `${ format.nom } : la liste s’imprime en tableau, inconditionnellement` );
 		egal( 'table-header-group', mesure.thead, `${ format.nom } : l’en-tête revient et se répète de page en page` );
+		egal( 'static', mesure.theadPosition, `${ format.nom } : l’en-tête n’est PAS déporté au papier (garde @media screen tenue)` );
+		egal( 'none', mesure.theadClipPath, `${ format.nom } : aucun clip-path ne survit sur l’en-tête imprimé` );
+		egal(
+			[ 'Massif', 'Niveau d\'Accès', 'ZAPEF', 'Fraîcheur' ],
+			mesure.entetes.map( ( e ) => e.texte ),
+			`${ format.nom } : les quatre libellés de colonne sont sur la feuille`
+		);
+		egal(
+			[],
+			mesure.entetes.filter( ( e ) => e.largeur <= 2 || e.clip !== 'none' ).map( ( e ) => `${ e.texte } (${ e.largeur } px, clip ${ e.clip })` ),
+			`${ format.nom } : aucun libellé de colonne écrêté ni réduit à la boîte du déport`
+		);
 		egal( 'table-row', mesure.ligne, `${ format.nom } : les lignes sont des rangées` );
 		egal( [ 'table-cell', 'table-cell' ], [ mesure.massif, mesure.cellule ], `${ format.nom } : les cellules sont des cellules` );
 		egal( 'table-caption', mesure.resume, `${ format.nom } : le résumé redevient la légende du tableau` );
@@ -1517,16 +1601,74 @@ async function s19_modeCartesEtCellulesVides( navigateur ) {
 	const page = await contexte.newPage();
 	await page.goto( BASE + '/', { waitUntil: 'load' } );
 
-	const mode = await page.evaluate( () => ( {
-		tableau: getComputedStyle( document.querySelector( '.liste-statuts__tableau' ) ).display,
-		thead: getComputedStyle( document.querySelector( '.liste-statuts__tableau thead' ) ).display,
-		tbody: getComputedStyle( document.querySelector( '.liste-statuts__tableau tbody' ) ).display,
-		ligne: getComputedStyle( document.querySelector( '.liste-statuts__ligne' ) ).display,
-	} ) );
+	// L'en-tête de colonnes n'est PLUS retiré : depuis l'issue #28 il est DÉPORTÉ
+	// hors cadre (`position: absolute`, boîte de --esp-3xs, `overflow: hidden`,
+	// `clip-path: inset(50%)`), pour que ses quatre `columnheader` reviennent dans
+	// l'arbre d'accessibilité — mesuré par le scénario « arbre ». L'ancienne
+	// attente `thead: 'none'` affirmait le comportement que le contrat #28 a
+	// délibérément changé : elle était devenue fausse, pas le code.
+	// `display: block` est ce qui rend `overflow` applicable (il est sans effet sur
+	// une boîte interne de tableau) ; c'est lui, et non `clip-path`, qui porte le
+	// « pas de défilement horizontal à 320 px » du brief §8.
+	const mode = await page.evaluate( () => {
+		const thead = document.querySelector( '.liste-statuts__tableau thead' );
+		const style = getComputedStyle( thead );
+		const rect = thead.getBoundingClientRect();
+		return {
+			tableau: getComputedStyle( document.querySelector( '.liste-statuts__tableau' ) ).display,
+			thead: style.display,
+			theadPosition: style.position,
+			theadClipPath: style.clipPath,
+			theadOverflow: style.overflow,
+			tbody: getComputedStyle( document.querySelector( '.liste-statuts__tableau tbody' ) ).display,
+			ligne: getComputedStyle( document.querySelector( '.liste-statuts__ligne' ) ).display,
+			theadBoite: { largeur: Math.round( rect.width ), droite: Math.round( rect.right ) },
+			scroll: document.scrollingElement.scrollWidth,
+			fenetre: document.scrollingElement.clientWidth,
+		};
+	} );
 	egal(
-		{ tableau: 'block', thead: 'none', tbody: 'block', ligne: 'block' },
-		mode,
+		{ tableau: 'block', thead: 'block', tbody: 'block', ligne: 'block' },
+		{ tableau: mode.tableau, thead: mode.thead, tbody: mode.tbody, ligne: mode.ligne },
 		'à 320 px, la liste est en cartes empilées : c’est la base mobile-first'
+	);
+	egal(
+		{ position: 'absolute', clipPath: 'inset(50%)', overflow: 'hidden' },
+		{ position: mode.theadPosition, clipPath: mode.theadClipPath, overflow: mode.theadOverflow },
+		'l’en-tête est déporté hors cadre, jamais retiré (contrat #28, invariant I-11)'
+	);
+	assert(
+		mode.theadBoite.largeur <= 2 && mode.theadBoite.droite <= mode.fenetre,
+		'la boîte du déport tient dans 2 px et ne dépasse pas la fenêtre',
+		'largeur ≤ 2 px et bord droit ≤ 320 px',
+		`largeur ${ mode.theadBoite.largeur } px, bord droit ${ mode.theadBoite.droite } px`
+	);
+	egal(
+		mode.fenetre,
+		mode.scroll,
+		'le déport n’ajoute pas un pixel de défilement horizontal (brief §8, égalité stricte)'
+	);
+
+	// Risque résiduel nommé par le contrat #28 : un élément déporté hors cadre qui
+	// deviendrait focusable renverrait le curseur du clavier dans une zone
+	// invisible. Le parcours au clavier ne doit jamais s'y arrêter.
+	const parcours = [];
+	for ( let i = 0; i < 12; i += 1 ) {
+		await page.keyboard.press( 'Tab' );
+		parcours.push(
+			await page.evaluate( () => {
+				const a = document.activeElement;
+				if ( ! a ) {
+					return 'null';
+				}
+				return a.closest( 'thead' ) ? `DANS LE THEAD : ${ a.tagName.toLowerCase() }` : a.tagName.toLowerCase();
+			} )
+		);
+	}
+	egal(
+		[],
+		parcours.filter( ( e ) => e.startsWith( 'DANS LE THEAD' ) ),
+		'l’en-tête déporté ne reçoit jamais le focus au clavier (12 tabulations)'
 	);
 
 	// L'étiquette de carte remplace l'en-tête disparu : elle doit reproduire
@@ -1640,45 +1782,90 @@ async function arbreAccessibilite( page ) {
 }
 
 async function s20_arbreAccessibiliteEnCartes( navigateur ) {
-	scenario( '20 — arbre d’accessibilité en mode cartes (thead masqué)' );
+	scenario( '20 — arbre d’accessibilité en mode cartes (en-tête déporté, jamais retiré)' );
 	poserEtat( 'jour-nominal' );
 
-	const contexte = await navigateur.newContext( { viewport: { width: 320, height: 900 } } );
-	const page = await contexte.newPage();
-	await page.goto( BASE + '/', { waitUntil: 'load' } );
+	/**
+	 * Le sous-ensemble tabulaire de l'arbre, à une largeur donnée.
+	 *
+	 * @param {number} largeur Largeur de fenêtre.
+	 * @return {Promise<object>} Comptes par rôle, plus les noms des en-têtes.
+	 */
+	async function releverArbre( largeur ) {
+		const contexte = await navigateur.newContext( { viewport: { width: largeur, height: 900 } } );
+		const page = await contexte.newPage();
+		await page.goto( BASE + '/', { waitUntil: 'load' } );
+		const aplati = await arbreAccessibilite( page );
+		const roles = aplati.reduce( ( acc, n ) => ( { ...acc, [ n.role ]: ( acc[ n.role ] ?? 0 ) + 1 } ), {} );
+		note( `rôles exposés à ${ largeur } px : ${ Object.entries( roles ).map( ( [ r, n ] ) => `${ r }×${ n }` ).join( ' · ' ) }` );
+		const tabulaire = ( source ) => ( {
+			table: source.table ?? 0,
+			caption: source.caption ?? 0,
+			rowgroup: source.rowgroup ?? 0,
+			row: source.row ?? 0,
+			columnheader: source.columnheader ?? 0,
+			rowheader: source.rowheader ?? 0,
+		} );
+		return {
+			contexte,
+			page,
+			roles,
+			tabulaire: tabulaire( roles ),
+			cell: roles.cell ?? 0,
+			entetes: aplati.filter( ( n ) => n.role === 'columnheader' ).map( ( n ) => n.nom ),
+		};
+	}
 
-	const aplati = await arbreAccessibilite( page );
-	const roles = aplati.reduce( ( acc, n ) => ( { ...acc, [ n.role ]: ( acc[ n.role ] ?? 0 ) + 1 } ), {} );
-	note( `rôles exposés à 320 px : ${ Object.entries( roles ).map( ( [ r, n ] ) => `${ r }×${ n }` ).join( ' · ' ) }` );
+	// ---- 320 px : mode cartes. Depuis l'issue #28, le `thead` est DÉPORTÉ hors
+	// cadre et non plus retiré : ses quatre `columnheader` sont de retour dans
+	// l'arbre. Un rôle ARIA explicite survit à un changement de `display` ; il ne
+	// survit pas à `display: none`, et c'est exactement ce que le correctif a
+	// changé. Les assertions sont STRICTES : en `>=`, elles laissaient passer
+	// aussi bien le défaut que sa correction, donc ne prouvaient rien.
+	const etroit = await releverArbre( 320 );
 
-	// Ce que le CSS NE PEUT PAS casser : les rôles ARIA explicites du gabarit
-	// survivent au passage en `display: block`. C'est la raison pour laquelle
-	// `display: contents` a été refusé.
-	assert( ( roles.table ?? roles.grid ?? 0 ) >= 1, 'le tableau reste exposé comme table malgré display: block', '≥ 1 table', roles.table ?? 0 );
-	assert( ( roles.row ?? 0 ) >= 25, 'les 25 rangées restent exposées comme rangées', '≥ 25 row', roles.row ?? 0 );
-	assert( ( roles.rowheader ?? 0 ) >= 25, 'chaque massif reste un en-tête de rangée', '≥ 25 rowheader', roles.rowheader ?? 0 );
-	assert( ( roles.cell ?? 0 ) >= 25, 'les cellules restent des cellules', '≥ 25 cell', roles.cell ?? 0 );
-
-	// Ce que le CSS CASSE, et qu'il faut dire : `thead` est `display: none`, donc
-	// les `columnheader` ne sont plus dans l'arbre. `attr(data-etiquette)` peint
-	// une étiquette mais NE RÉTABLIT PAS l'association columnheader ↔ cell.
-	const colonnes = roles.columnheader ?? 0;
-	note(
-		`columnheader exposés à 320 px : ${ colonnes } — le thead est display:none, ` +
-			`et le contenu généré par ::before ne rétablit AUCUNE association columnheader ↔ cell. ` +
-			`Constat, pas assertion : seul un contrôle humain au lecteur d’écran peut trancher l’utilisabilité.`
+	egal(
+		{ table: 1, caption: 1, rowgroup: 2, row: 26, columnheader: 4, rowheader: 25 },
+		etroit.tabulaire,
+		'320 px : la structure tabulaire complète est exposée, en-têtes de colonne compris'
+	);
+	egal( 63, etroit.cell, '320 px : 63 cellules exposées — les 12 cellules vides sont retirées par `:empty`' );
+	egal(
+		[ 'MASSIF', 'NIVEAU D\'ACCÈS', 'ZAPEF', 'FRAÎCHEUR' ],
+		etroit.entetes,
+		'320 px : les quatre en-têtes portent leur nom accessible (capitales venues du text-transform)'
 	);
 
-	// Contre-épreuve en mode colonnes : l'en-tête revient, la preuve que la perte
-	// vient bien du `display: none` et non du gabarit.
-	const large = await navigateur.newContext( { viewport: { width: 900, height: 900 } } );
-	const pageLarge = await large.newPage();
-	await pageLarge.goto( BASE + '/', { waitUntil: 'load' } );
-	const arbreLarge = await arbreAccessibilite( pageLarge );
-	const colonnesLarge = arbreLarge.filter( ( n ) => n.role === 'columnheader' ).length;
-	assert( colonnesLarge >= 4, 'au-dessus de --bp-s, les 4 en-têtes de colonne sont exposés', '≥ 4', colonnesLarge );
-	note( `columnheader exposés à 900 px : ${ colonnesLarge } — la perte à 320 px est bien imputable au display:none` );
-	await large.close();
+	// ---- 900 px : contre-épreuve en mode colonnes. Le sous-ensemble
+	// {table, caption, rowgroup, row, columnheader, rowheader} doit être
+	// STRICTEMENT IDENTIQUE aux deux largeurs — c'est l'énoncé fort du contrat
+	// #28. `cell` en est exclu, et lui seul : `.liste-statuts__cellule:empty
+	// { display: none }` (contrat #22, §7) retire les 12 cellules littéralement
+	// vides en mode cartes, que le §11 rétablit en `table-cell` — 75 = 63 + 12.
+	// Cette asymétrie PRÉEXISTE à #28 (mesurée identique avec et sans le
+	// correctif) et la corriger sortirait de l'empreinte. Une attente
+	// `cell === 63` écrite pour les deux largeurs serait fausse à 900 px.
+	const large = await releverArbre( 900 );
+
+	egal( etroit.tabulaire, large.tabulaire, 'le sous-ensemble tabulaire est identique à 320 px et à 900 px (cell exclu)' );
+	egal( 75, large.cell, '900 px : 75 cellules exposées — les 12 cellules vides redeviennent des cellules' );
+	egal( etroit.entetes, large.entetes, 'les noms des quatre en-têtes de colonne ne dépendent pas de la largeur' );
+	await large.contexte.close();
+
+	// Ce que cette mesure NE prouve PAS, et qu'aucun rapport ne doit arrondir :
+	// `Accessibility.getFullAXTree` établit que le NŒUD `columnheader` existe et
+	// n'est pas ignoré. Il n'établit rien de l'ASSOCIATION en-tête ↔ cellule,
+	// calculée par le moteur et exposée aux technologies d'assistance par les API
+	// plateforme, absente de tout champ de l'instantané CDP. Énoncé exact : « le
+	// nœud columnheader est rétabli et l'association est rendue possible ».
+	note(
+		'l’arbre dit que les 4 columnheader existent ; il ne dit rien de l’association ' +
+			'en-tête ↔ cellule ni de l’utilisabilité réelle. Seul un contrôle humain au ' +
+			'lecteur d’écran peut trancher — il n’a jamais été exécuté sur ce projet.'
+	);
+
+	const contexte = etroit.contexte;
+	const page = etroit.page;
 
 	// Le texte des cellules, lui, reste lisible : aucune information n'est portée
 	// par la seule étiquette générée.
@@ -1873,6 +2060,26 @@ async function s21_aucuneFuiteGravatar( navigateur ) {
 			egal( 200, reponse.status(), `anonyme ${ route } : la route reste servie` );
 			const corps = await reponse.text();
 			balayerTexte( `anonyme ${ route }`, corps, sansContenuEditorial( corps ) );
+
+			// Le champ lui-même a disparu, pas seulement sa valeur : c'est ce que
+			// le filtre `option_show_avatars` retire du SCHÉMA (contrat #25,
+			// filtre 2). Le balayage d'empreinte ci-dessus resterait vert si la
+			// clé revenait avec des URL vides ; celui-ci ne le resterait pas.
+			const cle = route.endsWith( 'users' ) ? 'avatar_urls' : 'author_avatar_urls';
+			assert(
+				! corps.includes( cle ),
+				`anonyme ${ route } : la clé ${ cle } a disparu de la charge utile`,
+				'absente',
+				'présente'
+			);
+			const schema = await anonyme.request.fetch( BASE + route, { method: 'OPTIONS', failOnStatusCode: false } );
+			const declare = await schema.text();
+			assert(
+				! declare.includes( cle ),
+				`anonyme ${ route } : la clé ${ cle } a disparu du schéma REST (OPTIONS)`,
+				'absente',
+				'présente'
+			);
 
 			if ( route.endsWith( 'users' ) ) {
 				// Non-régression INVERSE : l'énumération d'utilisateurs est un défaut

@@ -102,12 +102,12 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 |---|---|---|
 | `tierce` | toute requête réellement émise par le navigateur, sur cinq pages, plus les `url()`/`@import` de chaque feuille servie | zéro requête tierce |
 | `sans-js` | JavaScript coupé : synthèse, fraîcheur, légende, 25 lignes de statut, bandeau | utilisable sans JS |
-| `structure` | un `h1` exposé, aucun `id` en double, aucune ancre d'évitement morte, focus visible | accessibilité |
+| `structure` | code HTTP attendu, un `h1` exposé, aucun `id` en double, aucune ancre d'évitement morte, focus visible, **un `<title>` non vide et distinct par page** | accessibilité |
 | `perime` | donnée de la veille en base : « information non disponible » sur la carte ET dans la liste | statut périmé |
 | `non-officialite` | bandeau présent dans les trois états de données | bandeau de non-officialité |
 | `couleur` | chaque marque colorée est suivie de son libellé en toutes lettres | jamais la couleur seule |
-| `mobile` | 360 px, 320 px, zoom texte 200 % | mobile réel |
-| `a11y` | axe-core sur les pages servies, zéro violation bloquante | vérifications automatisées |
+| `mobile` | 360 px, 320 px, zoom texte 200 %, et le `h1` déjà rendu par PHP sur les cinq pages, JavaScript coupé | mobile réel, sans JS |
+| `a11y` | axe-core sur les pages servies, zéro violation bloquante, plus `page-has-heading-one` affirmée **hors** du filtre d'impact (elle est `moderate`) | vérifications automatisées |
 | `budgets` | octets réellement transférés, nombre de polices, double téléchargement, géométrie | budgets de perf |
 | `api` | racine REST publique, écriture anonyme refusée | API publique |
 | `ancre` | panne provoquée : la partie « liste » manque | — |
@@ -117,10 +117,10 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 | `feuilles` | les cinq `<link>` du `<head>` : ordre, `media`, `print` après `composants`, aucune fuite de la feuille d'impression vers l'écran | design system |
 | `casse` | plus aucune capitale forcée sur les titres ; les capitales ne survivent que sur les étiquettes `--fs-250` | design system |
 | `couleurs-forcees` | `forced-colors: active` émulé : chaque motif reconstruit en `CanvasText`, et les états nus le restent | jamais la couleur seule |
-| `impression` | aperçu d'impression à **A4 (703 px) ET A5 (469 px)** : colonnes restaurées sans requête de largeur, bandeau de non-officialité imprimé, liseré et hachure en charbon y compris sous `.sur-sombre` | équivalent textuel imprimable |
-| `cartes` | mode cartes à 320 px, étiquettes reprises de `data-etiquette`, et **le piège des cellules vides** : aucun champ étiqueté vide, aucun octet d'espace entre les balises | mobile réel |
-| `arbre` | l'arbre d'accessibilité réellement construit par le moteur (CDP) en mode cartes : ce qui survit au `display: block`, et ce que le `thead` masqué fait perdre | accessibilité |
-| `gravatar` | aucune empreinte d'e-mail composée ni servie — anonymement, sous `admin` et sous `gestionnaire-demo`, sur `/`, `/wp-admin/`, `profile.php`, `users.php` et les deux routes REST du cœur ; la coupe tient **même sous `force_display`**, donc imprenable par une valeur en base | zéro requête tierce, donnée personnelle |
+| `impression` | aperçu d'impression à **A4 (703 px) ET A5 (469 px)** : colonnes restaurées sans requête de largeur, bandeau de non-officialité imprimé, liseré et hachure en charbon y compris sous `.sur-sombre`, et le `thead` en `display: table-header-group` / `position: static` / `clip-path: none` — **seule sonde capable de détecter le retrait de la garde `@media screen`** du déport (invariant I-5 rév. #28) | équivalent textuel imprimable |
+| `cartes` | mode cartes à 320 px, en-tête **déporté hors cadre et non retiré** (boîte de 2 px, aucun pixel de défilement, jamais focusable), étiquettes reprises de `data-etiquette`, et **le piège des cellules vides** : aucun champ étiqueté vide, aucun octet d'espace entre les balises | mobile réel |
+| `arbre` | l'arbre d'accessibilité réellement construit par le moteur (CDP), **aux deux largeurs** : comptes stricts par rôle, noms accessibles des quatre en-têtes, et le sous-ensemble tabulaire identique à 320 px et à 900 px — `cell` excepté (63 / 75) | accessibilité |
+| `gravatar` | aucune empreinte d'e-mail composée ni servie — anonymement, sous `admin` et sous `gestionnaire-demo`, sur `/`, `/wp-admin/`, `profile.php`, `users.php` et les deux routes REST du cœur — où `avatar_urls` / `author_avatar_urls` ont disparu de la charge utile **et du schéma** (`OPTIONS`) ; la coupe tient **même sous `force_display`**, donc imprenable par une valeur en base | zéro requête tierce, donnée personnelle |
 
 ### `13-jours-consecutifs-identiques` — à ne jamais supprimer
 
@@ -158,8 +158,12 @@ pas mesurable dans un viewport émulé — seule la largeur du viewport l'est, e
 main depuis le format moins les marges.
 
 Le scénario `arbre` relève l'arbre d'accessibilité tel que Chromium le construit. Il dit ce que
-l'arbre contient ; il ne dit pas ce qu'un lecteur d'écran en fait. La perte des `columnheader` en mode
-cartes est un **constat mesuré**, jamais une validation d'utilisabilité.
+l'arbre contient ; il ne dit pas ce qu'un lecteur d'écran en fait. Depuis l'issue #28, les quatre
+`columnheader` sont de retour à 320 px — le `thead` est **déporté** hors cadre au lieu d'être retiré.
+`Accessibility.getFullAXTree` prouve que le **nœud** existe et n'est pas ignoré ; il ne prouve **rien**
+de l'**association** en-tête ↔ cellule, calculée par le moteur et exposée par les API plateforme,
+absente de tout champ de l'instantané CDP. Énoncé exact : « le nœud `columnheader` est rétabli et
+l'association est rendue possible » — jamais « l'association est rétablie », jamais « conforme AA ».
 
 Enfin `couleurs-forcees` est une **émulation** du média `forced-colors` par Chromium, pas un vrai
 contraste élevé Windows : les couleurs système réelles, et les thèmes personnalisés, ne sont pas
