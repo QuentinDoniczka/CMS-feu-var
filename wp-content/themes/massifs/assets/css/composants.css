@@ -80,7 +80,7 @@
    --c-charbon en dur et annulerait la bascule de `.sur-sombre`
    (tokens.css l. 162-168), or le liseré est le mécanisme PORTEUR d'AA — pire
    cas mesuré 4,11:1 sur le rouge officiel, contre 1,48:1 pour la teinte seule.
-   `box-sizing: border-box` étant global (layout.css l. 27-31), 26 × 16 est la
+   `box-sizing: border-box` étant global (layout.css l. 31-35), 26 × 16 est la
    boîte EXTÉRIEURE : le contenu fait 22 × 12, au-dessus du plancher de 12 px
    du §10.6 règle 6. */
 .pastille {
@@ -264,18 +264,16 @@
       rester vides (niveau, ZAPEF, fraîcheur). Réindenter liste-statuts.php
       tuerait la règle en silence et afficherait des champs vides étiquetés
       (invariant I-8).
-   5. Le `thead` disparaît et `attr(data-etiquette)` est son remplacement
-      désigné, mais du contenu généré NE RÉTABLIT PAS l'association
-      columnheader ↔ cell : contrôle au lecteur d'écran nécessaire.
+   5. Le `thead` n'est PLUS retiré : il est déporté hors cadre au §7 bis et reste
+      dans l'arbre d'accessibilité (défaut #28). `attr(data-etiquette)` demeure
+      son doublage VISUEL, et rien de plus — du contenu généré ne rétablit AUCUNE
+      association columnheader ↔ cell. Les deux coexistent délibérément tant que
+      le contrôle au lecteur d'écran n'a pas tranché.
    Filet --bord-fin ENTRE LES CELLULES d'une carte ; ESPACEMENT, jamais un
    filet, entre deux cartes : 25 cartes séparées par 2 px violeraient la
    quantité imposée par la règle de portée C. */
 .liste-statuts__tableau {
   display: block;
-}
-
-.liste-statuts__tableau thead {
-  display: none;
 }
 
 .liste-statuts__tableau tbody {
@@ -314,6 +312,97 @@
   font-size: var(--fs-250);
   letter-spacing: var(--ls-etiquette);
   text-transform: uppercase;
+}
+
+
+/* ═══ 7 bis. En-tête de colonnes — déporté, jamais retiré (écran seul) ════ */
+
+/* Défaut #28, MESURÉ par CDP `Accessibility.getFullAXTree`, jamais déduit du
+   balisage : à 320 px, `columnheader × 0` contre 4 à 900 px. Le `display: none`
+   du mode cartes ne rognait pas l'en-tête, il RETIRAIT le `thead`, son `tr` et
+   ses quatre `th` de l'arbre d'accessibilité — rôles ARIA explicites du gabarit
+   compris. Un rôle explicite survit à un changement de `display` (§7 point 1),
+   il ne survit pas à `display: none`. Le `thead` est désormais DÉPORTÉ hors
+   cadre : hors du flux, dans le document et dans l'arbre. Amende l'arbitrage 7
+   du contrat #22, qui écrivait « thead { display: none } en mode cartes ».
+
+   CE QUI CASSE SI L'ON RETIRE L'UNE DES SIX DÉCLARATIONS :
+
+   1. `@media screen` — GARDE PORTEUSE, jamais un ornement. `massifs-composants`
+      est enfilée en `media="all"` (functions.php l. 237) : sans la garde, tout
+      ce bloc s'applique AUSSI au papier. print.css l. 124-126 ne réinitialise
+      que `display` — et cela ne suffirait pas : un `thead` absolument positionné
+      est BLOCKIFIÉ, son `display` calculé devient `block` quoi que déclare
+      print.css. L'en-tête répété de page en page (§13) cesserait d'être un
+      groupe d'en-tête ET serait écrêté à 2 × 2 px : il disparaîtrait de la
+      feuille. Une réinitialisation par la seule requête `min-width: 37.5rem`
+      NE RATTRAPE RIEN : une A5 moins les 12 mm du @page fait ≈ 124 mm ≈ 469 px
+      ≈ 29,3 rem (invariant I-5, révisé par le contrat #28).
+   2. `display: block` — rend `overflow` APPLICABLE : il est sans effet sur une
+      boîte interne de tableau. Interdit aussi la boîte de tableau ANONYME qui
+      naîtrait d'un `table-header-group` dans un tableau en `display: block`.
+      Les rôles sont explicites au gabarit (liste-statuts.php l. 221-228) :
+      l'interdit 24 du contrat #6 est tenu par construction.
+   3. `position: absolute`, SANS AUCUN `inset-*` — les insets `auto` conservent
+      la POSITION STATIQUE : la boîte sort du flux sans bouger d'un pixel, les
+      25 cartes ne se décalent pas. Poser un `inset-*` la déplacerait vers l'ICB
+      et la ferait recouvrir un autre bloc.
+   4. `--esp-3xs` en dimension — 2 px, PAS zéro : une boîte de dimension nulle
+      est sujette à l'élagage de l'arbre, ce qui échangerait le défaut réparé
+      contre le même défaut sous un autre nom. PAS `1px` non plus : ce serait un
+      neuvième littéral SANS SOURCE, MASTER ne spécifiant aucun patron de
+      masquage. Un jeton d'espacement consommé comme dimension a déjà son
+      précédent dans ce fichier, au §12 (reconstruction du pointillé).
+   5. `overflow: hidden` — LA déclaration qui tient « pas de défilement
+      horizontal à 320 px » (brief §8). Aucun ancêtre n'est positionné : le bloc
+      conteneur du `thead` est l'ICB, son débordement rejoint donc directement la
+      région de défilement du document. Les quatre `th` ne tiennent pas dans
+      2 px et `MASSIF · NIVEAU D'ACCÈS · ZAPEF · FRAÎCHEUR`, en condensée
+      capitale espacée, frôle les 320 px. `clip-path` n'écrête QUE la peinture et
+      le test de pointage : il ne protège pas cette ligne.
+   6. `clip-path: inset(50%)` — ceinture-bretelles de peinture, et rien d'autre.
+
+   LA RÉINITIALISATION EST INDISSOCIABLE DU DÉPORT.
+   `clip-path` s'applique à TOUS les éléments, `table-header-group` compris :
+   sans `clip-path: none` au-dessus de --bp-s, la ligne d'en-tête serait dans
+   l'arbre et INVISIBLE à l'écran — le seul défaut silencieux de ce bloc.
+   `position: static` est tout aussi porteuse : un `position: absolute` survivant
+   blockifierait le `thead` et écraserait le `display: table-header-group` du §11.
+   Les trois autres deviennent inertes (ni `overflow` ni `inline-size` ne
+   s'appliquent à un groupe de rangées) mais restent écrites : leur inertie
+   dépend d'un `display` posé par une AUTRE section.
+
+   L'ORDRE DES SECTIONS EST PORTEUR. Ce bloc doit rester AVANT le §11, qui
+   redonne `display: table-header-group` à spécificité ÉGALE (0,1,1) et ne gagne
+   que par sa position dans la source. Déplacé après le §11, le `display: block`
+   du point 2 l'emporterait à toutes les largeurs et détruirait les vraies
+   colonnes. C'est la dépendance d'ordre qui liait déjà l'ancien `display: none`
+   au §11 : elle est ici écrite, pas créée.
+
+   NON RÉGLÉ ICI, et à ne pas croire réglé : le NŒUD `columnheader` est rétabli,
+   l'ASSOCIATION en-tête ↔ cellule est calculée par le moteur et exposée aux API
+   plateforme — elle n'apparaît dans AUCUN instantané CDP. Seul un contrôle
+   humain au lecteur d'écran peut la trancher (brief §8, §12). Le `::before` du
+   §7 reste en place tant que cette preuve n'est pas faite. */
+@media screen {
+  .liste-statuts__tableau thead {
+    display: block;
+    position: absolute;
+    inline-size: var(--esp-3xs);
+    block-size: var(--esp-3xs);
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+@media screen and (min-width: 37.5rem) {
+  .liste-statuts__tableau thead {
+    position: static;
+    inline-size: auto;
+    block-size: auto;
+    overflow: visible;
+    clip-path: none;
+  }
 }
 
 
@@ -405,7 +494,7 @@
 
 /* ET RIEN D'AUTRE : l'élément porte déjà `sur-sombre repere repere--bloc`
    (etats-vides.php l. 153), et layout.css peint le fond, le texte et les liens
-   (l. 336-343) ainsi que le repère (l. 442-463). Le `padding-inline-start`
+   (l. 406-413) ainsi que le repère (l. 482-533). Le `padding-inline-start`
    vient de `.repere`. Redéclarer serait un doublon de propriété.
    DÉLIBÉRÉMENT NON ÉCRITE : la hachure --c-mistral « à faible opacité » du
    §8.3 — aucun jeton d'opacité n'existe et « faible » n'est chiffré nulle
