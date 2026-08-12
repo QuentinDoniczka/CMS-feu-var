@@ -16,7 +16,7 @@ Ce fichier ne décrit que la **procédure de ré-import**.
 | `referentiel.php` | Chargement, validation, lecture des lignes de massif |
 | `geometrie.php` | Emprise et métadonnées de l'artefact géométrique |
 | `attribution.php` | Mention §9 et lacunes assumées |
-| `compat.php` | Les 13 fonctions publiques `massifs_*()` |
+| `compat.php` | Les 16 fonctions publiques `massifs_*()` |
 | `.htaccess` | Interdit l'accès web à tout ce répertoire — code, outillage, et surtout l'archive source de 3 Mo |
 | `build/package.json` · `build/.gitignore` | Outillage de build seulement ; jamais exécuté à l'exécution du site |
 | `build/identites.json` | **Registre d'identités gelées, édité à la main, en ajout seul. Fait autorité sur l'identité** |
@@ -52,6 +52,7 @@ téléchargement d'origine, qui a transité par une conversion GML → GeoJSON.
 |---|---|
 | `code` (ex. `sainte-victoire`) | **Identité. Gelée à vie, jamais recalculée.** C'est elle qui joint les statuts, l'historique, les URLs et le JSON public |
 | `source.gid` + `source.nom_massif` | **Provenance et rapprochement seulement.** Jamais une clé de jointure, jamais affichés |
+| `source.identifiant_prefecture` (ex. `1323`) | **Traduction du flux préfectoral vers `code`, gelée.** Sert à décoder une charge utile entrante, jamais à identifier un massif en interne : la jointure reste `code`, partout |
 
 ### Pourquoi `gid` est disqualifié comme identifiant
 
@@ -77,6 +78,70 @@ la même ligne. Les accentuer nous ferait diverger du document que le visiteur c
 
 **Règle contraignante** : si `libelle` diffère de `source.nom_massif`, `note_provenance` doit être non vide et
 citer la source qui atteste la forme retenue. L'import **refuse d'émettre** sinon.
+
+## Correspondance avec le flux préfectoral
+
+Le flux journalier de la préfecture désigne les massifs par des identifiants numériques (`131`…`1327`) ;
+notre référentiel les désigne par leur `code` (`alpilles`, `sainte-victoire`…). Sans table de passage, la
+jointure entre un statut ingéré et un massif est **vide** : deux ensembles de clés disjoints.
+
+Cette table de passage est une **donnée gelée**, portée par `build/identites.json`
+(`identifiant_prefecture`), recopiée telle quelle dans `data/massifs-13.php` — par ligne, dans
+`source.identifiant_prefecture`, et en bloc racine `correspondance_source` pour la lecture inverse.
+
+**Elle ne se calcule jamais.** Elle vaut aujourd'hui `13` suivi de `source.gid` ; l'écrire ainsi serait un
+défaut, pour exactement la raison qui a fait geler les `code` : `gid` est le rang alphabétique, insérer un
+massif en renumérote 22 sur 25 **en silence**, et le statut du jour d'un massif s'afficherait alors sur un
+autre. Aucun code de l'extension ne concatène `'13'` et un `gid`.
+
+### Comment elle a été vérifiée
+
+Les 25 paires ont été contrôlées **une par une**, le 11 août 2026, contre la table des massifs publiée par
+la préfecture elle-même sur `risque-prevention-incendie.fr/13` — la table HTML rendue côté serveur, dont
+chaque ligne porte l'identifiant en attribut. Le rapprochement a été fait sur les noms, **diacritiques
+repliés des deux côtés** (`Chaîne des Côtes` ≡ `chaine des cotes`). **25 correspondances, aucun écart.**
+
+### `1326` et `1327` : en surnombre, sans nom
+
+Le flux journalier porte **27** identifiants. La table HTML de la préfecture n'a que **25** lignes et le
+bulletin PDF journalier ne nomme que **25** massifs : `1326` et `1327` ne correspondent à **aucun massif
+publié**. Ils n'ont donc **aucune correspondance**, délibérément — `massifs_code_depuis_source()` renvoie
+`null` pour eux, comme pour n'importe quel identifiant inconnu, et l'ingestion n'écrit rien.
+
+Aucun nom n'a été inventé pour combler l'écart. Deux pistes existent (la géométrie publiée par la
+préfecture porte une entité `Montagnette Partie Incendiée` absente de l'open data ; la couche sœur
+`L_MASSIFS_EXPOSES_FDF_S_013` ajoute `ZIP de Fos` et `Camargue`), **aucune n'est tranchée** : ce serait
+présenter une supposition comme une information officielle.
+
+### Lecture
+
+```php
+massifs_code_depuis_source( '131' );        // 'alpilles'
+massifs_code_depuis_source( '1326' );       // null — en surnombre
+massifs_code_depuis_source( '9999' );       // null — inconnu
+massifs_source_depuis_code( 'trevaresse' ); // '1325'
+massifs_correspondance_source();            // 25 entrées, code => identifiant
+```
+
+L'entrée n'est **jamais normalisée** : ni `trim()`, ni changement de casse, ni transtypage. Replier une
+valeur approchante sur un massif réel présenterait une donnée fausse comme juste. Les massifs retirés
+gardent leur correspondance : traduire un identifiant n'affirme pas qu'un massif est actif, c'est
+`massifs_massif_existe()` qui répond à cela.
+
+### Règle de ré-import
+
+**Un identifiant préfectoral nouveau, déplacé ou disparu se tranche à la main. Jamais automatiquement.**
+
+| Cas | Que faire |
+|---|---|
+| Le flux expose un identifiant inconnu | Rien d'automatique. Vérifier dans la table officielle **à quel nom** il correspond, puis, si et seulement si ce nom est celui d'un massif que nous connaissons, ajouter `identifiant_prefecture` à l'entrée concernée de `identites.json` |
+| Un identifiant connu change de massif | **Arrêt.** C'est une renumérotation côté préfecture : elle invalide la table entière, qui doit être revérifiée ligne à ligne contre la table officielle avant toute réémission |
+| Un nouveau massif est gelé (cas 4 de la table de réconciliation) | Son `identifiant_prefecture` se relève dans la table officielle. En son absence, l'import **refuse d'émettre** : un massif sans correspondance ne recevrait jamais de statut officiel, en silence |
+| Un identifiant reste sans massif publié | Le laisser sans correspondance et l'ajouter à `identifiants_prefecture_en_surnombre` dans `identites.json` |
+
+L'import s'arrête, sans rien écrire, si l'une des 25 identités n'a pas d'`identifiant_prefecture`, si deux
+massifs en partagent un, si une valeur ne respecte pas `^\d{3,4}$`, ou si un massif revendique un
+identifiant déclaré en surnombre.
 
 ## Table de réconciliation
 
@@ -118,6 +183,8 @@ Aucun artefact n'est écrit si l'un d'eux échoue (émission atomique : fichiers
 - un `code` qui ne respecte pas `^[a-z0-9_-]{1,64}$` ;
 - un `libelle` différent de `source.nom_massif` sans `note_provenance` ;
 - deux entités source rapportées au même `code` ; deux `gid` identiques ;
+- une identité sans `identifiant_prefecture`, deux identités qui en partagent un, une valeur qui ne
+  respecte pas `^\d{3,4}$`, ou une identité qui revendique un identifiant déclaré en surnombre ;
 - une identité sans entité source et sans `retire_le` ;
 - un `libelle` vide ;
 - un nombre d'entités géométriques différent de 25 ;
@@ -156,7 +223,8 @@ les **seuils**, jamais sur une égalité binaire.
   **toujours vide**, et `lacunes.communes.statut` vaut `inconnue`. Le thème **omet** la ligne ; il n'écrit
   jamais « aucune commune ». Les peupler demande un second import (IGN ADMIN EXPRESS), avec sa licence, sa
   propre attribution §9 et son millésime : une issue à part entière. **Absent vaut mieux que faux.**
-- **27 identifiants côté préfecture pour 25 massifs** : le flux préfectoral expose `131`…`1327`, où le suffixe
-  est le rang alphabétique ; `1326` et `1327` sont en surnombre et **ne correspondent à aucun massif de la
-  couche réglementaire**. Aucun nom n'a été inventé pour combler l'écart : `massifs_massif_existe()` renvoie
-  `false` pour ces codes, et l'ingestion comme le portail doivent traiter un code inconnu **sans rien écrire**.
+- **27 identifiants côté préfecture pour 25 massifs** : `1326` et `1327` sont en surnombre et **ne
+  correspondent à aucun massif de la couche réglementaire**. Aucun nom n'a été inventé pour combler l'écart :
+  `massifs_code_depuis_source()` renvoie `null` pour eux, `massifs_massif_existe()` renvoie `false`, et
+  l'ingestion comme le portail doivent traiter un identifiant inconnu **sans rien écrire**. Voir
+  « Correspondance avec le flux préfectoral » ci-dessus.

@@ -41,8 +41,14 @@ const CHEMINS = {
 /** Chemin de la source archivée, relatif à la racine de l'extension, tel que consigné dans les artefacts. */
 const CHEMIN_SOURCE_RELATIF = 'includes/domain/massifs/build/source/massifs-13.full.geojson';
 
-/** Version du schéma du fichier de métadonnées lu par le module PHP. */
-export const SCHEMA = 1;
+/**
+ * Version du schéma du fichier de métadonnées lu par le module PHP.
+ *
+ * 2 : ajout de la correspondance gelée avec les identifiants du flux
+ * préfectoral (`source.identifiant_prefecture` par ligne, bloc racine
+ * `correspondance_source`). Le module PHP refuse un schéma qu'il ne connaît pas.
+ */
+export const SCHEMA = 2;
 
 /**
  * Paramètres de simplification. Le paramètre `interval` de Douglas-Peucker EST
@@ -68,6 +74,22 @@ export const SEUILS = {
 	surface_anneaux_supprimes_pct_max: 0.5,
 	features_attendues: 25,
 	code_regex: '^[a-z0-9_-]{1,64}$',
+	identifiant_prefecture_regex: '^\\d{3,4}$',
+};
+
+/**
+ * Ce que porte le flux journalier de la préfecture, constaté et non déduit.
+ *
+ * 27 identifiants pour 25 massifs publiés : `1326` et `1327` sont en surnombre.
+ * Ni la table HTML de risque-prevention-incendie.fr/13 (25 lignes) ni le PDF
+ * journalier ne les nomment. Aucun nom n'est inventé pour combler l'écart : ils
+ * restent délibérément sans correspondance, et une ingestion qui les rencontre
+ * n'écrit rien.
+ */
+export const FLUX_PREFECTURE = {
+	identifiants_total: 27,
+	sans_correspondance: [ '1326', '1327' ],
+	note: 'En surnombre dans le flux : aucune publication officielle ne les nomme, ils n\'ont donc volontairement aucun massif. Aucun nom n\'est inventé.',
 };
 
 /** Provenance du jeu de données. Faits vérifiables, jamais de rédaction. */
@@ -497,12 +519,62 @@ export function mesurerFidelite( sourceFC, simplifieFC ) {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Contrôle la correspondance gelée avec les identifiants du flux préfectoral.
+ *
+ * L'identifiant n'est JAMAIS calculé — surtout pas en `13` + `gid`, qui est le
+ * rang alphabétique et se renumérote à la moindre insertion. Il est recopié
+ * depuis `identites.json`, où il a été vérifié à la main. Toute anomalie arrête
+ * l'import : une correspondance fausse rattacherait le statut d'un massif à un
+ * autre, ce qui se lirait comme une information officielle.
+ */
+export function controlerIdentifiantsPrefecture( registre ) {
+	const forme = new RegExp( SEUILS.identifiant_prefecture_regex );
+	const vus = new Map();
+
+	for ( const identite of registre.identites ) {
+		const identifiant = identite.identifiant_prefecture;
+
+		if ( 'string' !== typeof identifiant || '' === identifiant ) {
+			throw new Arret(
+				`Arrêt : ${ identite.code } n'a pas d'\`identifiant_prefecture\` dans identites.json. ` +
+					'Le résoudre à la main contre la table officielle, jamais depuis le gid (voir README).'
+			);
+		}
+
+		if ( ! forme.test( identifiant ) ) {
+			throw new Arret(
+				`Arrêt : l'identifiant préfectoral « ${ identifiant } » de ${ identite.code } ne respecte pas ` +
+					`${ SEUILS.identifiant_prefecture_regex }.`
+			);
+		}
+
+		if ( vus.has( identifiant ) ) {
+			throw new Arret(
+				`Arrêt : l'identifiant préfectoral « ${ identifiant } » est partagé par ${ vus.get( identifiant ) } ` +
+					`et ${ identite.code }. La correspondance doit rester bijective.`
+			);
+		}
+
+		if ( FLUX_PREFECTURE.sans_correspondance.includes( identifiant ) ) {
+			throw new Arret(
+				`Arrêt : ${ identite.code } revendique l'identifiant « ${ identifiant } », déclaré en surnombre ` +
+					'et sans massif publié. Trancher à la main avant de le rattacher (voir README).'
+			);
+		}
+
+		vus.set( identifiant, identite.code );
+	}
+}
+
+/**
  * Rapproche les entités source du registre d'identités gelées.
  *
  * Toute situation qui exigerait de créer, renommer ou re-lier une identité lève
  * un `Arret` : c'est une décision humaine, jamais une conséquence d'un `npm run`.
  */
 export function reconcilier( sourceFC, registre ) {
+	controlerIdentifiantsPrefecture( registre );
+
 	const parSlug = new Map(
 		registre.identites.map( ( identite ) => [ slugifier( identite.source.nom_massif ), identite ] )
 	);
@@ -597,6 +669,9 @@ export function construireLignes( appariement ) {
 				gid,
 				nom_massif: identite.source.nom_massif,
 				revision: PROVENANCE.donnees_du,
+				// Recopié depuis le registre gelé, jamais reconstruit : voir
+				// `controlerIdentifiantsPrefecture`.
+				identifiant_prefecture: identite.identifiant_prefecture,
 			},
 			note_provenance: identite.note_provenance,
 		};
@@ -678,8 +753,12 @@ export function construireDonnees( { lignes, geometrie, genereLe, sourceSha256, 
 	};
 
 	const massifs = {};
+	// Index direct code -> identifiant, écrit tel quel dans l'artefact : la
+	// lecture inverse côté PHP n'a alors aucune boucle à faire.
+	const correspondanceSource = {};
 
 	for ( const ligne of lignes ) {
+		correspondanceSource[ ligne.code ] = ligne.source.identifiant_prefecture;
 		massifs[ ligne.code ] = {
 			code: ligne.code,
 			libelle: ligne.libelle,
@@ -722,6 +801,9 @@ export function construireDonnees( { lignes, geometrie, genereLe, sourceSha256, 
 			crs_publie: PROVENANCE.crs_publie,
 			base_reglementaire: PROVENANCE.base_reglementaire,
 			dispositif: PROVENANCE.dispositif,
+			flux_identifiants_total: FLUX_PREFECTURE.identifiants_total,
+			flux_identifiants_sans_correspondance: FLUX_PREFECTURE.sans_correspondance,
+			flux_identifiants_sans_correspondance_note: FLUX_PREFECTURE.note,
 			archive: archive,
 		},
 		licence: LICENCE,
@@ -746,6 +828,7 @@ export function construireDonnees( { lignes, geometrie, genereLe, sourceSha256, 
 			zoom_max: SIMPLIFICATION.zoom_max,
 		},
 		lacunes: LACUNES,
+		correspondance_source: correspondanceSource,
 		massifs,
 	};
 }
@@ -770,6 +853,15 @@ export function rendrePhp( donnees ) {
  * Ce fichier ne s'ouvre pas directement : il se lit par les fonctions
  * \`massifs_*()\` du module. Il ne contient aucune coordonnée de géométrie —
  * celles-ci vivent dans \`massifs-13.geometrie.json\`, servi en statique.
+ *
+ * \`source.identifiant_prefecture\` et le bloc \`correspondance_source\` portent la
+ * correspondance GELÉE entre nos codes et les identifiants du flux journalier de
+ * la préfecture. Elle est recopiée depuis \`build/identites.json\`, où elle a été
+ * vérifiée à la main : elle ne se DÉDUIT JAMAIS de \`source.gid\`, qui n'est qu'un
+ * rang alphabétique et se renumérote à la moindre insertion. Les identifiants
+ * listés dans \`source.flux_identifiants_sans_correspondance\` sont en surnombre :
+ * le flux les porte, aucune publication officielle ne les nomme, ils n'ont donc
+ * volontairement aucun massif.
  *
  * @package Massifs
  * @license GPL-2.0-or-later
@@ -800,12 +892,24 @@ return `;
 export function controler( { lignes, simplifieFC, octets, emprise } ) {
 	const codes = lignes.map( ( ligne ) => ligne.code );
 	const regex = new RegExp( SEUILS.code_regex );
+	const formeIdentifiant = new RegExp( SEUILS.identifiant_prefecture_regex );
+	const identifiants = lignes.map( ( ligne ) => ligne.source.identifiant_prefecture );
 	const proprietes = simplifieFC.features.every(
 		( f ) => 1 === Object.keys( f.properties ).length && 'code' in f.properties
 	);
 
 	return {
 		codes_uniques: new Set( codes ).size === codes.length,
+		identifiants_prefecture_presents: identifiants.every(
+			( identifiant ) => 'string' === typeof identifiant && '' !== identifiant
+		),
+		identifiants_prefecture_conformes_regex: identifiants.every(
+			( identifiant ) => formeIdentifiant.test( String( identifiant ) )
+		),
+		identifiants_prefecture_uniques: new Set( identifiants ).size === identifiants.length,
+		identifiants_prefecture_en_surnombre_non_rattaches: identifiants.every(
+			( identifiant ) => ! FLUX_PREFECTURE.sans_correspondance.includes( identifiant )
+		),
 		codes_conformes_regex: codes.every( ( code ) => regex.test( code ) ),
 		libelles_non_vides: lignes.every( ( ligne ) => '' !== ligne.libelle.trim() ),
 		notes_provenance_completes: lignes.every(

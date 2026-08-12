@@ -21,7 +21,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mesurerFidelite, sha256, SEUILS, SCHEMA } from './importer.mjs';
+import { mesurerFidelite, sha256, SEUILS, SCHEMA, FLUX_PREFECTURE } from './importer.mjs';
 
 const RACINE = path.dirname( fileURLToPath( import.meta.url ) );
 const EXTENSION = path.resolve( RACINE, '../../../..' );
@@ -146,6 +146,45 @@ if ( lecture.erreur ) {
 	controler(
 		'identités : liste pré-triée par `tri`',
 		lignes.every( ( l, i ) => 0 === i || lignes[ i - 1 ].tri <= l.tri )
+	);
+	const correspondance = meta.correspondance_source || {};
+	const codesCorrespondance = Object.keys( correspondance );
+	const identifiants = Object.values( correspondance );
+	const formeIdentifiant = new RegExp( SEUILS.identifiant_prefecture_regex );
+
+	controler(
+		'correspondance : une entrée par massif',
+		SEUILS.features_attendues === codesCorrespondance.length,
+		`${ codesCorrespondance.length } / ${ SEUILS.features_attendues }`
+	);
+	controler(
+		'correspondance : identifiants conformes à la regex',
+		identifiants.length > 0 && identifiants.every( ( identifiant ) => formeIdentifiant.test( identifiant ) )
+	);
+	controler(
+		'correspondance : identifiants uniques',
+		new Set( identifiants ).size === identifiants.length
+	);
+	controler(
+		'correspondance : bijective avec les codes des lignes',
+		codesCorrespondance.length === lignes.length &&
+			lignes.every( ( l ) => correspondance[ l.code ] === l.source.identifiant_prefecture )
+	);
+	controler(
+		'correspondance : identifiants en surnombre non rattachés',
+		FLUX_PREFECTURE.sans_correspondance.every( ( identifiant ) => ! identifiants.includes( identifiant ) ),
+		FLUX_PREFECTURE.sans_correspondance.join( ', ' )
+	);
+	controler(
+		'correspondance : total du flux consigné',
+		meta.source.flux_identifiants_total === FLUX_PREFECTURE.identifiants_total,
+		`${ meta.source.flux_identifiants_total }`
+	);
+	controler(
+		'correspondance : identifiants en surnombre consignés',
+		Array.isArray( meta.source.flux_identifiants_sans_correspondance ) &&
+			meta.source.flux_identifiants_sans_correspondance.join( ',' ) ===
+				FLUX_PREFECTURE.sans_correspondance.join( ',' )
 	);
 	controler(
 		'emprise : contient toutes les bbox de massifs',

@@ -111,6 +111,49 @@ if ( ! function_exists( 'massifs_compte' ) ) {
 	}
 }
 
+if ( ! function_exists( 'massifs_correspondance_source' ) ) {
+	/**
+	 * Correspondance gelée `massif_code` => `identifiant_source` du flux préfectoral.
+	 *
+	 * DONNÉE GELÉE, JAMAIS CALCULÉE : elle est recopiée depuis le registre
+	 * d'identités, où elle a été vérifiée massif par massif contre la table
+	 * officielle. Elle vaut aujourd'hui `13` + `source.gid`, et l'écrire ainsi
+	 * serait un défaut : `gid` est un rang alphabétique qui se renumérote.
+	 *
+	 * 25 entrées. `1326` et `1327` en sont délibérément absents : le flux les
+	 * porte, aucune publication officielle ne les nomme.
+	 *
+	 * @return array<string,string> Vide si le référentiel est indisponible.
+	 */
+	function massifs_correspondance_source(): array {
+		return \Massifs\Domain\Massifs\correspondance_source();
+	}
+}
+
+if ( ! function_exists( 'massifs_code_depuis_source' ) ) {
+	/**
+	 * Code de massif portant un identifiant du flux préfectoral.
+	 *
+	 * @param string $identifiant_source Identifiant du flux, passé tel quel, jamais normalisé.
+	 * @return string|null Null si l'identifiant est inconnu ou en surnombre (`1326`, `1327`).
+	 */
+	function massifs_code_depuis_source( string $identifiant_source ): ?string {
+		return \Massifs\Domain\Massifs\code_depuis_source( $identifiant_source );
+	}
+}
+
+if ( ! function_exists( 'massifs_source_depuis_code' ) ) {
+	/**
+	 * Identifiant du flux préfectoral d'un massif.
+	 *
+	 * @param string $code Code de massif, passé tel quel, jamais normalisé.
+	 * @return string|null Null si le code est inconnu.
+	 */
+	function massifs_source_depuis_code( string $code ): ?string {
+		return \Massifs\Domain\Massifs\source_depuis_code( $code );
+	}
+}
+
 if ( ! function_exists( 'massifs_emprise' ) ) {
 	/**
 	 * Emprise de la couche massifs et zoom maximal autorisé.

@@ -25,8 +25,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/etats.php';
 
-/** Version de schéma du fichier de données que ce code sait lire. */
-const SCHEMA_CONNU = 1;
+/**
+ * Version de schéma du fichier de données que ce code sait lire.
+ *
+ * 2 : la correspondance gelée avec les identifiants du flux préfectoral
+ * (`source.identifiant_prefecture` et bloc racine `correspondance_source`).
+ */
+const SCHEMA_CONNU = 2;
 
 /**
  * Chemin absolu du fichier de métadonnées généré.
@@ -56,7 +61,11 @@ function chemin_geometrie(): string {
  * donnée immuable déjà compilée par OPcache ajouterait une requête à la base
  * et une classe d'incohérence (cache tiède après ré-import) sans rien gagner.
  *
- * @return array{disponible:bool,raison:?string,schema:int,genere_le:?string,massifs:array<string,array>,meta:array}
+ * Les deux sens de la correspondance préfectorale sont construits ICI, une
+ * seule fois, et mémoïsés avec le reste : la lecture inverse
+ * (`identifiant_source` -> `code`) ne parcourt jamais les 25 lignes à l'appel.
+ *
+ * @return array{disponible:bool,raison:?string,schema:int,genere_le:?string,massifs:array<string,array>,correspondance:array<string,string>,index_source:array<string,string>,meta:array}
  */
 function donnees(): array {
 	static $donnees = null;
@@ -76,12 +85,14 @@ function donnees(): array {
  */
 function echec( string $raison ): array {
 	return array(
-		'disponible' => false,
-		'raison'     => $raison,
-		'schema'     => 0,
-		'genere_le'  => null,
-		'massifs'    => array(),
-		'meta'       => array(),
+		'disponible'     => false,
+		'raison'         => $raison,
+		'schema'         => 0,
+		'genere_le'      => null,
+		'massifs'        => array(),
+		'correspondance' => array(),
+		'index_source'   => array(),
+		'meta'           => array(),
 	);
 }
 
@@ -145,14 +156,95 @@ function charger( string $chemin ): array {
 		}
 	);
 
+	$correspondance = indexer_correspondance( $massifs );
+
+	if ( null === $correspondance ) {
+		return echec( RAISON_CONTENU_INVALIDE );
+	}
+
+	// Le bloc racine dit la même chose que les lignes. Il est recoupé plutôt que
+	// cru : deux représentations d'une même correspondance qui divergeraient
+	// rattacheraient un statut officiel au mauvais massif selon le sens de
+	// lecture. En désaccord, le fichier entier est rejeté.
+	if ( ! correspondance_concordante( bloc( $brut, 'correspondance_source' ), $correspondance['directe'] ) ) {
+		return echec( RAISON_CONTENU_INVALIDE );
+	}
+
 	return array(
-		'disponible' => true,
-		'raison'     => null,
-		'schema'     => $brut['schema'],
-		'genere_le'  => isset( $brut['genere_le'] ) && is_string( $brut['genere_le'] ) ? $brut['genere_le'] : null,
-		'massifs'    => $massifs,
-		'meta'       => $brut,
+		'disponible'     => true,
+		'raison'         => null,
+		'schema'         => $brut['schema'],
+		'genere_le'      => isset( $brut['genere_le'] ) && is_string( $brut['genere_le'] ) ? $brut['genere_le'] : null,
+		'massifs'        => $massifs,
+		'correspondance' => $correspondance['directe'],
+		'index_source'   => $correspondance['inverse'],
+		'meta'           => $brut,
 	);
+}
+
+/**
+ * Construit les deux sens de la correspondance préfectorale, une fois.
+ *
+ * Les massifs retirés sont inclus : leur identité survit à leur retrait, et un
+ * statut historique doit rester traduisible. Traduire n'est pas affirmer qu'un
+ * massif est actif — c'est `massifs_massif_existe()` qui répond à cela.
+ *
+ * @param array<string,array> $massifs Lignes déjà validées.
+ * @return array{directe:array<string,string>,inverse:array<string,string>}|null Null si deux massifs partagent un identifiant.
+ */
+function indexer_correspondance( array $massifs ): ?array {
+	$directe = array();
+	$inverse = array();
+
+	foreach ( $massifs as $code => $ligne ) {
+		$identifiant = $ligne['source']['identifiant_prefecture'];
+
+		if ( null === $identifiant ) {
+			continue;
+		}
+
+		// Un identifiant partagé écraserait silencieusement une entrée de l'index
+		// inverse : le massif perdant recevrait les statuts du gagnant.
+		if ( isset( $inverse[ $identifiant ] ) ) {
+			return null;
+		}
+
+		$directe[ $code ]        = $identifiant;
+		$inverse[ $identifiant ] = $code;
+	}
+
+	return array(
+		'directe' => $directe,
+		'inverse' => $inverse,
+	);
+}
+
+/**
+ * Le bloc racine déclaré est-il compatible avec celui déduit des lignes ?
+ *
+ * Un bloc absent est accepté : un fichier de schéma antérieur n'en porte pas,
+ * et les lignes suffisent à établir la correspondance.
+ *
+ * @param array<string,mixed>  $declaree Bloc `correspondance_source` du fichier.
+ * @param array<string,string> $deduite  Correspondance déduite des lignes.
+ * @return bool
+ */
+function correspondance_concordante( array $declaree, array $deduite ): bool {
+	if ( array() === $declaree ) {
+		return true;
+	}
+
+	if ( count( $declaree ) !== count( $deduite ) ) {
+		return false;
+	}
+
+	foreach ( $declaree as $code => $identifiant ) {
+		if ( ! isset( $deduite[ $code ] ) || $deduite[ $code ] !== $identifiant ) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /**
@@ -290,6 +382,11 @@ function normaliser_centre( $centre ) {
 /**
  * Valide le bloc de provenance d'une ligne.
  *
+ * `identifiant_prefecture` est optionnel — un fichier de schéma antérieur n'en
+ * porte pas, et il vaut mieux un référentiel sans correspondance qu'un
+ * référentiel indisponible. Présent, il doit être une chaîne : un type inattendu
+ * signale un artefact corrompu, pas une version ancienne.
+ *
  * @param mixed $source Valeur brute.
  * @return array|null Null si la valeur est invalide.
  */
@@ -302,10 +399,17 @@ function normaliser_source( $source ): ?array {
 		return null;
 	}
 
+	$identifiant = array_key_exists( 'identifiant_prefecture', $source ) ? $source['identifiant_prefecture'] : null;
+
+	if ( null !== $identifiant && ( ! is_string( $identifiant ) || '' === $identifiant ) ) {
+		return null;
+	}
+
 	return array(
-		'gid'        => $source['gid'],
-		'nom_massif' => $source['nom_massif'],
-		'revision'   => $source['revision'],
+		'gid'                    => $source['gid'],
+		'nom_massif'             => $source['nom_massif'],
+		'revision'               => $source['revision'],
+		'identifiant_prefecture' => $identifiant,
 	);
 }
 
@@ -442,6 +546,56 @@ function libelles( bool $inclure_retires = false ): array {
  */
 function compte( bool $inclure_retires = false ): int {
 	return count( referentiel( $inclure_retires ) );
+}
+
+/**
+ * Correspondance gelée `massif_code` => `identifiant_source` du flux préfectoral.
+ *
+ * DONNÉE GELÉE, JAMAIS CALCULÉE. Elle est recopiée depuis `build/identites.json`,
+ * où elle a été vérifiée une par une contre la table officielle des massifs du
+ * 13. Elle vaut aujourd'hui `13` + `source.gid`, et ce serait un défaut de
+ * l'écrire ainsi : `gid` est le rang alphabétique de la couche DDTM, insérer un
+ * massif renumérote 22 identifiants sur 25 sans rien signaler.
+ *
+ * 25 entrées. Les identifiants `1326` et `1327`, présents dans le flux
+ * journalier, n'y figurent délibérément pas : aucune publication officielle ne
+ * les nomme (voir `source.flux_identifiants_sans_correspondance`).
+ *
+ * @return array<string,string> Vide si le référentiel est indisponible.
+ */
+function correspondance_source(): array {
+	return donnees()['correspondance'];
+}
+
+/**
+ * Code de massif portant un identifiant du flux préfectoral.
+ *
+ * L'identifiant est cherché tel quel, par clé stricte : ni `trim()`, ni
+ * changement de casse, ni transtypage. Replier une valeur approchante sur un
+ * massif réel présenterait une donnée fausse comme juste.
+ *
+ * @param string $identifiant_source Identifiant du flux, par exemple '131'.
+ * @return string|null Null si l'identifiant est inconnu, en surnombre (`1326`, `1327`) ou le référentiel indisponible.
+ */
+function code_depuis_source( string $identifiant_source ): ?string {
+	$index = donnees()['index_source'];
+
+	return isset( $index[ $identifiant_source ] ) ? $index[ $identifiant_source ] : null;
+}
+
+/**
+ * Identifiant du flux préfectoral d'un massif.
+ *
+ * Le code est cherché tel quel, par clé stricte, comme partout ailleurs dans ce
+ * module.
+ *
+ * @param string $code Code de massif.
+ * @return string|null Null si le code est inconnu ou le référentiel indisponible.
+ */
+function source_depuis_code( string $code ): ?string {
+	$correspondance = donnees()['correspondance'];
+
+	return isset( $correspondance[ $code ] ) ? $correspondance[ $code ] : null;
 }
 
 /**
