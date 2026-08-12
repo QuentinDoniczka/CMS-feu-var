@@ -417,3 +417,105 @@ function massifs_indice_vise_hote( $entree, string $hote ): bool {
 
 	return $hote === wp_parse_url( $href, PHP_URL_HOST );
 }
+
+/**
+ * Coupe toute composition d'empreinte d'avatar, sur tous les chemins du cœur.
+ *
+ * C'est la contrainte non négociable n° 2, doublée du §9 : le cœur compose
+ * `https://secure.gravatar.com/avatar/<sha256 de l'adresse e-mail>` — à la fois
+ * une requête navigateur vers un domaine tiers ET une donnée personnelle
+ * envoyée hors de notre domaine. Mesuré avant correctif : sur l'accueil en
+ * session, sur tout `/wp-admin/*`, et — le plus grave — dans
+ * `GET /wp-json/wp/v2/users` servi ANONYMEMENT, qui livrait l'empreinte de
+ * l'administrateur à n'importe quel appelant non authentifié.
+ *
+ * Deux filtres, un seul garant :
+ *
+ * 1. `pre_get_avatar_data` EST la garantie. Il coupe dans `get_avatar_data()`
+ *    avant la ligne qui compose `$email_hash` : l'empreinte n'est pas masquée,
+ *    elle n'est jamais calculée. Un seul geste couvre donc `get_avatar()`,
+ *    `get_avatar_url()`, `rest_get_avatar_urls()`, `force_display` et
+ *    `force_default`.
+ * 2. `option_show_avatars` est la ceinture : court-circuit précoce de
+ *    `get_avatar()`, retrait des champs `avatar_urls` / `author_avatar_urls` du
+ *    SCHÉMA REST, et retrait de la ligne « Image de profil » de `profile.php`
+ *    avec son lien littéral vers gravatar.com — lien écrit en dur dans le
+ *    gabarit du cœur, donc hors de portée du filtre 1.
+ *
+ * AUCUNE GARDE DE CONTEXTE — ni `is_admin()`, ni `is_user_logged_in()`, ni
+ * détection REST : la fuite est mesurée anonymement ET en session, une garde
+ * rouvrirait la moitié du trou.
+ *
+ * Priorité 100 sur les deux, même idiome que massifs_retirer_feuilles_du_coeur :
+ * le dernier mot après tout filtre tiers. Conséquence à connaître : un futur
+ * avatar LOCAL du portail, servi depuis notre domaine, devra s'enregistrer
+ * APRÈS la priorité 100 pour pouvoir réécrire l'URL.
+ *
+ * Cette coupe vit dans le thème à titre TRANSITOIRE : un changement de thème
+ * actif, ou un basculement sur un thème de repli, la ferait disparaître. Sa
+ * place durable est un module `security` de l'extension.
+ */
+function massifs_neutraliser_avatars(): void {
+	add_filter( 'pre_get_avatar_data', 'massifs_couper_donnees_avatar', 100, 1 );
+	add_filter( 'option_show_avatars', 'massifs_desactiver_option_avatars', 100, 1 );
+}
+// `init` : même accroche que la neutralisation des émoji, après default-filters.php
+// et après l'enregistrement des filtres des extensions.
+add_action( 'init', 'massifs_neutraliser_avatars' );
+
+/**
+ * Vide les données d'avatar avant que le cœur ne compose la moindre empreinte.
+ *
+ * `''` et JAMAIS `null` : le cœur teste `isset( $args['url'] )` pour décider de
+ * s'arrêter là. `null` rendrait `isset()` faux, le cœur poursuivrait, et
+ * l'empreinte serait composée — le correctif serait un no-op silencieux. La
+ * chaîne vide est `isset()`-vraie ET falsy : `get_avatar()` la lit comme
+ * « aucun avatar » et omet la balise entière au lieu d'émettre un `<img src="">`.
+ *
+ * `found_avatar` repasse à false pour que le tableau reste cohérent avec sa
+ * propre URL, quoi qu'un filtre antérieur y ait mis.
+ *
+ * ÉCART DÉLIBÉRÉ avec massifs_indice_vise_hote() du même fichier, qui CONSERVE
+ * ce qu'il ne sait pas lire : ici une `$args` non-tableau est REMPLACÉE par un
+ * tableau minimal, jamais laissée passer. La raison est symétrique — là il
+ * s'agissait de ne jamais supprimer à l'aveugle, ici de ne jamais composer une
+ * empreinte, y compris sur une entrée illisible.
+ *
+ * @param mixed $args Arguments d'avatar, après traitement par le cœur.
+ *
+ * @return array<string, mixed> Arguments sans URL et sans avatar trouvé.
+ */
+function massifs_couper_donnees_avatar( $args ) {
+	$args = is_array( $args ) ? $args : array();
+
+	$args['url']          = '';
+	$args['found_avatar'] = false;
+
+	return $args;
+}
+
+/**
+ * Rend l'option « Afficher les avatars » fausse à la lecture.
+ *
+ * `option_` et jamais `pre_option_` : `update_option()` appelle `get_option()`
+ * pour comparer avant d'écrire ; un `pre_option_` court-circuiterait cette
+ * comparaison et pourrait empêcher une écriture légitime en base. `option_`
+ * filtre la lecture sans jamais toucher au chemin d'écriture — la valeur
+ * enregistrée reste ce qu'elle est.
+ *
+ * `'0'` et non `false` : c'est exactement ce que rendrait la valeur en base une
+ * fois décochée, donc le cœur et les extensions lisent une valeur du même type
+ * qu'en fonctionnement normal.
+ *
+ * Conséquence assumée : la case de Réglages → Discussion devient inerte. L'état
+ * affiché reste EXACT — décochée, et aucun avatar n'est rendu ; la rendre
+ * lecture seule avec son explication appartient aux écrans d'administration de
+ * l'extension.
+ *
+ * @param mixed $valeur Valeur enregistrée en base, non consultée.
+ *
+ * @return string Toujours la chaîne '0'.
+ */
+function massifs_desactiver_option_avatars( $valeur ) {
+	return '0';
+}

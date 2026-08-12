@@ -1696,6 +1696,309 @@ async function s20_arbreAccessibiliteEnCartes( navigateur ) {
 	await contexte.close();
 }
 
+/**
+ * Aucune fuite Gravatar — anonymement, en session, et jusque sous `force_display`.
+ *
+ * CE SCÉNARIO OUVRE DÉLIBÉRÉMENT DEUX VRAIES SESSIONS, et pose donc des cookies
+ * `wordpress_logged_in_*` dans ses propres contextes. Ce n'est une contradiction
+ * ni avec `s01` ni avec le §2 du brief : l'interdiction de cookie porte sur le
+ * VISITEUR ANONYME, ce que la première jambe asserte explicitement. Chaque
+ * session vit dans son `newContext()`, dont la fermeture EST la remise à zéro —
+ * lancé seul, ce scénario laisse la stack exactement comme il l'a trouvée.
+ *
+ * Quatre jambes, parce que la fuite avait quatre visages : le visiteur anonyme
+ * (à qui notre propre API REST servait l'empreinte de l'administrateur), la
+ * couche PHP elle-même (seul endroit où `force_display` s'éprouve, donc seule
+ * façon de rendre ce scénario IMPRENABLE par une valeur en base de données),
+ * puis les deux comptes réels.
+ *
+ * Écrans volontairement JAMAIS visités : `plugin-install.php`,
+ * `update-core.php`, `theme-install.php`, `about.php`. Ils chargent
+ * légitimement des images depuis `ps.w.org` / `s.w.org` ; les visiter rendrait
+ * l'assertion d'origine rouge pour une cause que cette issue n'a pas le droit de
+ * corriger.
+ *
+ * @param {import('playwright-core').Browser} navigateur Navigateur.
+ */
+async function s21_aucuneFuiteGravatar( navigateur ) {
+	scenario( '21 — aucune fuite Gravatar : anonyme, en session, sous force_display (§2, §9)' );
+	poserEtat( 'jour-nominal' );
+
+	const { createHash } = await import( 'node:crypto' );
+	const empreinte = ( courriel ) =>
+		createHash( 'sha256' ).update( courriel.trim().toLowerCase() ).digest( 'hex' );
+
+	const COMPTES = [
+		{
+			login: lireEnv( 'WP_ADMIN_USER', '' ),
+			motDePasse: lireEnv( 'WP_ADMIN_PASSWORD', '' ),
+			courriel: lireEnv( 'WP_ADMIN_EMAIL', '' ),
+			chemins: [ '/', '/wp-admin/', '/wp-admin/profile.php', '/wp-admin/users.php' ],
+		},
+		{
+			login: lireEnv( 'WP_MANAGER_USER', '' ),
+			motDePasse: lireEnv( 'WP_MANAGER_PASSWORD', '' ),
+			courriel: lireEnv( 'WP_MANAGER_EMAIL', '' ),
+			// Pas de `users.php` : le rôle n'a pas `list_users`, l'écran répondrait
+			// 403 — ce qui n'apprendrait rien de la fuite.
+			chemins: [ '/', '/wp-admin/', '/wp-admin/profile.php' ],
+		},
+	];
+
+	// Validation de la CONFIGURATION du scénario, avant qu'une seule empreinte ne
+	// soit calculée. `lireEnv()` se replie sur '' quand la clé manque, et
+	// `empreinte( '' )` est une empreinte parfaitement valide qui n'apparaîtra
+	// jamais nulle part : les deux assertions « aucune empreinte de
+	// l'administrateur / du gestionnaire » passeraient au vert en ne prouvant
+	// rien. Ce n'est pas une cinquième garde anti-faux-vert — les quatre gelées
+	// par le contrat portent toutes sur la réalité de la session — c'est la
+	// vérification que le test dispose de ses propres entrées, et son absence doit
+	// être ROUGE, jamais un saut silencieux. Aucune valeur par défaut n'est
+	// recopiée depuis `docker-compose.yml` ni `provision.sh` : ce serait une
+	// seconde source de vérité, exactement ce qu'on évite. Les identifiants et
+	// mots de passe, eux, n'ont pas besoin de la même garde : vides ou faux, la
+	// connexion échoue et c'est la garde de cookie — ou l'attente de sortie de
+	// `wp-login.php` — qui devient rouge.
+	for ( const [ qui, compte ] of [
+		[ 'administrateur', COMPTES[ 0 ] ],
+		[ 'gestionnaire', COMPTES[ 1 ] ],
+	] ) {
+		assert(
+			typeof compte.courriel === 'string' &&
+				compte.courriel.trim() !== '' &&
+				compte.courriel.includes( '@' ),
+			`configuration : l'adresse du compte ${ qui } est bien lue dans .env`,
+			'une adresse non vide contenant « @ »',
+			compte.courriel === '' ? '(clé absente de .env)' : String( compte.courriel )
+		);
+	}
+
+	// Recalculées, jamais recopiées : une empreinte en dur mentirait le jour où
+	// l'adresse du compte change. `wapuu@wordpress.example` est l'auteur du
+	// commentaire de graine du cœur, dont l'empreinte fuitait par le widget
+	// « Activité » du tableau de bord.
+	const EMPREINTES = [
+		[ 'administrateur', empreinte( COMPTES[ 0 ].courriel ) ],
+		[ 'gestionnaire', empreinte( COMPTES[ 1 ].courriel ) ],
+		[ 'auteur du commentaire de graine', empreinte( 'wapuu@wordpress.example' ) ],
+	];
+	note( `empreintes recalculées depuis .env : ${ EMPREINTES.map( ( [ q, h ] ) => `${ q } → ${ h }` ).join( ' · ' ) }` );
+
+	/**
+	 * Corps REST débarrassé du CONTENU ÉDITORIAL.
+	 *
+	 * Le commentaire de graine du cœur cite lui-même
+	 * `<a href="https://gravatar.com/">Gravatar</a>` dans son texte. C'est du
+	 * contenu de démonstration, pas une URL d'avatar : il n'émet aucune requête,
+	 * il n'est rendu sur aucune page publique du thème, et le corriger
+	 * demanderait de toucher la base de démonstration — hors empreinte de cette
+	 * issue. Seul le balayage « gravatar » ignore ces champs ; les balayages
+	 * d'empreinte portent, eux, sur le corps entier.
+	 *
+	 * @param {string} texte Corps servi.
+	 * @return {string} Corps sans les valeurs `rendered`.
+	 */
+	const sansContenuEditorial = ( texte ) =>
+		texte.replace( /"rendered":"(?:[^"\\]|\\.)*"/g, '"rendered":""' );
+
+	/**
+	 * Les trois balayages de contenu, appliqués à toute surface servie.
+	 *
+	 * @param {string} etiquette Surface observée.
+	 * @param {string} texte     Corps ou HTML servi.
+	 * @param {string} pourMot   Variante fouillée par le balayage « gravatar ».
+	 */
+	function balayerTexte( etiquette, texte, pourMot = texte ) {
+		const mots = pourMot.match( /gravatar/gi ) ?? [];
+		assert(
+			mots.length === 0,
+			`${ etiquette } : aucune occurrence « gravatar »`,
+			'aucune',
+			`${ mots.length } occurrence(s)`
+		);
+
+		for ( const [ qui, hex ] of EMPREINTES ) {
+			assert(
+				! texte.includes( hex ),
+				`${ etiquette } : aucune empreinte de ${ qui }`,
+				'absente',
+				hex
+			);
+		}
+
+		// Générique, et les correspondances sont listées : une empreinte d'un
+		// compte créé après coup serait attrapée ici, et diagnosticable.
+		const hexs = [ ...new Set( texte.match( /\b[0-9a-f]{64}\b/gi ) ?? [] ) ];
+		egal( [], hexs, `${ etiquette } : aucune chaîne de 64 hexadécimaux servie` );
+	}
+
+	/**
+	 * Les deux balayages de réseau, plus la trace §11 des origines contactées.
+	 *
+	 * @param {string}   etiquette Surface observée.
+	 * @param {object[]} requetes  Requêtes réellement émises.
+	 * @param {string[]} echecs    Requêtes en échec.
+	 */
+	function balayerReseau( etiquette, requetes, echecs ) {
+		const origines = new Map();
+		for ( const r of requetes ) {
+			const origine = new URL( r.url ).origin;
+			origines.set( origine, ( origines.get( origine ) ?? 0 ) + 1 );
+		}
+		const tierces = [ ...origines.keys() ].filter( ( o ) => o !== ORIGINE );
+		egal( [], tierces, `${ etiquette } : aucune origine tierce CONTACTÉE par le navigateur` );
+		assert( echecs.length === 0, `${ etiquette } : aucune requête en échec`, '[]', echecs.join( ', ' ) );
+		note(
+			`${ etiquette } : ${ requetes.length } requêtes — ${ [ ...origines.entries() ]
+				.map( ( [ o, n ] ) => `${ o } (${ n })` )
+				.join( ' · ' ) }`
+		);
+	}
+
+	// ---- jambe 1 : le visiteur anonyme
+	const anonyme = await navigateur.newContext();
+	try {
+		const { page, requetes, echecs } = await charger( anonyme, '/' );
+		balayerReseau( 'anonyme /', requetes, echecs );
+		balayerTexte( 'anonyme /', await page.content() );
+		egal(
+			[],
+			( await anonyme.cookies() ).map( ( c ) => c.name ),
+			'aucun cookie posé pour le visiteur anonyme'
+		);
+		await page.close();
+
+		for ( const route of [ '/wp-json/wp/v2/users', '/wp-json/wp/v2/comments' ] ) {
+			const reponse = await anonyme.request.get( BASE + route, { failOnStatusCode: false } );
+			egal( 200, reponse.status(), `anonyme ${ route } : la route reste servie` );
+			const corps = await reponse.text();
+			balayerTexte( `anonyme ${ route }`, corps, sansContenuEditorial( corps ) );
+
+			if ( route.endsWith( 'users' ) ) {
+				// Non-régression INVERSE : l'énumération d'utilisateurs est un défaut
+				// DISTINCT, hors périmètre. On asserte qu'on ne l'a PAS corrigée au
+				// passage — sans quoi un vert masquerait un débordement.
+				const liste = JSON.parse( corps );
+				assert(
+					Array.isArray( liste ) && liste.length > 0,
+					`anonyme ${ route } : liste toujours les mêmes utilisateurs — l'énumération n'a pas été corrigée ici`,
+					'au moins un utilisateur',
+					corps.slice( 0, 120 )
+				);
+			}
+		}
+	} finally {
+		await anonyme.close();
+	}
+
+	// ---- jambe 2 : la couche PHP, seul endroit où `force_display` s'éprouve
+	const code = `echo wp_json_encode( array(
+		'home'              => home_url(),
+		'option'            => get_option( 'show_avatars' ),
+		'option_falsy'      => ! get_option( 'show_avatars' ),
+		'url_id'            => get_avatar_url( 1 ),
+		'url_courriel'      => get_avatar_url( '${ COMPTES[ 0 ].courriel }' ),
+		'balise'            => get_avatar( 1 ),
+		'balise_forcee'     => get_avatar( 1, array( 'force_display' => true ) ),
+		'url_defaut_force'  => get_avatar_url( 1, array( 'force_default' => true ) ),
+	) );`;
+	const brut = wp( [ 'eval', code ] );
+	const releve = JSON.parse( brut.slice( brut.indexOf( '{' ), brut.lastIndexOf( '}' ) + 1 ) );
+
+	// Sanity : sans elle, un relevé vide se lirait « tout est vide », donc vert.
+	egal( BASE, releve.home, 'wp-cli a bien amorcé le site visé (garde du relevé PHP)' );
+	assert(
+		releve.option_falsy === true,
+		'get_option( "show_avatars" ) est faux côté PHP',
+		'faux',
+		JSON.stringify( releve.option )
+	);
+	egal( '', releve.url_id, 'get_avatar_url( 1 ) ne compose aucune URL' );
+	egal( '', releve.url_courriel, 'get_avatar_url( <courriel> ) ne compose aucune URL' );
+	egal( false, releve.balise, 'get_avatar( 1 ) ne rend aucune balise' );
+	egal(
+		false,
+		releve.balise_forcee,
+		'get_avatar( 1, force_display ) reste false — la coupe est imprenable par un réglage en base'
+	);
+	egal( '', releve.url_defaut_force, 'get_avatar_url( 1, force_default ) ne compose aucune URL' );
+
+	// ---- jambes 3 et 4 : les deux comptes réels
+	for ( const compte of COMPTES ) {
+		const contexte = await navigateur.newContext();
+		try {
+			const page = await contexte.newPage();
+			// Le GET préalable pose `wordpress_test_cookie` : sans lui, le cœur
+			// refuse la connexion sans que rien ne le dise.
+			await page.goto( `${ BASE }/wp-login.php`, { waitUntil: 'load' } );
+			await page.fill( '#user_login', compte.login );
+			await page.fill( '#user_pass', compte.motDePasse );
+			await page.click( '#wp-submit' );
+			await page.waitForURL( ( u ) => ! u.href.includes( 'wp-login.php' ), { timeout: 20000 } );
+			await page.close();
+
+			// Les quatre gardes anti-faux-vert, TOUTES avant la moindre assertion de
+			// fuite : une connexion silencieusement ratée produirait un « aucun
+			// gravatar » trivialement vert.
+			const cookies = await contexte.cookies();
+			assert(
+				cookies.some( ( c ) => c.name.startsWith( 'wordpress_logged_in_' ) ),
+				`${ compte.login } : cookie wordpress_logged_in_* posé`,
+				'wordpress_logged_in_*',
+				cookies.map( ( c ) => c.name ).join( ', ' ) || '(aucun cookie)'
+			);
+
+			const accueil = await charger( contexte, '/' );
+			egal( 1, await accueil.page.locator( '#wpadminbar' ).count(), `${ compte.login } : la barre d'administration est bien rendue sur le front` );
+			egal( 1, await accueil.page.locator( 'body.logged-in' ).count(), `${ compte.login } : le corps porte la classe logged-in` );
+			const nom = await texteSource( accueil.page.locator( '#wp-admin-bar-my-account .display-name' ).first() );
+			assert( nom !== '', `${ compte.login } : le nom d'affichage reste écrit en toutes lettres`, 'un nom', '(vide)' );
+
+			const profil = await charger( contexte, '/wp-admin/profile.php' );
+			egal( 200, profil.statut, `${ compte.login } : profile.php répond 200` );
+			assert(
+				! profil.page.url().includes( 'wp-login.php' ),
+				`${ compte.login } : profile.php n'a pas rebasculé sur l'écran de connexion`,
+				'une URL d’administration',
+				profil.page.url()
+			);
+			egal(
+				compte.login,
+				await profil.page.locator( 'input#user_login' ).inputValue(),
+				`${ compte.login } : profile.php est bien celui du compte attendu`
+			);
+			await accueil.page.close();
+			await profil.page.close();
+
+			// Ces pages sont balayées sur leur HTML ENTIER, sans l'exclusion
+			// `sansContenuEditorial()` dont les corps REST ont besoin : aucune ne
+			// rend le texte du commentaire de graine, lequel cite « Gravatar ».
+			// Nuance sur `/wp-admin/` : le widget « Activité » en rend un extrait
+			// (`get_comment_excerpt()` — 20 mots, puis `strip_tags`) qui, sur le
+			// texte de graine du cœur, s'arrête JUSTE AVANT le mot « Gravatar ». Le
+			// vert de cette page tient donc aussi à `comment_excerpt_length`, pas
+			// seulement à notre coupe. Le risque résiduel est un FAUX ROUGE, jamais
+			// une fuite manquée : si un jour cette assertion vire au rouge sur un
+			// « Gravatar » venu du texte éditorial du commentaire, la réponse
+			// correcte est d'étendre l'exclusion éditoriale à cette surface — jamais
+			// d'affaiblir les balayages d'empreinte, qui sont ceux qui prouvent
+			// réellement le correctif.
+			for ( const chemin of compte.chemins ) {
+				const { page: vue, requetes, echecs, statut } = await charger( contexte, chemin );
+				const etiquette = `${ compte.login } ${ chemin }`;
+				assert( statut === 200, `${ etiquette } : servie`, 200, statut );
+				balayerReseau( etiquette, requetes, echecs );
+				balayerTexte( etiquette, await vue.content() );
+				await vue.close();
+			}
+		} finally {
+			// Fermer le contexte détruit les cookies de session : c'est la remise à
+			// zéro, et ce qui rend le scénario autonome.
+			await contexte.close();
+		}
+	}
+}
+
 // ---------------------------------------------------------------- lancement
 
 const SCENARIOS = [
@@ -1719,6 +2022,7 @@ const SCENARIOS = [
 	[ 'impression', s18_impressionA4etA5 ],
 	[ 'cartes', s19_modeCartesEtCellulesVides ],
 	[ 'arbre', s20_arbreAccessibiliteEnCartes ],
+	[ 'gravatar', s21_aucuneFuiteGravatar ],
 ];
 
 const filtre = ( process.argv.find( ( a ) => a.startsWith( '--filtre=' ) ) ?? '' ).slice( 9 );

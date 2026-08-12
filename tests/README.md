@@ -120,6 +120,7 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 | `impression` | aperçu d'impression à **A4 (703 px) ET A5 (469 px)** : colonnes restaurées sans requête de largeur, bandeau de non-officialité imprimé, liseré et hachure en charbon y compris sous `.sur-sombre` | équivalent textuel imprimable |
 | `cartes` | mode cartes à 320 px, étiquettes reprises de `data-etiquette`, et **le piège des cellules vides** : aucun champ étiqueté vide, aucun octet d'espace entre les balises | mobile réel |
 | `arbre` | l'arbre d'accessibilité réellement construit par le moteur (CDP) en mode cartes : ce qui survit au `display: block`, et ce que le `thead` masqué fait perdre | accessibilité |
+| `gravatar` | aucune empreinte d'e-mail composée ni servie — anonymement, sous `admin` et sous `gestionnaire-demo`, sur `/`, `/wp-admin/`, `profile.php`, `users.php` et les deux routes REST du cœur ; la coupe tient **même sous `force_display`**, donc imprenable par une valeur en base | zéro requête tierce, donnée personnelle |
 
 ### `13-jours-consecutifs-identiques` — à ne jamais supprimer
 
@@ -163,6 +164,13 @@ cartes est un **constat mesuré**, jamais une validation d'utilisabilité.
 Enfin `couleurs-forcees` est une **émulation** du média `forced-colors` par Chromium, pas un vrai
 contraste élevé Windows : les couleurs système réelles, et les thèmes personnalisés, ne sont pas
 éprouvés.
+
+Le scénario `gravatar` ouvre **deux vraies sessions** (`admin`, `gestionnaire-demo`) et pose donc
+délibérément des cookies `wordpress_logged_in_*`, détruits avec les contextes de navigation qui les
+portent — l'interdiction de cookie du §2 vise le visiteur anonyme, et le scénario l'asserte
+explicitement dans sa première jambe. Il **ne couvre pas** l'énumération d'utilisateurs par
+`GET /wp-json/wp/v2/users`, qui reste ouverte : il asserte même que la route continue de lister les
+mêmes comptes, pour prouver qu'elle n'a pas été touchée. C'est une exigence distincte, du §9 du brief.
 
 Ne sont pas couverts non plus, faute d'exister : la carte et son repli statique sans JavaScript,
 la couche EFFIS, l'indicateur Météo-France, le point d'accès JSON public, les pages « La démarche »,
