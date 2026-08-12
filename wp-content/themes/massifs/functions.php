@@ -175,30 +175,52 @@ function massifs_configurer_theme(): void {
 add_action( 'after_setup_theme', 'massifs_configurer_theme' );
 
 /**
- * Enregistre et enfile les trois feuilles du thème.
+ * Enregistre et enfile les cinq feuilles du thème.
  *
- * Les trois poignées sont TOUJOURS enregistrées, y compris quand le fichier est
+ * Les cinq poignées sont TOUJOURS enregistrées, y compris quand le fichier est
  * absent du disque — avec `$src = false`, ce qui produit un handle-alias :
  * aucune balise imprimée, aucune 404, et la dépendance se résout quand même.
  * Sans cela, `WP_Dependencies::all_deps()` retirerait SILENCIEUSEMENT
  * `massifs-layout` si `massifs-tokens` n'était pas enregistré, et la page
  * perdrait TOUT son CSS.
  *
+ * L'ordre du tableau est l'ordre des balises. `massifs-print` dépend de
+ * `massifs-composants` en plus de `massifs-tokens` : la dépendance ne sert pas
+ * seulement à charger les jetons employés par ses `var(--…)`, elle GARANTIT que
+ * sa balise vienne après, donc que la feuille d'impression l'emporte dans les
+ * égalités de spécificité.
+ *
+ * Clé `media` absente = `all` : la porter sur les quatre feuilles d'écran
+ * n'apprendrait rien, seule l'exception mérite d'être écrite.
+ *
  * `style.css` n'est pas enfilé : il ne porte aucune règle CSS.
  */
 function massifs_enfiler_styles(): void {
 	$feuilles = array(
-		'massifs-fonts'  => array(
+		'massifs-fonts'      => array(
 			'chemin' => 'assets/fonts/fonts.css',
 			'deps'   => array(),
 		),
-		'massifs-tokens' => array(
+		'massifs-tokens'     => array(
 			'chemin' => 'assets/css/tokens.css',
 			'deps'   => array(),
 		),
-		'massifs-layout' => array(
+		'massifs-layout'     => array(
 			'chemin' => 'assets/css/layout.css',
 			'deps'   => array( 'massifs-tokens' ),
+		),
+		// Dépendance SÉMANTIQUE, pas cosmétique : composants.css suppose le
+		// box-sizing: border-box global de layout.css — sans lui .pastille mesure
+		// 30 × 20 au lieu de 26 × 16 — et .bandeau-alerte tient son
+		// padding-inline-start de .repere. Ne pas la « simplifier ».
+		'massifs-composants' => array(
+			'chemin' => 'assets/css/composants.css',
+			'deps'   => array( 'massifs-tokens', 'massifs-layout' ),
+		),
+		'massifs-print'      => array(
+			'chemin' => 'assets/css/print.css',
+			'deps'   => array( 'massifs-tokens', 'massifs-composants' ),
+			'media'  => 'print',
 		),
 	);
 
@@ -207,7 +229,13 @@ function massifs_enfiler_styles(): void {
 			? get_theme_file_uri( $feuille['chemin'] )
 			: false;
 
-		wp_register_style( $poignee, $source, $feuille['deps'], massifs_version_asset( $feuille['chemin'] ) );
+		wp_register_style(
+			$poignee,
+			$source,
+			$feuille['deps'],
+			massifs_version_asset( $feuille['chemin'] ),
+			$feuille['media'] ?? 'all'
+		);
 		wp_enqueue_style( $poignee );
 	}
 }

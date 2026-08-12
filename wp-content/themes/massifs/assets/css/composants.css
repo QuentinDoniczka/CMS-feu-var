@@ -1,0 +1,570 @@
+@charset "UTF-8";
+/*
+ * MASSIFS — composants.css
+ * Couche visuelle des statuts : fragment de marque, pastilles de massif,
+ * jalons ZAPEF, liste du jour (cartes empilées puis vraies colonnes), bloc de
+ * légende, bandeau d'alerte, et reconstruction des motifs sous couleurs
+ * forcées.
+ *
+ * Dépend de assets/css/tokens.css (poignée « massifs-tokens », chaîne #4).
+ *
+ * Règles de fabrication, vérifiables :
+ * - AUCUNE custom property n'est définie ici. Les valeurs vivent dans
+ *   tokens.css (MASTER §12) ; ce fichier ne fait que les consommer.
+ * - AUCUN littéral de couleur, d'espacement, de durée ni de taille de police.
+ *   Les seules valeurs nues sont les zéros, les mots-clés, les valeurs
+ *   structurelles (100 %, 50 %, 37.5rem) et les huit littéraux sans jeton
+ *   reproduits verbatim de MASTER §8.1 — L-1 à L-8, arbitrage 1 du contrat #22,
+ *   précédent A-13 de la chaîne #5. Chacun est signalé sur place. (L-9 et L-10
+ *   complètent la série mais vivent dans print.css, et viennent du §13.)
+ * - AUCUN url(), AUCUN @import : zéro requête vers un domaine tiers.
+ * - AUCUNE animation, AUCUNE transition : rien à neutraliser sous
+ *   prefers-reduced-motion.
+ *
+ * PROPRIÉTÉ DES SÉLECTEURS (invariant I-1 du contrat #22, opposable aux
+ * chaînes suivantes) : ce fichier est le SEUL à porter `.statut*`,
+ * `.pastille*`, `.jalon*`, `.liste-statuts*`, `.legende*` et `.bandeau-alerte*`.
+ * `layout.css` n'en porte aucun et ne doit jamais en porter : l'arbre de
+ * travail est partagé et la disjonction des empreintes est la seule protection
+ * contre l'écrasement mutuel.
+ *
+ * Licence : GPL v2 or later.
+ */
+
+
+/* ═══ 1. Fragment de marque — base ═══════════════════════════════════════ */
+
+/* MASTER §8.1 ne pose aucun `display` sur les deux <span> du fragment : sans
+   blocification, les tailles de §8.1 seraient inertes sur un contenu vide.
+   Le flex blockifie ses enfants — le bloc CSS de §8.1 est donc recopié plus
+   bas SANS ajout, et c'est ici que la mécanique est posée. */
+.statut {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-2xs);
+}
+
+/* `inline-block` est inerte sous flex et porteur si le flex disparaît :
+   ceinture-bretelles sur l'objet qui porte l'accessibilité (§10.2).
+   `flex: 0 0 auto` empêche un libellé long d'écraser l'aplat jusqu'à son seul
+   liseré. */
+.statut__marque {
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+/* `color` n'est PAS déclarée (écart É-1, arbitrage 17) : §8.1 écrit
+   « --c-charbon SUR LE FOND DE PAGE ». La figer produirait un libellé charbon
+   sur mistral-nuit — 1,16:1 — le jour où une marque paraît dans `.sur-sombre`.
+   L'héritage donne 14,74:1 sur la page et 12,66:1 sur chrome sombre.
+   `line-height` n'est PAS déclarée non plus (écart É-2, arbitrage 18) : §5.1
+   assigne 1,2 à --fs-250, aucun jeton ne le porte, et --lh-sous (1,15) serait
+   une substitution illisible sur le paragraphe `non_encore_publie`.
+   Aucune troncature, à aucune largeur : ni `text-overflow`, ni `white-space`
+   (interdit 10 du contrat #22).
+   --poids-titre est OBLIGATOIRE : l'axe `wght` de Big Shoulders Display
+   retombe à 100 sans déclaration de poids. */
+.statut__libelle {
+  font-family: var(--police-titre);
+  font-weight: var(--poids-titre);
+  font-size: var(--fs-250);
+  letter-spacing: var(--ls-etiquette);
+  text-transform: uppercase;
+}
+
+
+/* ═══ 2. Pastilles de massif ═════════════════════════════════════════════ */
+
+/* MASTER §8.1, reproduit avec les jetons du §12.
+   Le liseré n'est JAMAIS --bord-moyen (invariant I-2) : ce jeton code
+   --c-charbon en dur et annulerait la bascule de `.sur-sombre`
+   (tokens.css l. 162-168), or le liseré est le mécanisme PORTEUR d'AA — pire
+   cas mesuré 4,11:1 sur le rouge officiel, contre 1,48:1 pour la teinte seule.
+   `box-sizing: border-box` étant global (layout.css l. 27-31), 26 × 16 est la
+   boîte EXTÉRIEURE : le contenu fait 22 × 12, au-dessus du plancher de 12 px
+   du §10.6 règle 6. */
+.pastille {
+  inline-size: var(--pastille-l);
+  block-size: var(--pastille-h);
+  border: var(--statut-lisere-epaisseur) solid var(--statut-lisere);
+  border-radius: var(--r-0);
+}
+
+/* Aplat nu, AUCUN motif : c'est l'opposition nu/marqué qui encode le sens
+   (§10.3). Poser un motif ici est un défaut bloquant (§16). */
+.pastille--autorise {
+  background-color: var(--statut-autorise);
+}
+
+/* Hachure croisée. L-1/L-2 : 45deg et -45deg, sans jeton, verbatim §8.1. */
+.pastille--interdit {
+  background-color: var(--statut-interdit);
+  background-image:
+    repeating-linear-gradient(45deg, var(--statut-interdit-encre) 0 var(--statut-motif-trait), transparent var(--statut-motif-trait) var(--statut-motif-pas)),
+    repeating-linear-gradient(-45deg, var(--statut-interdit-encre) 0 var(--statut-motif-trait), transparent var(--statut-motif-trait) var(--statut-motif-pas));
+}
+
+/* L-3 : la hachure descendante emploie 2px/9px et NON les jetons de motif —
+   c'est la référence §8.1 telle qu'écrite, un pas plus serré que la hachure
+   croisée. Substituer --statut-motif-trait/--pas ici modifierait le dessin
+   normatif. Encre --c-charbon-doux : 6,33:1 sur l'aplat (§10.3). */
+.pastille--indisponible {
+  background-color: var(--statut-indisponible);
+  background-image: repeating-linear-gradient(-45deg, var(--statut-indisponible-encre) 0 2px, transparent 2px 9px);
+}
+
+/* Aucun motif : cet état est une absence de dispositif, pas un niveau. */
+.pastille--hors-saison {
+  background-color: var(--statut-hors-saison);
+}
+
+/* L-4 et L-5 : 1.2px/1.4px (arrêts du radial) et 6px 6px (pas du pointillé),
+   sans jeton, verbatim §8.1. */
+.pastille--non-publie {
+  background-color: var(--statut-non-publie);
+  background-image: radial-gradient(var(--statut-non-publie-encre) 1.2px, transparent 1.4px);
+  background-size: 6px 6px;
+}
+
+
+/* ═══ 3. Jalons ZAPEF ════════════════════════════════════════════════════ */
+
+/* Carré planté : la forme dit la DIMENSION (surface / point), la couleur dit
+   l'état (§8.1, §10.6 règle 3). */
+.jalon {
+  inline-size: var(--jalon-cote);
+  block-size: var(--jalon-cote);
+  border: var(--statut-lisere-epaisseur) solid var(--statut-lisere);
+  border-radius: var(--r-0);
+  position: relative;
+}
+
+/* La hampe. L-7 : calc(50% - 1px) centre une hampe de 2 px, L-8 : la largeur
+   2px reste littérale par cohérence OBLIGATOIRE avec L-7, dont le 1px est la
+   moitié — tokeniser l'une sans l'autre les désynchroniserait.
+   `inset-block-start: 100%` se mesure depuis la boîte de REMPLISSAGE (14 px),
+   la hampe recouvre donc les 2 px de bordure basse et 6 px restent visibles.
+   Reproduit tel quel de §8.1 : le liseré du jalon comprend la hampe. */
+.jalon::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-start: calc(50% - 1px);
+  inline-size: 2px;
+  block-size: var(--jalon-hampe);
+  background-color: var(--statut-lisere);
+}
+
+.jalon--autorise {
+  background-color: var(--statut-zapef-autorise);
+}
+
+/* Barre oblique unique — et non la hachure croisée : à 18 px, un pas de 10 px
+   ne montrerait que deux croisements et se lirait comme du crénelage (§8.1).
+   L-6 : calc(50% ± 1.5px), sans jeton, verbatim §8.1. */
+.jalon--interdit {
+  background-color: var(--statut-zapef-interdit);
+  background-image: linear-gradient(45deg, transparent calc(50% - 1.5px), var(--statut-zapef-interdit-encre) calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px));
+}
+
+
+/* ═══ 4. Réserve de la hampe en ligne ════════════════════════════════════ */
+
+/* La hampe est absolue : elle n'agrandit aucune boîte et serait rognée par le
+   centrage vertical du flex, ou chevaucherait la ligne suivante. La réserve
+   est scopée à `.statut__marque` pour que `.jalon` nu reste réutilisable tel
+   quel par la carte et par le portail (arbitrage 4). */
+.statut__marque.jalon {
+  margin-block-end: var(--jalon-hampe);
+}
+
+
+/* ═══ 5. Exception de casse — `non_encore_publie` ════════════════════════ */
+
+/* La chaîne #6 place une PHRASE de deux propositions dans un
+   `.statut__libelle` que le contrat spécifie en capitales, or §14.3 entrée 5
+   (b) interdit les capitales sur un paragraphe.
+   §5.1 lie --fs-250 à la famille de titrage AU TITRE DE SON EMPLOI
+   « Étiquette : capitales » — prémisse que cet arbitrage supprime précisément
+   pour ce cas ; la famille de labeur suit donc la casse (arbitrage 10 bis).
+   Le corps --fs-250 est CONSERVÉ : c'est la seule chose que §5.1 fixe
+   indépendamment de l'emploi.
+   Sélecteur adjacent, sans `:has()` et sans modification de gabarit : la
+   marque est TOUJOURS émise pour cet état et précède TOUJOURS immédiatement le
+   libellé (liste-statuts.php l. 392-394, legende.php l. 241-244). */
+.pastille--non-publie + .statut__libelle {
+  font-family: var(--police-texte);
+  font-weight: var(--poids-texte);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+
+/* ═══ 6. Liste du jour — règles communes aux deux modes ══════════════════ */
+
+.liste-statuts > * + * {
+  margin-block-start: var(--esp-l);
+}
+
+/* Vient APRÈS la règle de rythme ci-dessus, à spécificité égale : la note est
+   rattachée au tableau, pas séparée de lui. */
+.liste-statuts__note {
+  margin-block-start: var(--esp-s);
+  font-size: var(--fs-100);
+}
+
+/* `display: block` dès la BASE, pas seulement en mode cartes : un <caption>
+   sous un parent en `display: block` déclencherait sinon une boîte de tableau
+   anonyme. */
+.liste-statuts__resume {
+  display: block;
+  text-align: start;
+  font-size: var(--fs-200);
+}
+
+.liste-statuts__entete {
+  text-align: start;
+  font-family: var(--police-titre);
+  font-weight: var(--poids-titre);
+  font-size: var(--fs-250);
+  letter-spacing: var(--ls-etiquette);
+  text-transform: uppercase;
+}
+
+.liste-statuts__massif {
+  text-align: start;
+  font-weight: var(--poids-texte-fort);
+}
+
+/* Atkinson Hyperlegible Next expose bien `tnum` (§8.2) : la déclaration n'est
+   pas un no-op ici, contrairement au chiffre de l'ardoise. */
+.liste-statuts__fraicheur {
+  font-size: var(--fs-200);
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* ═══ 7. Liste du jour — cartes empilées, mode de BASE ═══════════════════ */
+
+/* Mobile-first : les cartes sont la base, les vraies colonnes sont restaurées
+   au §11. Cinq points à ne pas défaire :
+   1. `display: block`, JAMAIS `display: contents` : ce dernier sort la boîte
+      de l'arbre de rendu avec un mapping d'accessibilité inégal selon les
+      moteurs. Les rôles ARIA explicites de la chaîne #6 survivent, eux, à un
+      changement de `display`. Le CSS n'ajoute aucun rôle — il ne le peut pas —
+      et l'interdit 24 du contrat #6 tient par construction.
+   2. Le garde `[data-etiquette]` est OBLIGATOIRE : la cellule fusionnée
+      colspan="3" (liste-statuts.php l. 385) ne porte pas cet attribut et
+      recevrait une étiquette vide.
+   3. `.liste-statuts__massif` ne reçoit PAS de ::before malgré son
+      data-etiquette="Massif" : elle n'a pas la classe
+      `.liste-statuts__cellule` (l. 352). C'est le titre de la carte.
+   4. `:empty` n'agit que parce que le gabarit PHP avale le saut de ligne après
+      chaque `?>` — vérifié l. 353-379, soit les TROIS cellules qui peuvent
+      rester vides (niveau, ZAPEF, fraîcheur). Réindenter liste-statuts.php
+      tuerait la règle en silence et afficherait des champs vides étiquetés
+      (invariant I-8).
+   5. Le `thead` disparaît et `attr(data-etiquette)` est son remplacement
+      désigné, mais du contenu généré NE RÉTABLIT PAS l'association
+      columnheader ↔ cell : contrôle au lecteur d'écran nécessaire.
+   Filet --bord-fin ENTRE LES CELLULES d'une carte ; ESPACEMENT, jamais un
+   filet, entre deux cartes : 25 cartes séparées par 2 px violeraient la
+   quantité imposée par la règle de portée C. */
+.liste-statuts__tableau {
+  display: block;
+}
+
+.liste-statuts__tableau thead {
+  display: none;
+}
+
+.liste-statuts__tableau tbody {
+  display: block;
+}
+
+.liste-statuts__ligne {
+  display: block;
+}
+
+.liste-statuts__ligne + .liste-statuts__ligne {
+  margin-block-start: var(--esp-l);
+}
+
+.liste-statuts__massif,
+.liste-statuts__cellule {
+  display: block;
+  padding-block: var(--esp-xs);
+  padding-inline: 0;
+}
+
+.liste-statuts__cellule {
+  border-block-start: var(--bord-fin);
+}
+
+.liste-statuts__cellule:empty {
+  display: none;
+}
+
+.liste-statuts__cellule[data-etiquette]::before {
+  content: attr(data-etiquette);
+  display: block;
+  margin-block-end: var(--esp-2xs);
+  font-family: var(--police-titre);
+  font-weight: var(--poids-titre);
+  font-size: var(--fs-250);
+  letter-spacing: var(--ls-etiquette);
+  text-transform: uppercase;
+}
+
+
+/* ═══ 8. Survol de ligne ═════════════════════════════════════════════════ */
+
+/* MASTER §9.2 : le survol peint le fond, JAMAIS la teinte d'un aplat.
+   `hover: hover` parce qu'au toucher, `:hover` reste collé après une frappe.
+   Les deux exclusions sont mesurées, pas esthétiques (arbitrage 19) : les
+   marques hors niveau valent toutes --c-calcaire-ombre, donc 1:1 au survol —
+   `hors_saison`, sans motif, ne laisserait qu'un rectangle de liseré vide
+   (invariant I-3). La ligne d'en-tête, elle, n'est pas une donnée. */
+@media (hover: hover) {
+  .liste-statuts__ligne:not(.liste-statuts__ligne--entete):not(.liste-statuts__ligne--hors-niveau):hover {
+    background-color: var(--c-calcaire-ombre);
+  }
+}
+
+
+/* ═══ 9. Bloc de légende ═════════════════════════════════════════════════ */
+
+/* --ombre-decalee n'est PAS consommée (direction du propriétaire, arbitrage
+   8) : le filet 2 px en tête de bande la remplace. C'est le seul emploi
+   légitime de --bord-moyen dans ce fichier — un filet de tête de bande, jamais
+   un liseré de statut ; I-2 n'interdit que le second.
+   --c-calcaire est déclaré EXPLICITEMENT (invariant I-3, arbitrage 8 bis) pour
+   qu'aucune chaîne future ne bascule ce bloc en calcaire-ombre : les trois
+   aplats hors niveau SONT --c-calcaire-ombre et s'y effaceraient à 1:1. */
+.legende {
+  border-block-start: var(--bord-moyen);
+  padding-block-start: var(--esp-l);
+  background-color: var(--c-calcaire);
+}
+
+.legende > * + * {
+  margin-block-start: var(--esp-l);
+}
+
+/* Une seule colonne sous --bp-s (arbitrage 9, divergence assumée avec le
+   croquis §7.1) : `Accès à la ZAPEF* interdite` en condensée capitale sur
+   ≈ 140 px empilerait trois lignes. §10.6 règle 6 l'emporte sur un croquis. */
+.legende__entrees {
+  display: grid;
+  gap: var(--esp-s);
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+/* Cause n° 1 de défilement horizontal : la taille minimale `auto` d'un élément
+   de grille. */
+.legende__entree {
+  min-inline-size: 0;
+}
+
+.legende__note {
+  margin-block-start: var(--esp-s);
+  font-size: var(--fs-100);
+}
+
+/* §8.5 : la seconde ligne est séparée par --bord-fin. Cette séparation est
+   obligatoire — elle empêche d'attribuer à la préfecture des états qui sont
+   les nôtres. */
+.legende__hors-niveau {
+  border-block-start: var(--bord-fin);
+  padding-block-start: var(--esp-s);
+}
+
+.legende__hors-niveau > * + * {
+  margin-block-start: var(--esp-s);
+}
+
+.legende__etiquette {
+  font-family: var(--police-titre);
+  font-weight: var(--poids-titre);
+  font-size: var(--fs-250);
+  letter-spacing: var(--ls-etiquette);
+  text-transform: uppercase;
+}
+
+/* Aucune spécification dans MASTER (arbitrage 11, absence signalée) : rendue
+   en réserve de prose. --c-charbon-doux sur --c-calcaire : 7,29:1, calculé
+   selon la méthode du §10 (la même méthode reproduit le 6,33:1 du §10.3). */
+.legende__avertissement {
+  font-size: var(--fs-100);
+  color: var(--c-charbon-doux);
+}
+
+
+/* ═══ 10. Bandeau d'alerte ═══════════════════════════════════════════════ */
+
+/* ET RIEN D'AUTRE : l'élément porte déjà `sur-sombre repere repere--bloc`
+   (etats-vides.php l. 153), et layout.css peint le fond, le texte et les liens
+   (l. 336-343) ainsi que le repère (l. 442-463). Le `padding-inline-start`
+   vient de `.repere`. Redéclarer serait un doublon de propriété.
+   DÉLIBÉRÉMENT NON ÉCRITE : la hachure --c-mistral « à faible opacité » du
+   §8.3 — aucun jeton d'opacité n'existe et « faible » n'est chiffré nulle
+   part. Inventer la valeur serait pire que l'omission, qui est signalée. */
+.bandeau-alerte {
+  border-block-end: var(--bord-fort);
+  padding-block: var(--esp-m);
+  padding-inline-end: var(--esp-m);
+}
+
+
+/* ═══ 11. Vraies colonnes à partir de --bp-s ═════════════════════════════ */
+
+/* 37.5rem est --bp-s recopié : @media n'accepte pas var(), le §12 le prévoit.
+   Le point de rupture en `rem` fait retomber le zoom 200 % en mode cartes :
+   aucun tableau à quatre colonnes n'apparaît jamais sur un écran étroit
+   zoomé. */
+@media (min-width: 37.5rem) {
+  .liste-statuts__tableau {
+    display: table;
+    inline-size: 100%;
+    border-collapse: collapse;
+  }
+
+  .liste-statuts__resume {
+    display: table-caption;
+  }
+
+  /* `table-header-group` ne s'applique qu'au <thead>, jamais au <tr> qui porte
+     `.liste-statuts__ligne--entete` : correction de l'erreur du contrat #6
+     (arbitrage 7 bis). */
+  .liste-statuts__tableau thead {
+    display: table-header-group;
+  }
+
+  .liste-statuts__tableau tbody {
+    display: table-row-group;
+  }
+
+  .liste-statuts__ligne {
+    display: table-row;
+    border-block-start: var(--bord-fin);
+  }
+
+  /* Le rythme des cartes est posé par un sélecteur adjacent (0,2,0) : un
+     sélecteur de classe simple ne peut pas le remettre à zéro, quelle que soit
+     sa position dans la feuille. La remise à zéro doit donc porter le MÊME
+     sélecteur. Sans objet visuel tant que la ligne est `table-row` — les marges
+     ne s'appliquent pas à une boîte de rangée — mais la déclaration dit alors
+     vraiment ce qu'elle prétend dire. */
+  .liste-statuts__ligne + .liste-statuts__ligne {
+    margin-block-start: 0;
+  }
+
+  .liste-statuts__massif,
+  .liste-statuts__cellule {
+    display: table-cell;
+    border-block-start: 0;
+    padding-block: var(--esp-s);
+    padding-inline-end: var(--esp-m);
+  }
+
+  /* IMPÉRATIF : une cellule masquée décalerait toutes les colonnes suivantes
+     de la ligne. */
+  .liste-statuts__cellule:empty {
+    display: table-cell;
+  }
+
+  .liste-statuts__cellule[data-etiquette]::before {
+    content: none;
+  }
+
+  /* Bande 2 + 2 de §7.1, à partir d'ici seulement. */
+  .legende__entrees {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+/* ═══ 12. Couleurs forcées ═══════════════════════════════════════════════ */
+
+/* EN DERNIER, et les pseudo-éléments de remplacement n'existent NULLE PART
+   ailleurs : sinon les dégradés du mode normal se doubleraient d'une croix.
+   Les `background-image` en dégradé sont ramenés à `none` en couleurs forcées,
+   or le motif porte LA MOITIÉ de l'information (§10.3, §10.8, §16).
+   Ni `background-color` ni `border-color` ne sont redéclarés : l'UA les force
+   déjà en Canvas / CanvasText. Le liseré n'est JAMAIS détourné en motif.
+   REJETÉ : motifs en `url()` SVG data-URI — ils exigeraient une couleur
+   hexadécimale hors tokens.css, défaut bloquant §16.
+   ACCEPTÉ ET CONSIGNÉ (arbitrage 6 bis) : `--autorise` et `--hors-saison`
+   deviennent identiques dans ce mode — Canvas + liseré CanvasText, aucun motif
+   de part et d'autre. §10.8 le couvre : le libellé officiel reste le porteur
+   de sens, et il est toujours présent à côté de la marque.
+   ÉCART SIGNALÉ, mode dégradé : la barre du jalon est posée à
+   `inline-size: 100%` et n'atteint donc pas les angles ; §8.1 dit « d'angle à
+   angle », ce qui demanderait 141 %, une valeur inventée. */
+@media (forced-colors: active) {
+  /* JAMAIS sur `.jalon` : `overflow` rognerait la hampe. */
+  .pastille {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .pastille--interdit::before,
+  .pastille--interdit::after,
+  .pastille--indisponible::before,
+  .jalon--interdit::before {
+    content: "";
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 0;
+    inline-size: 100%;
+    block-size: var(--statut-motif-trait);
+    background-color: CanvasText;
+  }
+
+  /* Deux obliques croisées = la hachure croisée du mode normal. */
+  .pastille--interdit::before {
+    transform: translateY(-50%) rotate(45deg);
+  }
+
+  .pastille--interdit::after {
+    transform: translateY(-50%) rotate(-45deg);
+  }
+
+  /* Une seule oblique descendante = la hachure descendante. */
+  .pastille--indisponible::before {
+    transform: translateY(-50%) rotate(-45deg);
+  }
+
+  /* Une seule oblique = la barre du jalon. */
+  .jalon--interdit::before {
+    transform: translateY(-50%) rotate(45deg);
+  }
+
+  /* Deux carrés opposés = le pointillé. */
+  .pastille--non-publie::before,
+  .pastille--non-publie::after {
+    content: "";
+    position: absolute;
+    inline-size: var(--esp-2xs);
+    block-size: var(--esp-2xs);
+    background-color: CanvasText;
+  }
+
+  .pastille--non-publie::before {
+    inset-block-start: var(--esp-2xs);
+    inset-inline-start: var(--esp-2xs);
+  }
+
+  .pastille--non-publie::after {
+    inset-block-end: var(--esp-2xs);
+    inset-inline-end: var(--esp-2xs);
+  }
+
+  /* La hampe est un `background-color` : sans cette ligne elle devient Canvas
+     sur Canvas et le jalon perd la silhouette « point planté » qui porte la
+     distinction ZAPEF ↔ massif (§10.6 règle 3). */
+  .jalon::after {
+    background-color: CanvasText;
+  }
+}

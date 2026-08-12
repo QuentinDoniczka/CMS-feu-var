@@ -1,0 +1,243 @@
+@charset "UTF-8";
+/*
+ * MASSIFS — print.css
+ * Feuille d'impression (MASTER §13, brief §5.3 : la liste du jour doit
+ * s'imprimer proprement). Enfilée en `media="print"` APRÈS composants.css.
+ *
+ * Dépend de assets/css/tokens.css et de assets/css/composants.css
+ * (poignées « massifs-tokens » et « massifs-composants »).
+ *
+ * POURQUOI UN FICHIER SÉPARÉ, ET NON UN @media print DANS composants.css —
+ * la raison est LA CASCADE, pas le nombre de requêtes. Les cartes empilées
+ * sont la base mobile-first et les vraies colonnes sont restaurées par
+ * `min-width: 37.5rem`. Une page A4 moins 12 mm de marge fait ≈ 703 px
+ * ≈ 43,9 rem : la requête s'applique donc PAR CHANCE. Sur A5, sur un autre
+ * format, ou dans un aperçu zoomé, elle ne s'applique plus et on imprimerait
+ * des cartes empilées au lieu du tableau exigé par §13. Le §4 ci-dessous
+ * restaure les colonnes SANS AUCUNE requête de largeur (invariant I-5).
+ *
+ * Tout le fichier est enveloppé dans `@media print` : ceinture-bretelles, si
+ * la poignée était un jour enfilée en `media="all"`, aucune règle ne fuirait
+ * vers l'écran.
+ *
+ * Règles de fabrication, vérifiables : aucune custom property définie, aucune
+ * valeur hexadécimale, aucun url(), aucun @import, aucune animation.
+ *
+ * DÉLIBÉRÉMENT NON ÉCRIT, et signalé plutôt qu'inventé :
+ * - l'échelle typographique en `pt` de §13 (10,5 / 14 / 20 / 34) : aucun jeton
+ *   `pt` n'existe et l'issue interdit les valeurs brutes ;
+ * - les filets « 0,5 pt » de §13 : ils restent --bord-fin ;
+ * - le liseré « 1,5 pt » : il garde son épaisseur --statut-lisere-epaisseur,
+ *   seule sa COULEUR est forcée (§7 ci-dessous) ;
+ * - le repère : §13 se contredit — il limite `print-color-adjust: exact` aux
+ *   pastilles et jalons ET demande que le repère s'imprime, alors que celui-ci
+ *   est fait de `background-color` sur pseudo-éléments. §3.4 le déclare
+ *   décoratif ; le redessiner en `border` serait une SECONDE implémentation de
+ *   l'élément de signature, contre §3.1 ;
+ * - la frise : aucun gabarit ne l'émet et aucun contrat ne fixe son nom de
+ *   classe ; écrire son `display: none` obligerait à inventer un sélecteur.
+ *
+ * Licence : GPL v2 or later.
+ */
+
+@media print {
+
+  /* ═══ 1. Page ══════════════════════════════════════════════════════════ */
+
+  /* L-9 : 12mm, verbatim §13, seul littéral de longueur retenu. */
+  @page {
+    margin: 12mm;
+  }
+
+
+  /* ═══ 2. Surfaces converties ═══════════════════════════════════════════ */
+
+  /* La déclaration porteuse est l'ENCRE : les fonds sont abandonnés par défaut
+     à l'impression, mais un lecteur qui coche « graphiques d'arrière-plan »
+     recevrait sinon du calcaire, et surtout du mistral-nuit sous du texte
+     calcaire. §13 : --c-mistral-nuit → blanc, texte noir. */
+  body,
+  .sur-sombre,
+  .sur-sombre a,
+  .legende {
+    background-color: transparent;
+    color: var(--c-charbon);
+  }
+
+  /* Le filet supérieur de la même clause §13, écrit à part pour ne porter que
+     sur `.sur-sombre` — ni `body`, ni `.legende`, ni les liens.
+     CE N'EST PAS UNE INVENTION (arbitrage 23 du contrat #22) : la clause ne
+     figurait ni dans les arbitrages ni dans la liste « délibérément non écrit »
+     ci-dessus — c'était un trou de couverture. Elle est spécifiée VERBATIM
+     (« --c-mistral-nuit → blanc avec --bord-fort en haut et texte noir »),
+     emploie un JETON EXISTANT et n'exige aucune valeur inventée. Sans elle,
+     l'ardoise et le pied se dissolvent dans le blanc du papier et la feuille
+     perd la limite de bloc que §13 lui donne.
+     `.bandeau-alerte` porte déjà `border-block-end: var(--bord-fort)`
+     (composants.css §10) : il s'imprime donc bordé en haut ET en bas. C'est un
+     bloc délimité, pas un défaut — aucune contre-règle ne vient l'annuler. */
+  .sur-sombre {
+    border-block-start: var(--bord-fort);
+  }
+
+
+  /* ═══ 3. Ce qui ne s'imprime pas ═══════════════════════════════════════ */
+
+  /* `.bande--carte` plutôt que `#carte` : la chaîne « carte » doit sortir son
+     image statique de repli de cette bande, ou la ré-afficher elle-même
+     (invariant I-6).
+     Le pied n'est PAS masqué en bloc (arbitrage 20) : seule sa navigation
+     l'est. §13 dit « sauf dans les menus et le pied, masqués » puis
+     « Toujours imprimés : … les attributions » — or les attributions vivent
+     DANS le pied (templates/footer.php l. 47 et 55). Noms de conteneurs
+     vérifiés : functions.php l. 148-150 donne `container_class` = bloc__nav.
+     Le bandeau de non-officialité n'est masqué par RIEN ici (interdit 23 du
+     contrat #6) : son nom de classe n'apparaît nulle part dans ce fichier,
+     pas même en commentaire, de sorte que la conformité se vérifie par un
+     simple comptage d'occurrences. */
+  .lien-evitement,
+  .barre__nav,
+  .pied__nav,
+  .bande--carte {
+    display: none;
+  }
+
+
+  /* ═══ 4. Vraies colonnes, sans aucune requête de largeur ═══════════════ */
+
+  /* Reprise intégrale du §11 de composants.css. C'est le prix de
+     « inconditionnellement », et c'est ce que l'existence de ce fichier
+     achète. Toute règle de liste ajoutée là-bas sous
+     `@media (min-width: 37.5rem)` doit être répliquée ici, sinon elle
+     disparaît sur A5 (invariant I-5). */
+  .liste-statuts__tableau {
+    display: table;
+    inline-size: 100%;
+    border-collapse: collapse;
+  }
+
+  .liste-statuts__resume {
+    display: table-caption;
+  }
+
+  /* En-tête de tableau répété sur chaque page (§13). */
+  .liste-statuts__tableau thead {
+    display: table-header-group;
+  }
+
+  .liste-statuts__tableau tbody {
+    display: table-row-group;
+  }
+
+  .liste-statuts__ligne {
+    display: table-row;
+    border-block-start: var(--bord-fin);
+  }
+
+  /* Réplique du §11 de composants.css : la remise à zéro porte le sélecteur
+     adjacent, seul capable de battre `.liste-statuts__ligne +
+     .liste-statuts__ligne` (0,2,0). */
+  .liste-statuts__ligne + .liste-statuts__ligne {
+    margin-block-start: 0;
+  }
+
+  .liste-statuts__massif,
+  .liste-statuts__cellule {
+    display: table-cell;
+    border-block-start: 0;
+    padding-block: var(--esp-s);
+    padding-inline-end: var(--esp-m);
+  }
+
+  .liste-statuts__cellule:empty {
+    display: table-cell;
+  }
+
+  .liste-statuts__cellule[data-etiquette]::before {
+    content: none;
+  }
+
+  .legende__entrees {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+
+  /* ═══ 5. Sauts de page ═════════════════════════════════════════════════ */
+
+  /* La propriété moderne et son alias historique : les moteurs d'impression
+     déployés ne reconnaissent pas tous la première. */
+  .liste-statuts__ligne {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+
+  /* ═══ 6. Conservation des motifs ═══════════════════════════════════════ */
+
+  /* `print-color-adjust: exact` reste STRICTEMENT limité aux pastilles, aux
+     jalons et à la hampe (invariant I-10, §13 « uniquement sur les pastilles
+     et les jalons »). Sans lui, les navigateurs abandonnent les fonds et le
+     motif — la moitié de l'information — disparaîtrait de la feuille.
+     Le fond est rendu transparent : §13 demande un aplat BLANC pour
+     `autorisé`. Seuls le liseré et le motif s'impriment. */
+  .pastille,
+  .jalon {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background-color: transparent;
+  }
+
+  /* Le préfixe -webkit- est encore requis : Blink et WebKit n'ont adopté la
+     forme non préfixée que tardivement, et un moteur d'impression déployé qui
+     ne connaît que la forme préfixée abandonnerait la hampe. Même paire que
+     sur .pastille/.jalon ci-dessus. */
+  .jalon::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+
+  /* ═══ 7. Le piège `.sur-sombre` ════════════════════════════════════════ */
+
+  /* tokens.css (l. 162-168) bascule --statut-lisere et les encres de motif en
+     CALCAIRE sous `.sur-sombre`, et §13 convertit le chrome sombre en blanc.
+     Sans les quatre règles qui suivent, toute pastille de l'ardoise ou de la
+     frise imprimerait un liseré blanc sur blanc et une hachure calcaire sur
+     papier blanc — ≈ 1,04:1, soit la perte simultanée du mécanisme porteur
+     d'AA (§10.2) et de la moitié de l'information (§10.3). §16 en fait un
+     défaut bloquant, et §13 exige une hachure croisée NOIRE.
+     Aucun jeton n'est redéfini ici : §12 reste intact. */
+  .pastille,
+  .jalon {
+    border-color: var(--c-charbon);
+  }
+
+  .jalon::after {
+    background-color: var(--c-charbon);
+  }
+
+  .pastille--interdit {
+    background-image:
+      repeating-linear-gradient(45deg, var(--c-charbon) 0 var(--statut-motif-trait), transparent var(--statut-motif-trait) var(--statut-motif-pas)),
+      repeating-linear-gradient(-45deg, var(--c-charbon) 0 var(--statut-motif-trait), transparent var(--statut-motif-trait) var(--statut-motif-pas));
+  }
+
+  .jalon--interdit {
+    background-image: linear-gradient(45deg, transparent calc(50% - 1.5px), var(--c-charbon) calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px));
+  }
+
+  /* `--indisponible` et `--non-publie` ne sont PAS redéclarés : leur encre
+     --c-charbon-doux n'est jamais basculée par `.sur-sombre`, et le « gris
+     45 % » de §13 reste --statut-indisponible-encre (6,33:1) — jamais
+     --c-trace, mesuré 1,96:1 et interdit dans tout motif de statut (§16). */
+
+
+  /* ═══ 8. Adresses dépliées ═════════════════════════════════════════════ */
+
+  /* L-10 : verbatim §13. L'exception « sauf dans les menus et le pied » tombe
+     par construction — les deux navigations sont masquées au §3. */
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+  }
+
+}
