@@ -120,13 +120,111 @@ la stack.
 
 ## Réseau et sources externes en test
 
-Rien n'ingère de données externes pour l'instant (aucun code d'ingestion
-n'existe encore — chaînes `meteo`, `effis`, `statuts` à venir). Quand ce code
-existera, il devra lire les URL de source (préfecture, Météo-France, EFFIS)
-depuis des constantes/options configurables, afin que les tests puissent les
-pointer vers des stubs locaux plutôt que les vraies APIs — jamais d'appel
-réel dans le profil de test (voir `CLAUDE.md`, contrainte §2 du brief,
-applicable aussi côté serveur pour les tests).
+L'extension `massifs-core` ingère désormais une source (préfecture,
+`includes/ingest/prefecture/`) ; d'autres suivront (`meteo`, `effis`). Le
+connecteur lit son URL de source depuis une constante/option configurable,
+afin que les tests puissent la pointer vers un bouchon local plutôt que la
+vraie API — jamais d'appel réel dans le profil de test (voir `CLAUDE.md`,
+contrainte §2 du brief, applicable aussi côté serveur pour les tests).
+
+### Coupe-circuit `WP_ENVIRONMENT_TYPE` — ne pas y toucher
+
+`docker-compose.yml` fixe **en dur** (pas dans `.env`) `WP_ENVIRONMENT_TYPE:
+local` sur les services `wordpress` et `wpcli`. C'est ce que lit
+`Settings::is_disabled()` dans `includes/ingest/prefecture/class-settings.php` :
+tant que l'environnement vaut `local`/`development` et qu'aucune URL de bouchon
+n'a été redéfinie (`MASSIFS_PREFECTURE_JSON_URL_TEMPLATE`), le connecteur
+préfecture est **désarmé** — aucun `wp_remote_get` n'en sort, quel que soit le
+mode (`automatique`/`manuel`) ou l'état de la planification.
+
+Sans cette variable, `wp_get_environment_type()` retombe sur `production` par
+défaut, et le connecteur est **armé** : constaté en pratique dans cette
+stack — mode `automatique`, évènement horaire planifié et en retard, URL par
+défaut pointant sur `https://www.risque-prevention-incendie.fr/...`. La seule
+raison qu'aucune requête ne soit réellement partie jusqu'ici est un accident
+(le cron ne se déclenche jamais — voir section suivante) : ce réglage retire
+l'accident et ne laisse subsister que la protection voulue.
+
+**Ne jamais retirer, commenter ou basculer cette variable sur cette stack**, y
+compris "pour tester en conditions réelles" : une rafale de requêtes sorties
+d'une machine de développement vers le serveur de la préfecture est le genre
+d'incident qui fait bannir notre IP et abîme la relation avec la source dont
+le projet dépend. Pour tester le connecteur avec de vraies données sans
+jamais sortir du réseau Docker, redéfinir `MASSIFS_PREFECTURE_JSON_URL_TEMPLATE`
+vers le service `tiles` (bouchons locaux) — voir
+`wp-content/plugins/massifs-core/includes/ingest/prefecture/README.md`,
+section « Coupe-circuit et profil de test ».
+
+### WP-Cron : désactivé délibérément, déclenchement manuel
+
+Le loopback WordPress (`http://<siteurl>/wp-cron.php`, appelé par
+`spawn_cron()` à chaque chargement de page) est **cassé dans cette stack** :
+le `siteurl` provisionné est `http://localhost:${WORDPRESS_PORT:-8080}`, un
+port publié côté hôte sur lequel rien n'écoute *à l'intérieur* du conteneur
+`wordpress` (Apache y écoute sur le port 80). Une requête vers
+`http://localhost:8080/...` lancée depuis l'intérieur du conteneur échoue
+donc en connexion refusée.
+
+Plutôt que de laisser WordPress retenter silencieusement cet appel voué à
+l'échec à chaque page, `WORDPRESS_CONFIG_EXTRA` définit
+`DISABLE_WP_CRON = true` dans `wp-config.php` : le déclenchement automatique
+est coupé **explicitement**. Conséquence directe et importante pour la
+lecture des résultats de test : **aucun évènement planifié ne s'exécute tout
+seul dans cette stack**, y compris ceux qui semblent "en retard" dans
+`wp cron event list`.
+
+Pour déclencher les évènements dus à la main (tests du chemin d'ingestion,
+vérification manuelle) :
+
+```bash
+docker compose run --rm wpcli wp cron event run --due-now
+# ou un évènement précis :
+docker compose run --rm wpcli wp cron event run massifs_prefecture_ingestion
+```
+
+`wp cron event run` exécute l'évènement directement dans le processus
+WP-CLI — il ne dépend pas du loopback HTTP cassé, et respecte le coupe-circuit
+`WP_ENVIRONMENT_TYPE` ci-dessus (le service `wpcli` a la même variable).
+
+### Compression HTTP
+
+L'image `wordpress` active `mod_deflate` (`docker/wordpress/deflate.conf`,
+chargé via `RUN a2enmod ... deflate` dans le `Dockerfile`) pour
+`text/html`, `text/css`, `text/xml`, `text/javascript`,
+`application/javascript`, `application/json`, `application/xml` et
+`image/svg+xml`. Ça couvre en particulier
+`wp-content/plugins/massifs-core/data/massifs-13.geometrie.json`, servi tel
+quel par Apache : avec un client qui négocie `Accept-Encoding: gzip`, la
+réponse revient avec `Content-Encoding: gzip` et une taille transférée
+divisée par ~3,8 (mesuré : 278 728 o bruts → ~74 Ko gzippés). C'est le budget
+poids §10 du brief, et ce qui permet à la chaîne `carte` de resserrer la
+tolérance de simplification de la géométrie (90 m → 20 m) en s'appuyant sur
+une compression confirmée plutôt que supposée.
+
+### Garde-fou sur les fichiers .php de thème/extension
+
+Constat : une requête HTTP directe vers un fichier `.php` du thème ou de
+l'extension qui n'est pas censé être un point d'entrée (ex. une classe sous
+`includes/ingest/prefecture/`) renvoie aujourd'hui 200 avec un corps vide —
+PHP l'exécute, il ne contient simplement aucune sortie au niveau racine. Ce
+n'est pas une faille aujourd'hui (aucune de ces classes ne produit de sortie
+tant qu'elle n'est pas invoquée depuis WordPress), mais ça dépend d'un fait
+qui pourrait cesser d'être vrai (une classe future qui échoue à parser, une
+erreur qui fuit un chemin serveur, etc.), et seul le sous-arbre
+`includes/domain/massifs/` de l'extension a son propre `.htaccess`.
+
+**Décision** : ajouter un garde-fou large côté serveur plutôt que d'attendre
+un `.htaccess` par sous-répertoire d'extension. `docker/wordpress/plugins-guard.conf`
+refuse (`403`) toute requête HTTP directe vers un `.php` sous
+`wp-content/plugins/` ou `wp-content/themes/`, quel que soit le fichier —
+WordPress ne demande jamais ces fichiers par URL, il les charge en interne
+(`require`), donc ce blocage ne change rien au fonctionnement du site. Ce
+fichier vit dans `docker/`, pas dans l'arbre du thème/de l'extension : il
+reste dans mon empreinte, et n'entre pas en conflit avec le `.htaccess`
+existant de la chaîne `referentiel` (celui-ci continue de protéger son
+sous-arbre même en dehors de cette image, ex. un hébergement mutualisé sans
+cette configuration Apache globale — la défense reste en profondeur, pas en
+un seul point).
 
 ## Windows (win32)
 

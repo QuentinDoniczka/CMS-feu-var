@@ -40,8 +40,19 @@ final class Schema {
 	 *
 	 * 2.0.0 : `niveau_cle` devient nullable, ajout de `zapef_cle`,
 	 * `niveau_source_brut` et `procedure_source`.
+	 * 2.1.0 : `source` passe de `varchar(20)` à `varchar(32)` — la valeur
+	 * `recuperation_officielle` fait 23 caractères et était SILENCIEUSEMENT
+	 * refusée par MySQL ; correction explicite de la nullabilité de `niveau_cle`
+	 * sur les bases déjà installées, que `dbDelta` ne sait pas produire.
 	 */
-	public const VERSION = '2.0.0';
+	public const VERSION = '2.1.0';
+
+	/**
+	 * Colonnes dont la nullabilité réelle est vérifiée à chaque installation.
+	 *
+	 * @var list<string>
+	 */
+	private const COLONNES_A_RENDRE_NULLABLES = array( 'niveau_cle' );
 
 	/**
 	 * Déclare la version du schéma du module.
@@ -63,7 +74,9 @@ final class Schema {
 	 * que sur les écarts. Aucune migration de données n'est nécessaire en
 	 * 2.0.0 : les trois colonnes ajoutées sont nullables et les lignes existantes
 	 * les portent à `NULL`, ce qui est exactement leur sens pour une écriture
-	 * antérieure à la connaissance du `level` brut.
+	 * antérieure à la connaissance du `level` brut. L'élargissement d'un
+	 * `varchar` en 2.1.0 est en revanche un changement de TYPE, que `dbDelta`
+	 * sait produire, et il ne tronque aucune valeur déjà stockée.
 	 *
 	 * @param string $signature_precedente Signature de schéma enregistrée avant ce passage.
 	 */
@@ -86,6 +99,20 @@ final class Schema {
 		// seule, qui rendra possible une re-projection si le propriétaire arbitre
 		// plus tard une granularité d'affichage plus fine. Elles sont `NULL` pour
 		// une saisie manuelle, qui n'a pas de `level`.
+		//
+		// LARGEURS MESURÉES, JAMAIS SUPPOSÉES — une valeur trop longue est refusée
+		// par MySQL sans exception PHP, donc en silence, ce qui a réellement tué la
+		// chaîne d'ingestion officielle en `varchar(20)` :
+		//
+		//   `source`      valeurs de SourceStatut : `recuperation_officielle` 23 car.,
+		//                 `saisie_manuelle` 15 car. → 32, soit 9 de marge.
+		//   `niveau_cle`  clés de legende.config.php : `autorise` 8, `interdit` 8 → 32.
+		//   `zapef_cle`   mêmes clés, 8 car. → 32.
+		//   `massif_code` codes du référentiel : `collines-de-gardanne` 20 car. au plus
+		//                 long ; la forme admise par le domaine plafonne de toute façon
+		//                 à 64 caractères, la colonne ne peut donc pas être trop courte.
+		//
+		// Toute valeur ajoutée à `SourceStatut` doit être remesurée ici.
 		$sql = 'CREATE TABLE ' . Depot::nom_table() . " (\n"
 			. "id bigint(20) unsigned NOT NULL auto_increment,\n"
 			. "massif_code varchar(64) NOT NULL,\n"
@@ -94,7 +121,7 @@ final class Schema {
 			. "zapef_cle varchar(32) DEFAULT NULL,\n"
 			. "niveau_source_brut tinyint(3) unsigned DEFAULT NULL,\n"
 			. "procedure_source tinyint(3) unsigned DEFAULT NULL,\n"
-			. "source varchar(20) NOT NULL,\n"
+			. "source varchar(32) NOT NULL,\n"
 			. "auteur_id bigint(20) unsigned DEFAULT NULL,\n"
 			. "publie_prefecture_le datetime DEFAULT NULL,\n"
 			. "enregistre_le datetime NOT NULL,\n"
@@ -106,5 +133,34 @@ final class Schema {
 			. ') ' . Depot::collation() . ';';
 
 		dbDelta( $sql );
+
+		self::corriger_nullabilite();
+	}
+
+	/**
+	 * Corrige la nullabilité que `dbDelta` ne sait pas produire.
+	 *
+	 * `dbDelta` ne compare QUE le type d'une colonne, jamais sa nullabilité : une
+	 * base installée quand `niveau_cle` était `NOT NULL` reste `NOT NULL` pour
+	 * toujours, et la première ligne à `level` 0 — « la source a publié qu'elle
+	 * n'a pas d'information » — est rejetée par MySQL. Le défaut ne se voit pas
+	 * sur une installation vierge, seulement sur une base déjà installée, donc en
+	 * production.
+	 *
+	 * IDEMPOTENT PAR VÉRIFICATION D'ÉTAT, pas par répétition : l'`ALTER` n'est
+	 * émis que si la colonne est réellement en `NOT NULL`. Un second passage
+	 * n'altère rien. Et cette méthode n'est de toute façon appelée que depuis
+	 * `installer()`, donc uniquement quand la signature de schéma a changé.
+	 */
+	private static function corriger_nullabilite(): void {
+		$depot = new Depot();
+
+		foreach ( self::COLONNES_A_RENDRE_NULLABLES as $colonne ) {
+			// `false ===` strictement : une colonne absente ou illisible rend `null`
+			// et ne doit surtout pas déclencher un `ALTER` à l'aveugle.
+			if ( false === $depot->colonne_accepte_null( $colonne ) ) {
+				$depot->rendre_colonne_nullable( $colonne );
+			}
+		}
 	}
 }

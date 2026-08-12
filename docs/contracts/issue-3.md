@@ -1,6 +1,12 @@
 # Contrat d'interface — Issue #3 — Modéliser les statuts quotidiens, la légende officielle et la fraîcheur des données
 
-**Gelé le** 11 août 2026 par `lead-issue-cms` (chaîne #3) · **Révision 2** · **Statut** : contraignant.
+**Gelé le** 11 août 2026 par `lead-issue-cms` (chaîne #3) · **Révision 3** · **Statut** : contraignant.
+
+> **Révision 3 — passe corrective après les tests d'intégration en WordPress réellement amorcé.**
+> Quatre défauts corrigés, tous additifs : aucune signature ni clé existante n'a changé. Sections
+> marquées **[R3]**. Le fait structurant : **le référentiel possède l'identité des massifs** — les
+> statuts sont rangés sous le code du référentiel (`alpilles`), plus sous l'identifiant de la source
+> préfectorale (`131`), qui n'est qu'une clé de transport.
 
 > **Révision 2 — la légende n'est plus inconnue.** La chaîne #1 a livré
 > `docs/decisions/source-prefecture.md`, qui établit la légende officielle du 13 par trois relevés
@@ -102,7 +108,21 @@ si nulle) · `niveau_le_moins_severe` `string|null` · `niveau_le_plus_severe` `
 `zapef` `list<array>` **[R2]** · `zapef_note` `string` **[R2]** ·
 `publication_heure` `string` **[R2]** (`'17:00'`, Europe/Paris, la veille du jour de validité) ·
 `etats_hors_niveau` `array<string,array>` de clés `indisponible`, `hors_saison`, `non_encore_publie`,
-chacune `['cle','motif','jeton_css']` — **structure seulement, aucune phrase**.
+chacune **[R3]** `['cle','motif','jeton_css','jeton_encre_css']` — **structure seulement, aucune phrase**.
+
+**[R3] Motifs et jetons de nos états hors niveau** (ce sont **nos** états d'affichage, pas des données
+officielles ; correspondance lue dans `MASTER.md` v2.0 §4.1.c) :
+
+| État | Motif | Jeton d'aplat |
+|---|---|---|
+| `indisponible` | `hachure_descendante` | `--statut-indisponible` |
+| `hors_saison` | `aucun` | `--statut-hors-saison` |
+| `non_encore_publie` | `pointille` | `--statut-non-publie` |
+
+Trois jetons d'aplat **distincts**, bien que `tokens.css` les fasse aujourd'hui pointer sur la même
+surface calcaire : un jeton partagé interdirait de les différencier plus tard sans repasser par
+l'extension. Les entrées `zapef` portent elles aussi **[R3]** `motif` (`aucun` / `barre`) et
+`jeton_encre_css` — c'était une lacune de la R2, qui rendait le motif ZAPEF impeignable par le thème.
 
 Rien dans la forme de retour ne dépend d'un nombre de niveaux figé : le passage de 5 substituts à 2
 niveaux réels s'est fait **sans toucher au domaine**, uniquement dans `legende.config.php`.
@@ -171,9 +191,40 @@ commentaire dans `includes/domain/statuts/api.php` pour empêcher sa réintroduc
 ### [R2] Couture d'intégration avec la chaîne #1 (décision doc §8.3)
 
 C'est **la chaîne #3 qui s'abonne** à `massifs_prefecture_snapshot_enregistre` et projette l'instantané
-dans le modèle de statuts. Le connecteur n'écrit jamais dans notre modèle. L'abonné **valide strictement
-la forme reçue** et, si elle ne correspond pas, **n'écrit rien** et journalise — une projection
-approximative écrirait une donnée fausse, ce que le §4.2 interdit.
+dans le modèle de statuts. Le connecteur n'écrit jamais dans notre modèle.
+
+### [R3] Contrat d'écriture du projecteur — tout-ou-rien structurel
+
+1. **Pré-validation du lot ENTIER avant la première insertion** : forme, listes blanches `level` et
+   `procedure`, résolution des codes, puis chaque ligne passée dans les **règles d'écriture réelles**
+   (`Statuts::erreurs_de()`, pas une copie des règles). Une seule ligne irrécupérable → **rien n'est
+   écrit**. Le tout-ou-rien est structurel, plus constaté après coup.
+2. Si une insertion échoue **malgré** la pré-validation → `resultat = 'partiel'`, avec le nombre
+   réellement écrit et un motif disant que la base a refusé ce que la pré-validation avait accepté.
+   **Aucune atomicité n'est prétendue** : il n'y a pas de transaction.
+3. **`massifs_enregistrer_releve_reussi()` n'est appelée que si `ecrits === resolus && refuses === 0`.**
+   Un relevé déclaré réussi sur un lot incomplet ferait mentir la fraîcheur (§4.5).
+4. **Action `massifs_projection_prefecture( array $bilan )`** émise à **chaque** passage, succès compris :
+   `resultat` · `jour` · `recus` · `resolus` · `ecrits` · `refuses` · `ignores` · `identifiants_ignores`
+   · `motif`. Le journal reste, en second. **Un chemin d'écriture qui ment sur son résultat est plus
+   dangereux qu'une colonne trop courte** — c'est le défaut que cette révision corrige.
+
+### [R3] Identité des massifs — le référentiel possède l'identité
+
+`ProjecteurPrefecture::code_massif()` consomme `massifs_code_depuis_source()` (chaîne #2) sous garde
+`function_exists()`. **Aucun repli sur l'identifiant source, jamais.**
+
+| Situation | Comportement imposé |
+|---|---|
+| Fonction de correspondance **absente** | **Lot entier rejeté**, déclaré bruyamment. Aucune identité de rangement disponible |
+| Identifiant **non mappé** (`1326`, `1327`) | **Ligne écartée**, comptée (`ignores`), listée (`identifiants_ignores`) et journalisée à chaque projection — le lot est conservé |
+| `level` hors liste blanche | **Lot entier rejeté** : c'est un changement de forme de la source, pas une absence de nom. Éprouvé **avant** la résolution du code |
+
+Raison du traitement différencié de `1326`/`1327` : ils sont **attendus à chaque récupération** (27
+identifiants émis, 25 nommés — décision doc §4.11). Rejeter le lot pour eux reviendrait à ne jamais rien
+écrire de toute la saison, donc à afficher « information non disponible » en permanence — un défaut
+strictement pire que celui qu'on évite. Ce n'est pas un repli silencieux : rien n'est rangé sous une clé
+inconnue, et l'apparition d'un 28ᵉ identifiant sans nom sera visible dans le journal.
 
 ### `massifs_horodatage( string $instant_iso_utc ): array`
 `['iso', 'attr_datetime', 'date_longue' => 'mardi 11 août 2026', 'heure' => '19 h 04', 'date_courte']`,
@@ -189,8 +240,10 @@ massifs_enregistrer_releve_reussi( string $source_cle, ?string $instant_iso_utc 
 ```
 
 - **Aucune fonction d'update, aucune fonction de delete n'existe nulle part.** `$wpdb` n'apparaît que dans
-  `Depot.php`, et son vocabulaire se limite à `insert`, `prepare`, `get_results`, `get_row`, `insert_id`.
-  Ni `UPDATE`, ni `DELETE`, ni `REPLACE`, ni `TRUNCATE`, en méthode comme en SQL littéral.
+  `Depot.php`, et son vocabulaire se limite à `insert`, `prepare`, `get_results`, `get_row`, `insert_id`
+  et — **[R3]** — `query`, **strictement réservé au DDL** (`SHOW COLUMNS`, `ALTER … MODIFY`) sur une
+  **liste blanche fermée de colonnes**. Il ne touche aucune ligne et ne réintroduit ni `UPDATE`, ni
+  `DELETE`, ni `REPLACE`, ni `TRUNCATE` : ce n'est pas une régression du verrou de non-écrasement.
 - Ces fonctions **ne vérifient aucune capability** : l'authentification et l'autorisation appartiennent à
   l'appelant (route REST avec un vrai `permission_callback`, ou écran admin avec `current_user_can` +
   nonce). À écrire en toutes lettres dans le docbloc de chaque fonction.
@@ -219,6 +272,7 @@ consommateur ne doit planifier d'appel REST contre l'issue #3.
 | `massifs_core_installation` | action | `string $signature_precedente` | Un module crée/migre sa table. **Handler idempotent obligatoire** |
 | `massifs_statut_enregistre` | action | `int $id, array $statut` | Journalisation |
 | `massifs_statuts_publies` | action | `array $codes, string $jour` | **Invalidation du cache de page** (§10 du brief) |
+| `massifs_projection_prefecture` | action **[R3]** | `array $bilan` | Observabilité de la projection : `resultat`, `jour`, `recus`, `resolus`, `ecrits`, `refuses`, `ignores`, `identifiants_ignores`, `motif` |
 
 **Aucun filtre n'altère la légende, un statut, la fraîcheur ou la saison.**
 

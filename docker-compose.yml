@@ -43,6 +43,23 @@ services:
       WORDPRESS_DB_PASSWORD: ${DB_PASSWORD:-massifs}
       WORDPRESS_TABLE_PREFIX: wp_
       WORDPRESS_DEBUG: 0
+      # Coupe-circuit d'ingestion (voir includes/ingest/prefecture/class-settings.php
+      # dans l'extension) : à `local`/`development` sans URL de bouchon redéfinie,
+      # le connecteur préfecture est désarmé. Fixé ici en dur (pas dans .env) et
+      # non commenté : un développeur ne doit jamais "utilement" le retirer ou le
+      # basculer sur `production` sur cette stack — une rafale de requêtes réelles
+      # vers le serveur de la préfecture depuis une machine de dev est le genre
+      # d'incident qui fait bannir notre IP et abîme la relation avec la source.
+      WP_ENVIRONMENT_TYPE: local
+      # WP-Cron loopback cassé dans ce conteneur : `http://localhost:8080/wp-cron.php`
+      # (l'URL de site, port hôte) n'est pas joignable depuis l'intérieur du
+      # conteneur (rien n'écoute sur 8080 en interne — Apache y écoute sur 80).
+      # Plutôt que de laisser WordPress tenter silencieusement et échouer à
+      # chaque chargement de page, on coupe le déclenchement automatique
+      # explicitement et on documente le déclenchement manuel dans
+      # docker/README.md (`wp cron event run`). Voir ce fichier pour le détail.
+      WORDPRESS_CONFIG_EXTRA: |
+        define( 'DISABLE_WP_CRON', true );
     ports:
       - "${WORDPRESS_PORT:-8080}:80"
     volumes:
@@ -86,6 +103,13 @@ services:
       WP_MANAGER_USER: ${WP_MANAGER_USER:-gestionnaire-demo}
       WP_MANAGER_PASSWORD: ${WP_MANAGER_PASSWORD:-gestionnaire}
       WP_MANAGER_EMAIL: ${WP_MANAGER_EMAIL:-gestionnaire@massifs.local}
+      # Même coupe-circuit que le service wordpress, et pour la même raison : ce
+      # conteneur est le moyen documenté de déclencher le cron à la main
+      # (`wp cron event run`, cf. docker/README.md) depuis que WORDPRESS_CONFIG_EXTRA
+      # désactive le déclenchement automatique. Sans ce réglage ici aussi, un
+      # déclenchement manuel depuis wpcli s'exécuterait en environnement
+      # `production` et pourrait armer un appel sortant réel.
+      WP_ENVIRONMENT_TYPE: local
     volumes:
       - massifs_wp_data:/var/www/html
       - ./wp-content/themes/massifs:/var/www/html/wp-content/themes/massifs

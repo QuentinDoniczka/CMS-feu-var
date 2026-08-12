@@ -118,20 +118,29 @@ return array(
 	// L'ACCORD FAUTIF EST CELUI DE LA SOURCE ET DOIT ÊTRE REPRODUIT : `autorisé`
 	// au masculin, `interdite` au féminin. C'est ce que publie la préfecture ; le
 	// §4.2 du brief impose de reproduire, pas de corriger.
+	//
+	// Les motifs sont ceux de `design-system/MASTER.md` v2.0 §4.1.b : un jalon
+	// ZAPEF n'a pas la même forme qu'un polygone de massif, il ne porte donc pas
+	// le même motif que le niveau de même sévérité. L'information ne repose
+	// JAMAIS sur la couleur seule, jalon compris.
 	'zapef'                        => array(
 		array(
-			'cle'       => 'autorise',
-			'libelle'   => 'Accès à la ZAPEF* autorisé',
-			'consigne'  => '',
-			'severite'  => 10,
-			'jeton_css' => '--statut-zapef-autorise',
+			'cle'             => 'autorise',
+			'libelle'         => 'Accès à la ZAPEF* autorisé',
+			'consigne'        => '',
+			'severite'        => 10,
+			'motif'           => 'aucun',
+			'jeton_css'       => '--statut-zapef-autorise',
+			'jeton_encre_css' => '--statut-zapef-autorise-encre',
 		),
 		array(
-			'cle'       => 'interdit',
-			'libelle'   => 'Accès à la ZAPEF* interdite',
-			'consigne'  => '',
-			'severite'  => 20,
-			'jeton_css' => '--statut-zapef-interdit',
+			'cle'             => 'interdit',
+			'libelle'         => 'Accès à la ZAPEF* interdite',
+			'consigne'        => '',
+			'severite'        => 20,
+			'motif'           => 'barre',
+			'jeton_css'       => '--statut-zapef-interdit',
+			'jeton_encre_css' => '--statut-zapef-interdit-encre',
 		),
 	),
 
@@ -186,21 +195,45 @@ return array(
 
 	// Structure seulement : aucune phrase destinée au visiteur ne vient du serveur.
 	// Les libellés de ces trois états appartiennent au thème (MASTER.md §11.3).
+	//
+	// CE NE SONT PAS DES NIVEAUX, ce sont des ABSENCES D'INFORMATION. Ils n'ont ni
+	// libellé ni couleur officiels : ils sont à nous, et c'est pourquoi les nommer
+	// n'invente aucun fait de domaine.
+	//
+	// Chaque état porte SON PROPRE jeton d'aplat, distinct des deux autres, même
+	// si `tokens.css` les fait aujourd'hui pointer sur la même surface calcaire.
+	// Trois états partageant un seul jeton rendraient impossible de les
+	// différencier plus tard sans repasser par l'extension. Le motif, lui, les
+	// distingue dès aujourd'hui — correspondance état → motif imposée par
+	// MASTER.md v2.0 §4.1.c, jamais devinée :
+	//
+	//   indisponible      → hachure descendante
+	//   hors_saison       → aucun motif (aplat nu)
+	//   non_encore_publie → pointillé
+	//
+	// `jeton_encre_css` est l'encre DU MOTIF, jamais une encre de texte : aucun
+	// texte n'est posé sur un aplat de statut (MASTER.md §4.1.d règle 3). Il est
+	// déclaré même pour `hors_saison`, dont le motif est `aucun` : le jeton existe
+	// dans `tokens.css`, et une clé absente obligerait le consommateur à un cas
+	// particulier là où la forme doit rester uniforme.
 	'etats_hors_niveau'            => array(
 		'indisponible'      => array(
-			'cle'       => 'indisponible',
-			'motif'     => 'hachure_descendante',
-			'jeton_css' => '--statut-indisponible',
+			'cle'             => 'indisponible',
+			'motif'           => 'hachure_descendante',
+			'jeton_css'       => '--statut-indisponible',
+			'jeton_encre_css' => '--statut-indisponible-encre',
 		),
 		'hors_saison'       => array(
-			'cle'       => 'hors_saison',
-			'motif'     => 'aucun',
-			'jeton_css' => '--statut-indisponible',
+			'cle'             => 'hors_saison',
+			'motif'           => 'aucun',
+			'jeton_css'       => '--statut-hors-saison',
+			'jeton_encre_css' => '--statut-hors-saison-encre',
 		),
 		'non_encore_publie' => array(
-			'cle'       => 'non_encore_publie',
-			'motif'     => 'aucun',
-			'jeton_css' => '--statut-indisponible',
+			'cle'             => 'non_encore_publie',
+			'motif'           => 'pointille',
+			'jeton_css'       => '--statut-non-publie',
+			'jeton_encre_css' => '--statut-non-publie-encre',
 		),
 	),
 );

@@ -19,11 +19,21 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Son vocabulaire de données est volontairement réduit à `inserer()`,
  * `selectionner_jour()` et `selectionner_historique()` ; `nom_table()` et
  * `collation()` ne servent qu'à nommer la table et à décrire son DDL. Les
- * seules méthodes de `$wpdb` employées sont `insert`, `prepare`, `get_results`
- * et `insert_id`, plus `get_charset_collate` pour la collation : aucune méthode
- * ni aucun ordre SQL de modification ou de suppression, sous quelque forme que
- * ce soit. L'historique est strictement en insertion pure : une correction est
- * une ligne de plus, jamais un écrasement.
+ * seules méthodes de `$wpdb` employées sont `insert`, `prepare`, `get_results`,
+ * `get_row` et `insert_id`, plus `get_charset_collate` pour la collation :
+ * aucune méthode ni aucun ordre SQL de modification ou de suppression de
+ * DONNÉE, sous quelque forme que ce soit. L'historique est strictement en
+ * insertion pure : une correction est une ligne de plus, jamais un écrasement.
+ *
+ * UNE SEULE EXCEPTION, ET C'EST DU DDL, PAS UNE ÉCRITURE DE DONNÉE.
+ * `rendre_colonne_nullable()` emploie `$wpdb->query()` pour un `ALTER TABLE …
+ * MODIFY`, parce que `dbDelta` ne compare que le TYPE d'une colonne et jamais sa
+ * NULLABILITÉ : sur une base déjà installée en `NOT NULL`, il ne corrigera
+ * jamais `niveau_cle`, et une ligne à `level` 0 sera rejetée par MySQL. La
+ * méthode ne touche aucune ligne, n'existe que pour une table blanche de
+ * colonnes déclarée ici, et ne réintroduit ni `UPDATE`, ni `DELETE`, ni
+ * `REPLACE`, ni `TRUNCATE`. Ce n'est pas une régression du verrou d'insertion
+ * pure : c'est la structure, pas le contenu.
  *
  * Il n'existe AUCUNE méthode « dernier statut connu quel que soit le jour » :
  * ce que le dépôt ne sait pas faire, personne ne peut le lui demander. C'est la
@@ -47,6 +57,21 @@ final class Depot {
 	private const TAILLE_TRANCHE = 200;
 
 	/**
+	 * Colonnes dont la nullabilité peut être corrigée après coup, et leur définition cible.
+	 *
+	 * TABLE BLANCHE FERMÉE. Le nom de colonne et sa définition ne peuvent donc
+	 * jamais venir d'une entrée : ils sont écrits ici, dans du code versionné, et
+	 * `rendre_colonne_nullable()` refuse tout ce qui n'y figure pas. C'est ce qui
+	 * rend l'interpolation du nom de colonne dans le `ALTER` sûre — `prepare()` ne
+	 * sait paramétrer ni un identifiant de colonne ni un type.
+	 *
+	 * @var array<string, string>
+	 */
+	private const COLONNES_NULLABLES = array(
+		'niveau_cle' => 'varchar(32) NULL DEFAULT NULL',
+	);
+
+	/**
 	 * Nom complet de la table.
 	 */
 	public static function nom_table(): string {
@@ -62,6 +87,71 @@ final class Depot {
 		global $wpdb;
 
 		return $wpdb->get_charset_collate();
+	}
+
+	/**
+	 * La colonne accepte-t-elle `NULL` dans la base RÉELLE ?
+	 *
+	 * On interroge l'état réel plutôt que de supposer celui du DDL : `dbDelta` a
+	 * pu créer la table en `NOT NULL` lors d'une version antérieure du schéma et
+	 * ne la corrigera jamais, puisqu'il ne compare que le type.
+	 *
+	 * `SHOW COLUMNS` plutôt que `information_schema` : même réponse, sans exiger
+	 * de privilège supplémentaire sur une base d'hébergement mutualisé.
+	 *
+	 * @param string $colonne Colonne de la table blanche.
+	 *
+	 * @return bool|null `null` si la colonne est inconnue, absente ou illisible — auquel cas on n'altère rien.
+	 */
+	public function colonne_accepte_null( string $colonne ): ?bool {
+		global $wpdb;
+
+		if ( ! isset( self::COLONNES_NULLABLES[ $colonne ] ) ) {
+			return null;
+		}
+
+		$ligne = $wpdb->get_row(
+			$wpdb->prepare( 'SHOW COLUMNS FROM %i LIKE %s', self::nom_table(), $colonne ),
+			ARRAY_A
+		);
+
+		if ( ! is_array( $ligne ) || ! isset( $ligne['Null'] ) ) {
+			return null;
+		}
+
+		return 'YES' === strtoupper( (string) $ligne['Null'] );
+	}
+
+	/**
+	 * Rend une colonne de la table blanche nullable.
+	 *
+	 * DDL, PAS UNE ÉCRITURE DE DONNÉE : aucune ligne n'est lue, modifiée ni
+	 * supprimée. Voir l'exception documentée en tête de classe.
+	 *
+	 * L'appelant vérifie d'abord `colonne_accepte_null()` : l'`ALTER` n'est donc
+	 * émis que sur une base réellement en `NOT NULL`, jamais à chaque amorçage.
+	 *
+	 * @param string $colonne Colonne de la table blanche.
+	 *
+	 * @return bool `true` si l'ordre a été accepté.
+	 */
+	public function rendre_colonne_nullable( string $colonne ): bool {
+		global $wpdb;
+
+		if ( ! isset( self::COLONNES_NULLABLES[ $colonne ] ) ) {
+			return false;
+		}
+
+		// Le nom de table passe par `%i` ; le nom de colonne et sa définition
+		// viennent de la table blanche fermée ci-dessus, et `prepare()` ne sait de
+		// toute façon paramétrer ni un identifiant de colonne ni un type.
+		$requete = $wpdb->prepare(
+			'ALTER TABLE %i MODIFY ' . $colonne . ' ' . self::COLONNES_NULLABLES[ $colonne ],
+			self::nom_table()
+		);
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Requête construite par `prepare()` juste au-dessus.
+		return false !== $wpdb->query( $requete );
 	}
 
 	/**

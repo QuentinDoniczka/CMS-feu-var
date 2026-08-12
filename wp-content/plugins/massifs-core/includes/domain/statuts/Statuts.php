@@ -13,6 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use DateTimeImmutable;
 use InvalidArgumentException;
 use Massifs\Domain\Fraicheur\Horloge;
 use Massifs\Domain\Fraicheur\Saison;
@@ -145,73 +146,20 @@ final class Statuts {
 	 * @return array{enregistre: bool, id: int|null, erreurs: list<string>}
 	 */
 	public function enregistrer( array $statut ): array {
-		$erreurs = array();
+		$candidat = $this->valider( $statut );
 
-		$code = self::normaliser_code( $this->chaine( $statut, 'massif_code' ) );
+		$code                 = $candidat['massif_code'];
+		$jour                 = $candidat['jour_validite'];
+		$niveaux              = $candidat['niveaux'];
+		$source               = $candidat['source'];
+		$auteur_id            = $candidat['auteur_id'];
+		$publie_prefecture_le = $candidat['publie_prefecture_le'];
 
-		if ( ! self::code_est_valide( $code ) ) {
-			$erreurs[] = 'massif_code_invalide';
-		}
-
-		$jour = trim( $this->chaine( $statut, 'jour_validite' ) );
-
-		if ( ! Horloge::jour_est_valide( $jour ) ) {
-			$erreurs[] = 'jour_validite_invalide';
-		} else {
-			$ecart = Horloge::ecart_jours( Horloge::jour_courant(), $jour );
-
-			if ( $ecart > self::HORIZON_JOURS || $ecart < -self::RETROACTIVITE_JOURS ) {
-				$erreurs[] = 'jour_validite_hors_horizon';
-			}
-		}
-
-		$niveaux = $this->resoudre_niveaux( $statut );
-		$erreurs = array_merge( $erreurs, $niveaux['erreurs'] );
-
-		$source = SourceStatut::tryFrom( trim( $this->chaine( $statut, 'source' ) ) );
-
-		if ( null === $source ) {
-			$erreurs[] = 'source_invalide';
-		}
-
-		$auteur_id = isset( $statut['auteur_id'] ) && is_scalar( $statut['auteur_id'] )
-			? absint( $statut['auteur_id'] )
-			: 0;
-
-		if ( SourceStatut::SaisieManuelle === $source && 0 === $auteur_id ) {
-			$erreurs[] = 'auteur_requis';
-		}
-
-		if ( SourceStatut::RecuperationOfficielle === $source && $auteur_id > 0 ) {
-			$erreurs[] = 'auteur_interdit';
-		}
-
-		$publie_prefecture_le = null;
-		$publie_brut          = trim( $this->chaine( $statut, 'publie_prefecture_le' ) );
-
-		if ( '' !== $publie_brut ) {
-			try {
-				$instant        = Horloge::instant_depuis_chaine( $publie_brut );
-				$ecart_secondes = $instant->getTimestamp() - Horloge::maintenant()->getTimestamp();
-
-				// Une publication annoncée loin dans le futur ou vieille de plus
-				// d'un an est une donnée aberrante : on la refuse plutôt que de
-				// la stocker.
-				if ( $ecart_secondes > 2 * HOUR_IN_SECONDS || $ecart_secondes < -( self::RETROACTIVITE_JOURS * DAY_IN_SECONDS ) ) {
-					$erreurs[] = 'publie_prefecture_le_invalide';
-				} else {
-					$publie_prefecture_le = $instant;
-				}
-			} catch ( InvalidArgumentException ) {
-				$erreurs[] = 'publie_prefecture_le_invalide';
-			}
-		}
-
-		if ( array() !== $erreurs ) {
+		if ( array() !== $candidat['erreurs'] ) {
 			return array(
 				'enregistre' => false,
 				'id'         => null,
-				'erreurs'    => array_values( array_unique( $erreurs ) ),
+				'erreurs'    => $candidat['erreurs'],
 			);
 		}
 
@@ -274,6 +222,114 @@ final class Statuts {
 			'enregistre' => true,
 			'id'         => $id,
 			'erreurs'    => array(),
+		);
+	}
+
+	/**
+	 * Clés d'erreur qu'un statut candidat produirait à l'écriture, sans rien écrire.
+	 *
+	 * EXISTE POUR RENDRE LE TOUT-OU-RIEN STRUCTUREL. Un appelant qui écrit un LOT
+	 * — la projection d'un instantané préfectoral, une saisie multiple du portail —
+	 * doit pouvoir savoir AVANT la première insertion si une seule ligne est
+	 * irrécupérable, et renoncer au lot entier. Sans elle, il ne pourrait que
+	 * constater les refus après coup, sur une base déjà partiellement écrite,
+	 * c'est-à-dire déclarer une atomicité qu'il n'a pas.
+	 *
+	 * Elle applique EXACTEMENT les mêmes règles que `enregistrer()`, parce que
+	 * c'est le même code : une pré-validation qui réimplémenterait les règles
+	 * finirait par diverger, et une divergence entre « ce qui est annoncé
+	 * acceptable » et « ce qui est accepté » est précisément le défaut qu'on
+	 * corrige ici.
+	 *
+	 * @param array<string, mixed> $statut Statut candidat, mêmes clés que `enregistrer()`.
+	 *
+	 * @return list<string> Clés d'erreur stables, tableau vide si le statut est écrivable.
+	 */
+	public function erreurs_de( array $statut ): array {
+		return $this->valider( $statut )['erreurs'];
+	}
+
+	/**
+	 * Valide et normalise un statut candidat, sans jamais écrire.
+	 *
+	 * SEUL endroit où vivent les règles d'écriture. `enregistrer()` en consomme le
+	 * résultat, `erreurs_de()` n'en garde que les clés d'erreur.
+	 *
+	 * @param array<string, mixed> $statut Statut candidat.
+	 *
+	 * @return array{erreurs: list<string>, massif_code: string, jour_validite: string, niveaux: array{niveau_cle: string|null, zapef_cle: string|null, niveau_source_brut: int|null, procedure_source: int|null, erreurs: list<string>}, source: SourceStatut|null, auteur_id: int, publie_prefecture_le: DateTimeImmutable|null}
+	 */
+	private function valider( array $statut ): array {
+		$erreurs = array();
+
+		$code = self::normaliser_code( $this->chaine( $statut, 'massif_code' ) );
+
+		if ( ! self::code_est_valide( $code ) ) {
+			$erreurs[] = 'massif_code_invalide';
+		}
+
+		$jour = trim( $this->chaine( $statut, 'jour_validite' ) );
+
+		if ( ! Horloge::jour_est_valide( $jour ) ) {
+			$erreurs[] = 'jour_validite_invalide';
+		} else {
+			$ecart = Horloge::ecart_jours( Horloge::jour_courant(), $jour );
+
+			if ( $ecart > self::HORIZON_JOURS || $ecart < -self::RETROACTIVITE_JOURS ) {
+				$erreurs[] = 'jour_validite_hors_horizon';
+			}
+		}
+
+		$niveaux = $this->resoudre_niveaux( $statut );
+		$erreurs = array_merge( $erreurs, $niveaux['erreurs'] );
+
+		$source = SourceStatut::tryFrom( trim( $this->chaine( $statut, 'source' ) ) );
+
+		if ( null === $source ) {
+			$erreurs[] = 'source_invalide';
+		}
+
+		$auteur_id = isset( $statut['auteur_id'] ) && is_scalar( $statut['auteur_id'] )
+			? absint( $statut['auteur_id'] )
+			: 0;
+
+		if ( SourceStatut::SaisieManuelle === $source && 0 === $auteur_id ) {
+			$erreurs[] = 'auteur_requis';
+		}
+
+		if ( SourceStatut::RecuperationOfficielle === $source && $auteur_id > 0 ) {
+			$erreurs[] = 'auteur_interdit';
+		}
+
+		$publie_prefecture_le = null;
+		$publie_brut          = trim( $this->chaine( $statut, 'publie_prefecture_le' ) );
+
+		if ( '' !== $publie_brut ) {
+			try {
+				$instant        = Horloge::instant_depuis_chaine( $publie_brut );
+				$ecart_secondes = $instant->getTimestamp() - Horloge::maintenant()->getTimestamp();
+
+				// Une publication annoncée loin dans le futur ou vieille de plus
+				// d'un an est une donnée aberrante : on la refuse plutôt que de
+				// la stocker.
+				if ( $ecart_secondes > 2 * HOUR_IN_SECONDS || $ecart_secondes < -( self::RETROACTIVITE_JOURS * DAY_IN_SECONDS ) ) {
+					$erreurs[] = 'publie_prefecture_le_invalide';
+				} else {
+					$publie_prefecture_le = $instant;
+				}
+			} catch ( InvalidArgumentException ) {
+				$erreurs[] = 'publie_prefecture_le_invalide';
+			}
+		}
+
+		return array(
+			'erreurs'              => array_values( array_unique( $erreurs ) ),
+			'massif_code'          => $code,
+			'jour_validite'        => $jour,
+			'niveaux'              => $niveaux,
+			'source'               => $source,
+			'auteur_id'            => $auteur_id,
+			'publie_prefecture_le' => $publie_prefecture_le,
 		);
 	}
 

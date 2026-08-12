@@ -351,6 +351,11 @@ final class Legende {
 	/**
 	 * États hors niveau : structure seulement, aucune phrase.
 	 *
+	 * `jeton_encre_css` est l'encre du MOTIF, jamais une encre de texte. Elle est
+	 * exposée pour les trois états afin que le consommateur n'ait aucun cas
+	 * particulier à écrire ; sa valeur est vide seulement si la configuration ne
+	 * la déclare pas.
+	 *
 	 * @return array<string, array<string, string>>
 	 */
 	public function etats_hors_niveau(): array {
@@ -365,9 +370,10 @@ final class Legende {
 			}
 
 			$sortie[ (string) $cle ] = array(
-				'cle'       => (string) ( $etat['cle'] ?? $cle ),
-				'motif'     => (string) ( $etat['motif'] ?? 'aucun' ),
-				'jeton_css' => (string) ( $etat['jeton_css'] ?? '' ),
+				'cle'             => (string) ( $etat['cle'] ?? $cle ),
+				'motif'           => (string) ( $etat['motif'] ?? 'aucun' ),
+				'jeton_css'       => (string) ( $etat['jeton_css'] ?? '' ),
+				'jeton_encre_css' => (string) ( $etat['jeton_encre_css'] ?? '' ),
 			);
 		}
 

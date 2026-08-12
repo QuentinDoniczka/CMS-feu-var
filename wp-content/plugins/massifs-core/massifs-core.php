@@ -26,7 +26,7 @@ define( 'MASSIFS_CORE_FICHIER', __FILE__ );
 define( 'MASSIFS_CORE_CHEMIN', plugin_dir_path( __FILE__ ) );
 define( 'MASSIFS_CORE_URL', plugin_dir_url( __FILE__ ) );
 define( 'MASSIFS_CORE_INCLUDES', MASSIFS_CORE_CHEMIN . 'includes/' );
-define( 'MASSIFS_CORE_SCHEMA_VERSION', '2.0.0' );
+define( 'MASSIFS_CORE_SCHEMA_VERSION', '2.1.0' );
 
 // Alias anglais des deux constantes de chemin. Les noms français restent les
 // canoniques du projet ; ces deux-là existent parce qu'un module peut les
