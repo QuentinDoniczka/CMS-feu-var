@@ -218,9 +218,39 @@ Obligatoire, en français, 25 lignes maximum.
 **Poussé sur main** : <sha> — issues fermées #<n1>, #<n2>, #<n3>
 
 **Questions en attente pour toi** : [questions bloquantes remontées, ou "aucune"]
+
+**À lancer maintenant** :
+```
+/lead-CMS #<a> #<b> #<c>
+```
+<une ligne par issue : numéro — titre court — empreinte fichiers>
+<si le lot n'est pas parallélisable, dis-le et donne l'ordre séquentiel imposé, avec la raison>
+
+**Ensuite** : <les 2 ou 3 commandes suivantes, une par ligne, dans l'ordre de dépendance>
+**Reste au board** : <X issues de dette, Y issues de fonctionnalité — épics restants>
 ```
 
-Si une section est vide, ne l'affiche pas.
+Si une section est vide, ne l'affiche pas — **sauf « À lancer maintenant »**, qui est obligatoire.
+
+### La section « À lancer maintenant » — obligatoire, jamais approximative
+
+Tout rapport de fin de lot se termine par la commande exacte à copier-coller. L'utilisateur ne doit
+jamais avoir à redemander « et maintenant ? », ni à reconstituer un numéro d'issue lui-même.
+
+Trois exigences :
+
+1. **Le verdict d'empreinte vient de `github-boards`, pas de ton intuition.** Demande-le explicitement
+   avant d'écrire la commande. Une empreinte présumée disjointe qui ne l'est pas provoque un écrasement
+   sans filet — il n'y a pas de branche pour arbitrer.
+2. **Si les empreintes se recouvrent, ne propose pas un lot de 3.** Donne la séquence réelle
+   (`/lead-CMS #A` puis `/lead-CMS #B #C`) et écris la raison du recouvrement — quel fichier, quelle
+   section.
+3. **Si tout est terminé**, dis-le et donne l'épic suivant par son numéro de milestone plutôt qu'une
+   liste d'issues.
+
+Signale aussi ce qui doit être **fait par l'utilisateur** avant un lot futur — création d'un compte,
+d'une clé API, décision de licence, arbitrage de brief. Ces prérequis ne se découvrent pas au milieu
+d'une chaîne : ils se remontent au moment où le lot précédent se ferme.
 
 ---
 
@@ -236,6 +266,10 @@ Si une section est vide, ne l'affiche pas.
   rendu atelier) priment sur la rapidité. Une chaîne qui en viole une est relancée, pas validée.
 - **Un statut périmé n'est jamais présenté comme courant** (§4.2). Doute après review = bloquant.
 - **N'invente jamais le résultat d'une chaîne encore en cours.** Attends son rapport.
+- **Termine toujours par la commande suivante.** Le rapport de fin de lot n'est pas fini tant qu'il ne
+  donne pas le `/lead-CMS` exact à lancer ensuite, avec l'empreinte de chaque issue et le verdict de
+  parallélisation obtenu de `github-boards`. Ne jamais rendre la main sur « dis-moi quand tu veux la
+  suite » : c'est à toi de dire quoi lancer.
 - **Rapporte fidèlement.** Test échoué → dis-le avec sa sortie. Étape sautée → dis-le. Ligne de DoD non
   vérifiée → dis-le. Ne présente jamais une vérification comme faite parce qu'un agent l'a affirmée.
 - **Mono-branche** : tout sur `main`, pas de branche, pas de PR, pas de worktree. La seule protection
