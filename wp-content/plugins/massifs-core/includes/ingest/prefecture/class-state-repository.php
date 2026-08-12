@@ -55,8 +55,7 @@ final class StateRepository {
 	 * Issues qui incrémentent le compteur d'échecs consécutifs.
 	 *
 	 * Un 404 avant publication n'est pas un échec : c'est le signal normal
-	 * « pas encore publié ». Un doublon de corps non plus : la source sert
-	 * encore le fichier de la veille.
+	 * « pas encore publié ».
 	 */
 	private const ISSUES_EN_ECHEC = array(
 		'reseau',
