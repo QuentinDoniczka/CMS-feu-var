@@ -112,7 +112,14 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 | `api` | racine REST publique, écriture anonyme refusée | API publique |
 | `ancre` | panne provoquée : la partie « liste » manque | — |
 | `extension` | panne provoquée : `massifs-core` est désactivée | — |
-| `artefacts` | sha256 de `tokens.css`, 111 jetons, identité au bloc normatif de MASTER §12, 2 polices | design system |
+| `artefacts` | sha256 de `tokens.css`, 111 jetons, identité au bloc normatif de MASTER §12, 2 polices, jetons déclarés-non-consommés, `print.css` intégralement sous `@media print` | design system |
+| `couche-statut` | les 44 marques réellement peintes : aplat, liseré 2 px sur quatre côtés, motif présent où il doit l'être **et absent où il ne doit pas l'être**, boîtes du §8.1, hampe du jalon | jamais la couleur seule |
+| `feuilles` | les cinq `<link>` du `<head>` : ordre, `media`, `print` après `composants`, aucune fuite de la feuille d'impression vers l'écran | design system |
+| `casse` | plus aucune capitale forcée sur les titres ; les capitales ne survivent que sur les étiquettes `--fs-250` | design system |
+| `couleurs-forcees` | `forced-colors: active` émulé : chaque motif reconstruit en `CanvasText`, et les états nus le restent | jamais la couleur seule |
+| `impression` | aperçu d'impression à **A4 (703 px) ET A5 (469 px)** : colonnes restaurées sans requête de largeur, bandeau de non-officialité imprimé, liseré et hachure en charbon y compris sous `.sur-sombre` | équivalent textuel imprimable |
+| `cartes` | mode cartes à 320 px, étiquettes reprises de `data-etiquette`, et **le piège des cellules vides** : aucun champ étiqueté vide, aucun octet d'espace entre les balises | mobile réel |
+| `arbre` | l'arbre d'accessibilité réellement construit par le moteur (CDP) en mode cartes : ce qui survit au `display: block`, et ce que le `thead` masqué fait perdre | accessibilité |
 
 ### `13-jours-consecutifs-identiques` — à ne jamais supprimer
 
@@ -141,8 +148,21 @@ en vigueur est sans exception :
 ## Ce que cette suite ne couvre pas
 
 Elle ne remplace ni un contrôle humain au lecteur d'écran, ni un vrai téléphone à 360 px, ni une
-restauration de sauvegarde, ni HTTPS en production, ni un rendu à l'imprimante (aucun `print.css`
-n'existe encore).
+restauration de sauvegarde, ni HTTPS en production.
+
+Le scénario `impression` éprouve `print.css` **en média émulé**, à deux largeurs de contenu (A4 et A5).
+Ce n'est pas une sortie papier : la pagination réelle, les sauts de page, le rendu du moteur
+d'impression du système et le comportement des pilotes ne sont pas observés. `@page { margin }` n'est
+pas mesurable dans un viewport émulé — seule la largeur du viewport l'est, et elle est calculée à la
+main depuis le format moins les marges.
+
+Le scénario `arbre` relève l'arbre d'accessibilité tel que Chromium le construit. Il dit ce que
+l'arbre contient ; il ne dit pas ce qu'un lecteur d'écran en fait. La perte des `columnheader` en mode
+cartes est un **constat mesuré**, jamais une validation d'utilisabilité.
+
+Enfin `couleurs-forcees` est une **émulation** du média `forced-colors` par Chromium, pas un vrai
+contraste élevé Windows : les couleurs système réelles, et les thèmes personnalisés, ne sont pas
+éprouvés.
 
 Ne sont pas couverts non plus, faute d'exister : la carte et son repli statique sans JavaScript,
 la couche EFFIS, l'indicateur Météo-France, le point d'accès JSON public, les pages « La démarche »,
