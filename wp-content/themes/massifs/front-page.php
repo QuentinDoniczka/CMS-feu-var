@@ -91,7 +91,7 @@ if ( $massifs_api ) {
 		'non_encore_publie' => array(
 			'chiffre'       => '',
 			'chiffre_total' => '',
-			'titre_debut'   => 'Les statuts de demain ne sont pas encore publiés. La préfecture publie vers 17 h.',
+			'titre_debut'   => 'Les statuts de demain ne sont pas encore publiés. La préfecture publie vers 17 h.',
 			'titre_url'     => '',
 			'titre_lien'    => '',
 			'titre_fin'     => '',

@@ -12,8 +12,12 @@
  *   tokens.css (design-system/MASTER.md §12) ; ce fichier ne fait que les
  *   consommer. --repere-couleur est posée par les composants, pas par nous.
  * - AUCUN littéral de couleur, d'espacement ni de durée. Les seules valeurs
- *   nues sont les zéros, les mots-clés, et les trois mesures verbatim du
- *   repère (MASTER §3.1, référence normative sans jeton au §12).
+ *   nues sont les zéros, les pourcentages, les mots-clés, la réserve 2ch du
+ *   §8.2, les deux points de rupture recopiés en @media (§12), les trois
+ *   mesures verbatim du repère (MASTER §3.1, référence normative sans jeton
+ *   au §12) et les deux plafonds typographiques du §5.1 — 3rem sur h1,
+ *   5.75rem sur le chiffre du jour. Même précédent dans les deux derniers
+ *   cas, arbitrage A-13 : on ne crée pas de jeton, on reproduit la référence.
  * - AUCUN url(), AUCUN @import : zéro requête vers un domaine tiers.
  * - Aucune animation, aucune transition : rien à neutraliser sous
  *   prefers-reduced-motion (tokens.css neutralise déjà les jetons de durée).
@@ -66,15 +70,23 @@ body {
   line-height: var(--lh-corps);
 }
 
-/* MASTER §5.1. Les titres sont écrits en casse normale dans le HTML et mis en
-   capitales ici : plusieurs lecteurs d'écran épellent un mot écrit tout en
-   capitales dans le balisage. La casse est donc une affaire de CSS.
+/* MASTER §5.1. Les capitales sont RETIRÉES de h1 et de h2 : décision D-26
+   (§15), dont l'issue #23 est l'application normative. Ce que D-26 abandonne
+   est la CASSE, jamais la famille — le parti condensé est conservé, et
+   --police-titre reste le défaut du titrage ci-dessous. C'est un arbitrage de
+   REGISTRE, motivé par le déplacement de la cible de réception vers un
+   décideur communal, et par lui seul. Il ne doit jamais être présenté comme
+   un gain d'accessibilité : le §15 D-26 est explicite là-dessus, le gain de
+   lisibilité est un effet secondaire non recherché.
+   Les capitales survivent sur les étiquettes --fs-250, qui portent les
+   chaînes officielles verbatim (§11.4) — dans composants.css (gelé), et là
+   seulement.
    h1 : MASTER demande un interligne 1,05 et une approche 0,005em, sans jeton
    au §12 — arbitrage A-13, emploi des jetons voisins --lh-titre / --ls-titre.
    h3 : MASTER demande un poids 600, qui contredit §5.1 lui-même (« la famille
    de titrage n'a que deux poids en service, 700 et 800 ») et n'a pas de
-   jeton — arbitrage A-13, emploi de --poids-titre. h3 reste en casse normale :
-   les capitales ne s'appliquent qu'au-dessus de --fs-500. */
+   jeton — arbitrage A-13, emploi de --poids-titre. h3 reste en casse normale,
+   comme il l'était déjà avant D-26. */
 h1,
 h2,
 h3 {
@@ -83,16 +95,26 @@ h3 {
   letter-spacing: var(--ls-titre);
 }
 
+/* Bride de consommation (MASTER §5.1, arbitrage A-2). --fs-700 n'est PAS
+   modifié : tokens.css est gelé, sha256 épinglé — le plafond est posé ici, en
+   consommation. Il est en rem, JAMAIS en px : un plafond en rem recule quand
+   l'utilisateur grossit son texte, il ne peut donc pas plafonner la réponse au
+   zoom (WCAG 1.4.4) ; un plafond en px la plafonnerait et serait un défaut
+   bloquant. Le terme médian rem + vw du clamp reste intact — la défense écrite
+   au §14.3 entrée 2 est honorée, pas contournée. La valeur est DÉRIVÉE, pas
+   choisie : « la moitié basse » désigne littéralement la borne médiane, et
+   3 rem est le milieu exact des bornes 2,25 rem et 3,75 rem — reproduite sous
+   le précédent A-13. Inerte à 360 px (37,12 px), la bride n'entre en action
+   qu'à partir de ≈ 700 px. --fs-600 (h2) n'est pas bridé : il plafonne déjà à
+   2,5 rem et n'est pas une affiche. */
 h1 {
-  font-size: var(--fs-700);
+  font-size: min(var(--fs-700), 3rem);
   line-height: var(--lh-titre);
-  text-transform: uppercase;
 }
 
 h2 {
   font-size: var(--fs-600);
   line-height: var(--lh-titre);
-  text-transform: uppercase;
 }
 
 h3 {
@@ -143,34 +165,56 @@ a {
   inline-size: 100%;
 }
 
+/* Rythme vertical asymétrique (MASTER §6.1, arbitrage A-5). Le sens est
+   contre-intuitif, il est donc écrit : un filet est un border-block-start, si
+   bien que l'espace AU-DESSUS de lui est le padding-block-end de la bande
+   PRÉCÉDENTE, et l'espace EN DESSOUS son propre padding-block-start.
+   « Resserré au-dessus, généreux en dessous » s'écrit donc
+   padding-block: <généreux> <resserré>, soit start > end — et non l'inverse,
+   qui est l'erreur naturelle.
+   À 360 px, --esp-section vaut 48 px, exactement comme --esp-2xl : le rythme y
+   redevient symétrique 48/48, et c'est VOULU — l'asymétrie est un geste de
+   composition large, pas de mobile. Toutes les valeurs restent dans l'échelle
+   fermée du §6.1. */
 .bande__contenu {
   max-inline-size: var(--largeur-max);
   margin-inline: auto;
   padding-inline: var(--gouttiere);
-  padding-block: var(--esp-section);
+  padding-block: var(--esp-section) var(--esp-2xl);
 }
 
 /* La bande carte n'émet PAS de .bande__contenu : elle est plein cadre par
    construction, et aucune hauteur ne lui est imposée ici (elle appartient à la
    chaîne « carte »).
-   MASTER §6.3 encadre la carte de --bord-fort en haut et en bas. Le cadre est
+   MASTER §6.3 et le croquis §7.1, amendés par l'arbitrage A-3 : le 4 px
+   devient l'UNIQUE filet fort du chrome nominal, et il marque l'ENTRÉE du
+   héros (§1, « la carte est le héros absolu ») ; la bande se referme en 2 px —
+   entrée forte, sortie discrète. La carte reste encadrée (croquis §7.1) sans
+   doubler le 4 px, et rien d'autre n'est touché ici. Le cadre est
    conditionné à la présence d'un enfant réel : sur la bande encore vide de
-   l'issue #5, deux filets de 4 px se toucheraient et dessineraient un trait
+   l'issue #5, les deux filets se toucheraient et dessineraient un trait
    noir sans objet au milieu de la page. Le cadre apparaît de lui-même le jour
    où la carte est posée, sans modification de cette feuille. */
 .bande--carte:has(*) {
-  border-block: var(--bord-fort);
+  border-block-start: var(--bord-fort);
+  border-block-end: var(--bord-moyen);
 }
 
 /* Bandeau de non-officialité (MASTER §7.1) : slab --c-calcaire-ombre,
-   --bord-fort en haut, bande fine — donc un rythme vertical plus court que
-   celui d'une section. Encre laissée en --c-charbon : 12,80:1 sur
+   --bord-moyen en haut, bande fine — donc un rythme vertical plus court que
+   celui d'une section. Le filet passe de 4 px à 2 px (arbitrage A-3) : le seul
+   filet fort du chrome nominal est celui de l'entrée de la carte. Le bandeau
+   d'alerte, lui, est un état EXCEPTIONNEL et garde son --bord-fort dans
+   composants.css (gelé) — d'où la formulation exacte de la règle de quantité :
+   « une occurrence dans le chrome nominal de la page ». Rien n'est perdu ici :
+   le §5.6 du brief exige la PRÉSENCE de ce bandeau, jamais une épaisseur, et
+   il reste détaché par son slab. Encre laissée en --c-charbon : 12,80:1 sur
    calcaire-ombre. La classe est confirmée par dev-front-cms ; on la préfère à
    l'identifiant d'ancrage, dont la spécificité écraserait toute feuille de
    composant à venir. */
 .bande--non-officialite {
   background-color: var(--c-calcaire-ombre);
-  border-block-start: var(--bord-fort);
+  border-block-start: var(--bord-moyen);
   font-size: var(--fs-200);
 }
 
@@ -200,11 +244,24 @@ a {
    réellement employée, repli système compris. §8.2 délègue explicitement la
    technique aux chaînes d'intégration en citant « ch de réserve » ; seul le
    résultat est normatif : rien ne bouge autour du chiffre. */
+/* Bride de consommation (MASTER §5.1, arbitrage A-2), mêmes règles que sur h1.
+   --fs-800 n'est PAS modifié : tokens.css est gelé, sha256 épinglé — le
+   plafond est posé ici, en consommation, et il est en rem, JAMAIS en px : un
+   plafond en rem recule quand l'utilisateur grossit son texte, il ne peut donc
+   pas plafonner la réponse au zoom (WCAG 1.4.4) ; un plafond en px la
+   plafonnerait et serait un défaut bloquant. Le terme médian rem + vw du clamp
+   reste intact (§14.3 entrée 2). La valeur est DÉRIVÉE, pas choisie : 5,75 rem
+   est le milieu exact des bornes 3,5 rem et 8 rem — reproduite sous le
+   précédent A-13. Inerte à 360 px (59 px), la bride n'entre en action qu'à
+   partir de ≈ 800 px.
+   La réserve de largeur ci-dessus n'est pas retouchée : elle est en ch, donc
+   solidaire du corps réellement rendu — elle suit la bride d'elle-même, et le
+   résultat normatif du §8.2 reste tenu. */
 .ardoise__chiffre-valeur {
   display: inline-block;
   min-inline-size: 2ch;
   text-align: end;
-  font-size: var(--fs-800);
+  font-size: min(var(--fs-800), 5.75rem);
   font-weight: var(--poids-affiche);
 }
 
@@ -222,8 +279,21 @@ a {
    MASTER §5.1 interdit « titre en --c-mistral » et « titre souligné », mais
    WCAG 1.4.1 interdit de distinguer un lien par la seule couleur. Compromis :
    la couleur du titre est conservée (calcaire sur mistral-nuit, 12,66:1) et le
-   soulignement reste le seul indice — non chromatique. Écart signalé. */
-.ardoise__titre a {
+   soulignement reste le seul indice — non chromatique.
+   Cette règle était INOPÉRANTE (arbitrage A-8) : à spécificité égale (0-1-1),
+   elle perdait au source order face à « .sur-sombre a » posée plus bas dans ce
+   fichier, et le lien du h1 rendait --c-mistral-clair (7,73:1) au lieu du
+   --c-calcaire hérité (12,66:1) — elle mentait donc sur son intention.
+   « :any-link » la porte à 0-2-1 : elle gagne dans les deux contextes, sans
+   ancêtre et sans réordonner le fichier. Deux alternatives écartées :
+   abaisser « .sur-sombre a » en :where() est formellement interdit, le contrat
+   #22 faisant reposer sur cette règle la couleur du lien du bandeau d'alerte ;
+   et « .sur-sombre .ardoise__titre a » conditionnerait l'intention au chrome
+   sombre — le jour où une ardoise paraîtrait hors .sur-sombre, le titre
+   retomberait sur --c-mistral, ce que §5.1 interdit.
+   Le soulignement subsiste (règle « a » plus haut, que rien ne surcharge) :
+   l'indice de lien reste non chromatique, WCAG 1.4.1 tenu. */
+.ardoise__titre a:any-link {
   color: inherit;
 }
 
@@ -492,9 +562,12 @@ a {
 /* --bp-m : 56.25rem (900 px) */
 @media (min-width: 56.25rem) {
   /* MASTER §6.1 : --esp-4xl est la respiration de l'ardoise. En dessous de ce
-     point, --esp-section suffit et garde la page courte sur mobile. */
+     point, --esp-section suffit et garde la page courte sur mobile.
+     Même asymétrie qu'en pied de .bande__contenu, et pour la même raison
+     (arbitrage A-5) : start > end, l'espace généreux est celui qui SUIT le
+     filet d'entrée, le resserré celui qui précède le filet suivant. */
   .bande--ardoise .bande__contenu {
-    padding-block: var(--esp-4xl);
+    padding-block: var(--esp-4xl) var(--esp-3xl);
   }
 
   /* Ardoise en deux colonnes : le chiffre, puis le texte. Une rangée flex, et

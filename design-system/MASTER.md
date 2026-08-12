@@ -1,6 +1,6 @@
 # MASSIFS — Design System
 
-**Version 2.2** · **Date** 12 août 2026 · **Auteur** `lead-design-cms`
+**Version 2.3** · **Date** 12 août 2026 · **Auteur** `lead-design-cms`
 **Statut** source de vérité visuelle. Tout travail d'intégration (`dev-ux-cms`, `dev-front-cms`) et toute
 relecture (`review-cms`) s'y réfèrent. Livrable §11 du brief (« plan de design »).
 
@@ -17,6 +17,7 @@ relecture (`review-cms`) s'y réfèrent. Livrable §11 du brief (« plan de desi
 | **2.0** | 11 août 2026 | **La légende officielle est établie.** Les 5 niveaux substituts sont **supprimés** et remplacés par les **2 états d'accès réels** + la **dimension ZAPEF** + 3 états hors niveau. Sections refaites : §2.1, §4.1, §4.2, §7.1, §8.1, §8.2, §8.5 (nouveau), §9.1, §10 (preuve d'accessibilité, refaite intégralement), §11.2, §12, §13, §14 (passe 2 bis), §15 (D-11 à D-19), §16. Les 8 questions du §4.1 v1.0 sont **répondues sauf deux**, conservées et re-marquées `OUVERT`. | `docs/decisions/source-prefecture.md` §4 (chaîne #1) et `docs/contracts/issue-3.md` révision 2 |
 | **2.1** | 12 août 2026 | **Révision d'artefacts — par ajout et correction ciblée, jamais par réécriture.** Les polices sont vendorisées (`latin` seul, D-20), avec `tokens.css`, `fonts.css` (D-21), les deux licences OFL et `PROVENANCE.md`. **§5** : les deux `OUVERT` typographiques sont **clos** (variable d'Atkinson confirmée sous OFL 1.1, repli `Public Sans` retiré ; capitales accentuées vérifiées), sous-ensemble corrigé en `latin`, **`size-adjust` retiré** au profit de `font-display: optional` + preload (D-22), repli `Arial Narrow` documenté comme absent d'Android/ChromeOS/Linux. **§8.2** : la promesse `tabular-nums` est corrigée — `tnum` absent de la police de titrage, largeur du chiffre désormais **réservée**. **§10.5** : six corrections mesurées, **aucun verdict ne bascule**. Ajouts : **§4.1.d règle 8** (ordre des couches), **§10.7** (paires non mesurées), **§10.8** (`forced-colors` reporté aux chaînes d'intégration), **§14.3** (passe 2 ter, motifs de mise en page et d'interaction), **dix lignes au §16**, **D-20 à D-25**. **Le §12 n'est pas touché — aucun jeton renommé, aucune valeur de couleur modifiée, aucune section réécrite.** | `docs/contracts/issue-4.md` (chaîne #4), arbitrages A-1 à A-6 |
 | **2.2** | 12 août 2026 | **Cible de réception consignée, compte corrigé, parti typographique levé — par correction ciblée, jamais par réécriture.** (a) Le **destinataire du rendu** est désormais écrit : un **décideur communal**, l'élu ou le directeur général des services qui évalue une offre (§7 du brief, `CLAUDE.md` n°4). (b) **Le compte de massifs passe de 27 à 25** — §1, §3.3, §7.1, §7.2, §8.2, §11.1, §14.3 — **y compris dans les sections d'archive §14.2 et §15 D-19**. Le référentiel réglementaire porte **25** massifs ; les **27** identifiants sont ceux du **flux préfectoral**, et les deux affirmations ne doivent jamais être confondues. Les archives sont corrigées parce qu'**une correction de compte n'est pas une réécriture de décision** : D-19 a décidé « une frise, une marque par massif », et cette décision reste vraie — seul le cardinal était faux. La correction est **déclarée ici**, non faite en silence. Au passage, deux citations apocryphes du §6 du brief (§7.2, §14.3 entrée 4) sont **recoupées sur ses mots réels**, le compte sortant des guillemets. (c) Le **renoncement aux capitales condensées sur `h1`/`h2`** est consigné en **D-26** ; **son application normative — §5.1, §7.3, §14.3 entrée 5 (b), §16 — appartient à l'issue #23**, et jusque-là ces sections restent en vigueur. (d) Quatre « 17 h » passent en **espace insécable** (§7.1, §11.1 règles 1 et 6, §11.3), le document se conformant enfin à sa propre règle 6 ; **aucun fichier de gabarit n'est touché — le code portait déjà l'insécable.** **Le §12 n'est pas touché — aucun jeton renommé, aucune valeur modifiée, aucune section réécrite.** | `docs/contracts/issue-21.md` (chaîne #21), arbitrages A-1 à A-6 |
+| **2.3** | 12 août 2026 | **Application normative du recadrage typographique, règle de portée écrite, retrait de la frise — par ajout et correction ciblée, jamais par réécriture.** (a) **D-26 est appliqué** : « capitales » est retiré des lignes `--fs-600` et `--fs-700` du **§5.1**, la « Règle de hiérarchie » est réécrite (capitales **réservées aux étiquettes `--fs-250`** ; `h1`, `h2` et `h3` en **casse normale**), le **§7.3** passe le `h2` éditorial en **famille de texte, casse normale, sans repère**, le **§8.4** ligne 1 perd « capitales » — le nom du massif **reste** en famille d'affichage et **garde son repère**, c'est un titre de statut —, le **§14.3 entrée 5 (b)** est réduit aux **seules** étiquettes `--fs-250`, le **§16** reçoit l'interdit « `h1` ou `h2` rendu en capitales » sans lequel la borne dure de D-26 n'aurait aucun mécanisme de revue, et le **croquis du §7.1** repasse son `h1` en casse normale, annotation « caps » retirée, largeur de ligne préservée au caractère près. **La contradiction transitoire que la v2.2 avait déclarée deux fois est close.** Les bornes qui **survivent** à D-26 sont intactes, mot pour mot : §5.1 ligne `--fs-250`, §14.3 entrée 5 (a), §16 « libellé officiel saisi en capitales dans le HTML » ; l'entrée 5 (c) n'est **pas** réécrite, une note `[v2.3]` constate seulement que son **exemple** est caduc et que sa **règle** vise désormais `Niveau d'Accès` et les quatre libellés officiels. Le §2, ligne « Panneaux DFCI », reçoit un **renvoi** — la table d'ancrage se consulte sans le §15. **Motif de D-26, non déformé : le déplacement de la cible de réception, jamais l'accessibilité.** (b) **La règle de portée typographique** est reproduite au **§5.1** telle que gelée par `docs/contracts/issue-23.md`, avec ses **deux bornes** (étiquettes `--fs-250` en famille d'affichage partout, y compris dans le portail ; défaut du sélecteur nu `h1, h2, h3` en famille d'affichage, règle **normative et non portée par la cascade**), et répercutée aux **§7.2** et **§7.3**. Le **§3.2** est **formellement amendé** en son emplacement n° 2 : le repère ne précède que les `h2` **en portée** de la famille d'affichage. **La liste reste fermée et compte toujours sept emplacements** — l'amendement **restreint** un emplacement, il n'en ajoute ni n'en retire aucun. (c) **Deux plafonds de consommation** entrent au §5.1 : `--fs-700` (`h1`) → **`3rem`**, `--fs-800` (chiffre du jour) → **`5.75rem`**. Ce sont les **milieux exacts** des `clamp` correspondants — **dérivés, pas choisis** —, posés **en consommation** (les jetons du §12 ne bougent pas) et **en `rem`, jamais en `px`** : un plafond en `rem` recule quand l'utilisateur grossit son texte, un plafond en `px` plafonnerait la réponse au zoom (WCAG 1.4.4). Le terme médian `rem + vw` reste **intact** (§14.3 entrée 2 honorée). `--fs-600` n'est pas bridé. (d) **§6.3** : le `--bord-fort` devient **l'unique 4 px du chrome nominal** et va à la **tête de bande carte**, l'entrée du héros ; le bas de la carte et le bandeau de non-officialité passent en `--bord-moyen` ; la règle de quantité est reformulée en « une occurrence dans le chrome nominal ; le bandeau d'alerte, état exceptionnel, porte le sien », **parce qu'une règle qui ment un jour sur trois n'est pas une règle**. Le **§6.1** reçoit le **rythme vertical asymétrique** (`padding-block` **start > end**, et pourquoi c'est ce sens-là), le croquis **§7.1** est mis en accord au caractère près. (e) **D-27 — la frise des 25 marques est retirée**, **abandonnée et non différée** ; ses prescriptions vivantes disparaissent des §1, §3.3, §4.1.d, §6.1, §7.1, §8.2, §9.3, §9.4, §10.6, §13 et §16. **Les archives §14.2 et §15 D-19 ne sont ni réécrites ni annotées**, et **les §10.1 / §10.2 conservent leurs mesures** — seul le mot disparaît, la mesure couvrant désormais la barre d'action du portail. (f) **§12.1** enregistre une rubrique nouvelle, les **jetons déclarés et consommés par personne** — `--ombre-decalee`, `--ombre-decalee-sombre`, `--frise-l`, `--frise-h` —, sous la règle générale de projet **« on ne supprime pas un jeton : on cesse de le consommer »** (sha256 de `tokens.css` épinglé, 111 propriétés, invariant du contrat #4). En conséquence, le **§8.5** cesse de prescrire au présent une ombre que personne ne pose ; le **§6.4** garde le jeton et sa description, le **§9.2** est signalé sans être modifié. (g) **§17, nouveau**, enregistre **neuf divergences** entre ce document et un code **déjà commité**, dont **six héritées du contrat #22** que la chaîne #21 a laissées orphelines en se fermant sans posséder ce fichier. Ce ne sont pas des défauts : c'est ce qui empêche `review-cms` de les compter deux fois. La **neuvième** est propre au §8.2 : le mot qui remplace le chiffre du jour en cas d'indisponibilité **n'est pas rendu par le thème**, le `h1` portant à sa place la chaîne du §11.3 (chaîne #5, arbitrage A-5) — la prescription est **assouplie comme celle du §8.5**, elle décrit ce qui est autorisé, pas ce qui est livré. Et ce mot **s'écrit désormais en casse normale, « Indisponible »** : composé au corps du `h1` et à la place du chiffre, il est le seul endroit du document où des capitales subsistaient hors des étiquettes `--fs-250`. Le compte de propriétés de `tokens.css` est **vérifié au shell** et écrit sans réserve : **111 dans `:root`, 120 dans le fichier entier**. (h) **Correction factuelle** au §5.1 : à 360 px, `--fs-800` vaut **59 px**, `--fs-700` **37,12 px** et `--fs-600` **28,88 px** ; les valeurs de la v2.0 étaient les **planchers** des `clamp`, atteints **sous ≈ 320 px** — 320 px pour `--fs-800`, 325 px pour `--fs-700`, 311 px pour `--fs-600`, conformément au §5.1. Une correction de mesure n'est pas une réécriture de décision, et le plancher de 28 px sous lequel aucun titre ne descend reste exact. (i) **§14.4** ouvre une passe d'autocritique dont la nature diffère des trois précédentes : elle porte sur un **choix déjà fait et défendu**, et le motif de son renversement est le **déplacement de la cible de réception**, jamais un gain d'accessibilité. (j) **§7.3** reçoit la **convention de pied du web public** écrite comme une **convention de menu administrable** — trois entrées affectées à l'emplacement `pied` le jour où les pages existent, **aucun lien codé en dur**, **aucun taux ni qualificatif de conformité RGAA** (aucun audit n'a été mené, et ces qualificatifs sont eux-mêmes des résultats d'audit) ; la phrase « zéro cookie » du croquis §7.1 est consignée **`OUVERT`**, faute de chaîne normative au §11.3, dont la liste est fermée. Le **§16** reçoit les lignes de revue correspondantes, plus une sur la **quantité de `--bord-fort`** et une sur le **repère posé devant un `h2` hors portée**. **Le §12 n'est pas touché — aucun jeton renommé, aucune valeur modifiée, aucune section réécrite.** | `docs/contracts/issue-23.md` (chaîne #23), arbitrages A-1 à A-13 |
 
 **Ce que la v1.0 avait raison de faire, et qui est conservé sans changement** : le pari du fond de carte
 monochrome (§1), la signature « le repère » (§3), les deux familles typographiques et le budget de 2
@@ -50,8 +51,12 @@ Tout le système en découle.
 **Ce que la légende binaire change, et c'est un gain** : avec **deux** aplats seulement, la carte devient
 lisible **à quatre mètres**. Ce n'est plus une carte à déchiffrer, c'est une réponse. La complexité
 libérée par la disparition de 3 crans inventés est réinvestie **dans la lisibilité de loin** — aplats
-opaques, liseré épais, hachure grossière, un chiffre géant, une frise de 25 marques (§8.2) — et
-**nulle part ailleurs**. Aucun ornement n'a été ajouté par cette révision.
+opaques, liseré épais, hachure grossière, un chiffre géant — et **nulle part ailleurs**. Aucun ornement
+n'a été ajouté par cette révision.
+
+> **[v2.3]** Cette phrase citait un cinquième réinvestissement, retiré par **D-27**. Ce qui est perdu est
+> nommé là-bas : la lecture de la **forme de la journée** d'un coup d'œil. Elle reste portée par le chiffre
+> du jour et, en toutes lettres, par la liste du jour.
 
 ---
 
@@ -65,7 +70,7 @@ opaques, liseré épais, hachure grossière, un chiffre géant, une frise de 25 
 | **Garrigue** | Le gris-vert des filets, des textes tertiaires, des courbes | Un olive décoratif |
 | **Charbon** (le bois brûlé) | L'encre — **et le liseré qui porte à lui seul la conformité AA des statuts** (§10.2). Un noir tiré vers le vert, jamais un `#000` | Le noir pur + accent acide (tell IA §7) |
 | **Balisage peint** (blaze GR/PR) | **La signature** (§3) et l'idée de la marque repeinte par-dessus l'ancienne | Le rouge/blanc littéral du GR : le rouge est celui de la légende |
-| **Panneaux DFCI** | La discipline typographique : capitales condensées, sérigraphie, rayon nul | Le pastiche de panneau (bordure double, coin coupé, « effet plaque ») |
+| **Panneaux DFCI** | La discipline typographique : capitales condensées *(le premier geste est levé — D-26)*, sérigraphie, rayon nul | Le pastiche de panneau (bordure double, coin coupé, « effet plaque ») |
 | **Barrière DFCI** | Le vocabulaire de **hachures** obligatoire pour l'encodage non chromatique (§10.3), et le **jalon planté** des ZAPEF (§8.1) | La hachure comme décor |
 
 **Terracotta et ocre sont bannis du système**, alors qu'ils seraient le réflexe « Provence ». Deux raisons :
@@ -188,7 +193,9 @@ redéfinir localement (la seconde est le groupe `--statut-lisere` / `--statut-*-
 ### 3.2 Où il apparaît — liste fermée
 
 1. Devant le **chiffre du jour** dans l'ardoise (version `--bloc`, pleine hauteur, à gauche du slab).
-2. Devant **chaque `h2`** du site (couleur `--c-mistral-nuit`).
+2. **[v2.3, amendé]** Devant **chaque `h2` en portée de la famille d'affichage** — bande d'information du
+   jour, légende, titres de statut (couleur `--c-mistral-nuit`). **Les `h2` du chrome, des pages
+   éditoriales et du portail ne portent pas de repère.**
 3. Devant **chaque puce de statut** dans la légende et dans la liste du jour (couleur = état officiel).
 4. Sur le **bord gauche du panneau massif** (version `--bloc`, couleur = état du massif sélectionné).
 5. Sur le **massif sélectionné dans la carte** : contour `--c-calcaire` 4 px + contour `--c-charbon` 4 px
@@ -201,13 +208,30 @@ redéfinir localement (la seconde est le groupe `--statut-lisere` / `--statut-*-
 emplacements. Un décalage de 3–4 px sur un marqueur de 18 px détruirait sa silhouette et diluerait la
 signature dans un objet trop petit pour la porter. La discipline l'emporte sur la cohérence de façade.
 
+> **[v2.3] Amendement formel de la liste fermée — acte consigné comme tel.** Cette liste est **déclarée
+> fermée** ; l'amender n'est donc pas une retouche de rédaction, c'est un acte, et il s'écrit.
+> **Emplacement n° 2, avant** : « Devant **chaque `h2`** du site (couleur `--c-mistral-nuit`). »
+> **Emplacement n° 2, après** : le texte ci-dessus.
+>
+> **La liste reste fermée et compte toujours sept emplacements.** Cet amendement **restreint** un
+> emplacement ; il n'en ajoute ni n'en retire aucun. **Motif** : le repère est la signature de
+> l'**information de statut**. Posé devant un `h2` éditorial composé en famille de texte, il ne signale
+> plus rien et **dilue la signature** — c'est exactement le raisonnement par lequel cette même section a
+> déjà refusé les jalons ZAPEF, et par lequel le §3.3 refuse les `h3`. La frontière qui décide « en portée
+> / hors portée » est la **règle de portée typographique** du §5.1, et elle seule : aucune autre lecture
+> n'est admise en revue.
+
 ### 3.3 Où il ne doit jamais apparaître
 
 - Dans le corps de texte, dans les listes à puces éditoriales, dans les notes de bas de page.
-- Sur les `h3`, `h4` (la hiérarchie basse se fait à la taille et à la casse).
+- Sur les `h3`, `h4` (la hiérarchie basse se fait à la taille — **[v2.3]** et à elle seule : depuis D-26,
+  la casse ne distingue plus aucun niveau de titre).
 - Sur les boutons, les champs de formulaire, les liens.
 - Dans le pied de page, sur les logos, en filet décoratif horizontal.
-- **Sur les jalons ZAPEF** et sur les 25 marques de la frise (§8.2) — trop petits, trop nombreux.
+- **Sur les jalons ZAPEF** (§8.1) — trop petits pour porter un décalage de 3–4 px sans perdre leur
+  silhouette. **[v2.3]** Cette ligne visait aussi les 25 marques retirées par D-27 ; elle vaut désormais
+  pour **tout objet répété de moins de 20 px**, quel qu'il soit, et cette formulation la rend générale au
+  lieu de la lier à un composant disparu.
 - **Plus d'une fois par bloc visuel** : deux repères adjacents cassent la métaphore (on ne repeint pas deux
   fois la même balise). Si deux candidats coexistent, le plus proche de l'information de statut gagne.
 - **Jamais animé.** La peinture ne bouge pas.
@@ -303,7 +327,8 @@ couleur officielle : ils sont **à nous**, et la §11.3 fixe leurs phrases.
    4,17:1. Les libellés vivent **à côté** de l'aplat, en `--c-charbon` sur `--c-calcaire` (14,74:1).
    Les jetons `--statut-*-encre` sont des **encres de motif**, jamais des encres de texte.
 4. **Le motif est obligatoire partout où la couleur apparaît** : carte, légende, liste du jour, panneau,
-   frise de l'ardoise, écran gestionnaire, impression. Une pastille sans motif est un défaut bloquant.
+   écran gestionnaire, impression. Une pastille sans motif est un défaut bloquant. **[v2.3]** L'énumération
+   perd un emplacement (D-27) ; la règle, elle, ne connaît **aucune** exception d'emplacement.
 5. **Il n'y a que deux états, donc le motif n'est plus une échelle de densité mais une opposition
    binaire** : `autorisé` = aplat nu, `interdit` = hachure croisée. La sévérité (`10` / `20`) est
    **comparable, jamais une identité et jamais un rang** ; elle ne pilote aucune densité graduée. Toute
@@ -491,20 +516,98 @@ Les niveaux 500 à 800 sont **fluides** (`clamp`) : pas de media query typograph
 | `--fs-300` | `1.0625rem` (17 px) | **Corps** | texte | 1,6 | 0 |
 | `--fs-400` | `1.1875rem` (19 px) | Chapô, **libellé d'état dans le panneau**, consigne | texte | 1,55 | 0 |
 | `--fs-500` | `clamp(1.375rem, 1.2rem + 0.9vw, 1.75rem)` | `h3` | titre 600 | 1,15 | 0,01em |
-| `--fs-600` | `clamp(1.75rem, 1.4rem + 1.8vw, 2.5rem)` | `h2` | titre 700, capitales | 1,08 | 0,01em |
-| `--fs-700` | `clamp(2.25rem, 1.6rem + 3.2vw, 3.75rem)` | `h1` | titre 700, capitales | 1,05 | 0,005em |
+| `--fs-600` | `clamp(1.75rem, 1.4rem + 1.8vw, 2.5rem)` | `h2` | titre 700 | 1,08 | 0,01em |
+| `--fs-700` | `clamp(2.25rem, 1.6rem + 3.2vw, 3.75rem)` | `h1` | titre 700 | 1,05 | 0,005em |
 | `--fs-800` | `clamp(3.5rem, 2rem + 7.5vw, 8rem)` | **Le chiffre du jour** | titre 800, **largeur réservée** (§8.2 — `tabular-nums` inopérant) | 0,92 | −0,01em |
 
-**Règle de hiérarchie** : la famille de titrage n'a **que deux poids en service (700 et 800)** et s'emploie
-**toujours en capitales** au-dessus de `--fs-500`. La hiérarchie vient de la taille, pas du poids ni de la
-couleur. Interdit : titre en `--c-mistral`, titre en italique, titre souligné, **titre coloré par l'état**.
+**Règle de hiérarchie — [v2.3], application normative de D-26** : la famille de titrage n'a **que deux
+poids en service (700 et 800)**. La hiérarchie vient de la taille, pas du poids ni de la couleur.
+**Les capitales sont réservées aux étiquettes `--fs-250`** ; `h1`, `h2` et `h3` sont composés en **casse
+normale**. Interdit : titre en `--c-mistral`, titre en italique, titre souligné, **titre coloré par
+l'état**, **`h1` ou `h2` rendu en capitales**.
+
+> **Ce qui change ici, et ce qui ne change pas.** La v2.0 et la v2.1 écrivaient « toujours en capitales
+> au-dessus de `--fs-500` ». Cette prescription tombe, **par D-26 et pour son motif : le déplacement de la
+> cible de réception vers un décideur communal.** Ce n'est **pas** une décision d'accessibilité — le §14.3
+> entrée 5 avait déjà relevé et borné ce risque-là, et rien de neuf n'est apparu de ce côté. La ligne
+> `--fs-250` du tableau ci-dessus est **inchangée** : l'étiquette reste en capitales, avec
+> `--ls-etiquette`, et c'est elle qui porte les chaînes officielles reproduites verbatim (§11.4).
+
+> **Règle de portée typographique.** La famille d'affichage `--police-titre` (Big Shoulders Display) est
+> **confinée à trois zones, et à elles seules** :
+>
+> 1. **la bande d'information du jour** — l'ardoise : le chiffre du jour, son dénominateur, le `h1` ;
+> 2. **la légende de la carte** — son titre et ses étiquettes ;
+> 3. **les titres de statut** — le titre de la liste du jour, les en-têtes de sa colonne d'état, le nom
+>    du massif en tête du panneau massif, et les libellés d'état officiels.
+>
+> **Partout ailleurs, la famille de texte `--police-texte` (Atkinson Hyperlegible Next) est seule
+> employée** :
+>
+> - le **chrome** — barre haute, pied de page, liens d'évitement, bandeau de non-officialité ;
+> - les **pages éditoriales** — La démarche, Accessibilité, Mentions légales : leurs `h1`, `h2` et `h3`
+>   sont en famille de texte, en **casse normale**, et **sans repère** ;
+> - le **portail** — en-tête, tableau, boutons, barre d'action, historique.
+>
+> **Deux bornes qui ne se déduisent pas, et qu'il faut donc lire.**
+>
+> **(a) Les étiquettes `--fs-250` restent en famille d'affichage partout où elles paraissent, y compris
+> dans le portail.** Ce sont des titres de statut au sens de la règle, et ce sont elles qui portent les
+> chaînes officielles reproduites verbatim (§11.4). « Le portail en famille de texte » vise son **chrome**,
+> jamais ses **étiquettes de statut**. Sans cette borne, la paire segmentée du §7.2 perdrait la famille de
+> ses libellés officiels et la règle contredirait le §5.1 sur le rôle même de `--fs-250`.
+>
+> **(b) Le défaut du sélecteur nu `h1, h2, h3` reste la famille d'affichage.** Cette règle est
+> **normative, pas portée par la cascade**. Trois raisons, dans cet ordre : `layout.css` n'a pas le droit
+> de cibler les titres de la légende et de la liste (invariant I-1 du contrat #22), qui sont pourtant les
+> deux seuls `h2` du site et sont tous deux **en** portée ; ces deux parties émettent un niveau de titre
+> **variable** (`niveau_titre ∈ {2..6}`), donc un sélecteur qui parie sur `h2` est fragile par
+> construction ; et une mécanique par zone leur ferait perdre leur famille **en silence** le jour où elles
+> paraîtraient sur une seconde page. Une page éditoriale future retire la famille d'affichage **dans sa
+> propre feuille**. On choisit ainsi l'échec **visible en revue** plutôt que l'échec silencieux, comme le
+> §4.1.d règle 7 le fait déjà pour les jetons de statut.
+
+Cette règle est la **frontière opposable** citée par le §3.2 (repère), le §7.2 (portail) et le §7.3 (pages
+éditoriales). Elle est écrite littéralement, et non résumée, pour une raison précise : une frontière
+paraphrasée est re-litigée à chaque revue, et le résultat se lit « incohérent » là où il devrait se lire
+« discipliné ».
+
+**[v2.3] Deux plafonds de consommation — valeurs normatives.** `--fs-700` et `--fs-800` restent
+**intouchés** dans `tokens.css` (§12, sha256 épinglé) : la bride est posée **en consommation**, jamais dans
+le jeton.
+
+| Jeton | Emploi | Plafond de consommation | D'où vient la valeur |
+|---|---|---|---|
+| `--fs-700` | `h1` | **`3rem`** | **milieu exact** de `2.25rem`–`3.75rem` |
+| `--fs-800` | le chiffre du jour | **`5.75rem`** | **milieu exact** de `3.5rem`–`8rem` |
+
+- **Les deux valeurs sont dérivées, pas choisies.** « Recomposer dans la moitié basse du `clamp` » désigne
+  littéralement la **borne médiane** ; il n'y a rien à arbitrer, et donc rien à re-arbitrer en revue.
+- **Le plafond est en `rem`, jamais en `px`.** Un plafond en `rem` **recule** quand l'utilisateur grossit
+  son texte : il ne peut donc pas plafonner la réponse au zoom (WCAG 1.4.4). Un plafond en `px` la
+  plafonnerait — ce serait un défaut bloquant, pas une préférence.
+- **Le terme médian `rem + vw` du `clamp` reste intact**, et le `clamp` n'est jamais réécrit localement :
+  la défense du §14.3 entrée 2 est honorée, pas contournée.
+- **`--fs-600` n'est pas bridé** : il plafonne déjà à `2.5rem` et n'est pas une affiche.
+- **Effet mesuré** : la bride est **inerte à 360 px** et n'entre en action qu'à partir de ≈ 700 px (`h1`)
+  et ≈ 800 px (chiffre). Ce qu'elle change est un registre, pas une taille de mobile : **le chiffre du jour
+  redevient une donnée dans une bande d'information, il cesse d'être une affiche.** C'est l'objet même du
+  recadrage.
 
 **Mesure de ligne** : `--mesure: 68ch` sur le corps éditorial, `--mesure-etroite: 46ch` dans le panneau massif.
 
-**Comportement à 360 px** : `--fs-800` vaut 56 px ; le chiffre du jour n'affiche que **le nombre** (« 12 »),
-la phrase complète passe en `--fs-400` en dessous. `--fs-700` vaut 36 px, `--fs-600` 28 px. Aucun titre ne
-descend jamais sous 28 px : la condensée devient illisible avant de devenir petite. À 200 % de zoom, tous
-les `clamp` restent bornés par leur minimum en `rem`, donc le texte grossit bien (pas de piège `vw` pur).
+**Comportement à 360 px — [v2.3], corrigé.** À 360 px (`1vw` = 3,6 px), `--fs-800` vaut **59 px**,
+`--fs-700` **37,12 px** et `--fs-600` **28,88 px**. Le chiffre du jour n'affiche que **le nombre** (« 12 »),
+la phrase complète passant en `--fs-400` en dessous. Aucun titre ne descend jamais sous **28 px** : la
+condensée devient illisible avant de devenir petite. À 200 % de zoom, tous les `clamp` restent bornés par
+leur minimum en `rem`, donc le texte grossit bien (pas de piège `vw` pur).
+
+> **Ce qui a été corrigé et pourquoi c'est écrit.** La v2.0 annonçait « 56 px / 36 px / 28 px » : ce sont
+> les **planchers** des `clamp`, atteints **sous ≈ 320 px** de largeur — 320 px pour `--fs-800`, 325 px
+> pour `--fs-700`, 311 px pour `--fs-600` — et non les valeurs servies à 360 px.
+> **Une correction de mesure n'est pas une réécriture de décision** — le plancher de 28 px reste exact, et
+> l'affirmation « rien ne change à 360 px » sous l'effet des deux plafonds ci-dessus reste vraie dans les
+> deux lectures.
 
 ---
 
@@ -517,7 +620,7 @@ les `clamp` restent bornés par leur minimum en `rem`, donc le texte grossit bie
 | Token | Valeur | Emploi |
 |---|---|---|
 | `--esp-3xs` | `2px` | Décalage d'état actif, micro-ajustements |
-| `--esp-2xs` | `4px` | Écart puce ↔ libellé, gouttière de la frise |
+| `--esp-2xs` | `4px` | Écart puce ↔ libellé, gouttière la plus serrée du système |
 | `--esp-xs` | `8px` | Padding interne des puces, gouttière de tableau serré |
 | `--esp-s` | `12px` | Écart entre éléments d'un même groupe |
 | `--esp-m` | `16px` | **Gouttière de page à 360 px**, padding des cellules |
@@ -530,6 +633,27 @@ les `clamp` restent bornés par leur minimum en `rem`, donc le texte grossit bie
 **Règle de rythme** : le rythme vertical entre sections est `clamp(48px, 6vw, 96px)`, exposé en
 `--esp-section`. Aucune valeur d'espacement hors échelle. Aucune marge négative sauf pour le
 plein-cadre (`--sortie-cadre`).
+
+**[v2.3] Le rythme des bandes est asymétrique — et le sens de l'asymétrie se démontre.** Un filet est un
+`border-block-start` : l'espace **au-dessus** de lui est le `padding-block-end` de la bande **précédente**,
+l'espace **en dessous** est son propre `padding-block-start`. « Resserré au-dessus du filet, généreux en
+dessous » s'écrit donc `padding-block: <généreux> <resserré>`, c'est-à-dire **start > end** — et **non
+l'inverse**. C'est l'erreur naturelle : elle est nommée ici pour être évitée, pas pour être commentée.
+
+| Bande | `padding-block` (start / end) | Pourquoi |
+|---|---|---|
+| Bande de section, cas général | `--esp-section` / `--esp-2xl` | Le contenu respire sous le filet qui l'ouvre, et se referme court sur le filet suivant |
+| Bande d'ardoise, ≥ 900 px | `--esp-4xl` / `--esp-3xl` | Même geste, amplifié : c'est la bande d'entrée |
+| Bandes fines (non-officialité) | **symétrique** (`--esp-m`) | Sur une bande d'une ligne, l'asymétrie n'est plus un rythme, c'est du bruit |
+
+Toutes ces valeurs restent dans l'échelle **fermée** ci-dessus. **À 360 px, `--esp-section` vaut 48 px** :
+le rythme y redevient symétrique 48/48, et **c'est voulu** — l'asymétrie est un geste de composition large,
+pas un geste de mobile.
+
+**La règle ne s'applique pas au filet 2 px intra-bande du bloc de légende.** Ce filet ne sépare pas deux
+bandes : il vit **à l'intérieur** d'une bande, porté par le composant, et l'espace sous lui appartient à
+`composants.css`, gelé. Compenser ce filet depuis la feuille de mise en page couplerait les deux, ce qui
+est un arbitrage que ce document n'a pas rendu.
 
 ### 6.2 Rayons — la contrainte la plus visible
 
@@ -553,8 +677,33 @@ plein-cadre (`--sortie-cadre`).
 |---|---|---|
 | `--bord-fin` | `1px solid var(--c-poussiere)` | Séparateurs de lignes de tableau, filets non informatifs |
 | `--bord-champ` | `2px solid var(--c-garrigue)` | Champs de formulaire au repos (4,83:1 → limite ≥ 3:1 conforme) |
-| `--bord-moyen` | `2px solid var(--c-charbon)` | Boutons secondaires, **liseré des polygones, pastilles et jalons** |
-| `--bord-fort` | `4px solid var(--c-charbon)` | Haut et bas de la carte, panneau massif, bandeau de non-officialité, encart de consigne |
+| `--bord-moyen` | `2px solid var(--c-charbon)` | Boutons secondaires, **liseré des polygones, pastilles et jalons**, **[v2.3] filet de tête de bande** (bloc de légende), **bas de la bande carte**, **bandeau de non-officialité** |
+| `--bord-fort` | `4px solid var(--c-charbon)` | **[v2.3] Tête de la bande carte** — l'entrée du héros —, panneau massif, encart de consigne, bas du bandeau d'alerte |
+
+**[v2.3] Répartition des filets — une seule occurrence forte, et elle est placée.** La v2.0 prescrivait
+trois `--bord-fort` sur l'accueil (haut **et** bas de la carte, bandeau de non-officialité). Ce n'est pas
+tenable : le filet le plus fort du site ne signale plus rien s'il paraît trois fois par page.
+
+| Filet | Avant | Après | Raison |
+|---|---|---|---|
+| Tête de la bande carte | `--bord-fort` | **`--bord-fort`** | L'**unique** 4 px du chrome nominal, posé à l'entrée du héros (§1 : « la carte est le héros absolu ») |
+| Bas de la bande carte | `--bord-fort` | **`--bord-moyen`** | Entrée forte, sortie discrète. La carte **reste encadrée** sans doubler le 4 px |
+| Bandeau de non-officialité | `--bord-fort` | **`--bord-moyen`** | Le §5.6 du brief exige sa **présence**, jamais une épaisseur ; son slab et son filet 2 px en `--c-charbon` (12,79:1 d'encre) le détachent déjà |
+| Tête de bande du bloc de légende | `--bord-moyen` | inchangé | `composants.css`, gelé |
+| Intra-cellule de la liste | `--bord-fin` | inchangé | `composants.css`, gelé |
+| Bas du bandeau d'alerte | `--bord-fort` | inchangé | État **exceptionnel**, et `composants.css` est gelé |
+
+> **Règle de quantité, reformulée — parce qu'une règle qui ment un jour sur trois n'est pas une règle.**
+> `--bord-fort` paraît **une fois dans le chrome nominal de la page** ; le **bandeau d'alerte**, qui est un
+> **état exceptionnel**, porte le sien. La formulation nomme l'exception au lieu de prétendre l'ignorer :
+> le `--bord-fort` de `.bandeau-alerte` vit dans `composants.css`, gelé, et il est donc hors d'atteinte.
+
+**Conséquence datée, acceptée en connaissance de cause.** La bande carte est **vide** tant que la chaîne
+« carte » n'a pas livré, et la règle de mise en page qui porte le filet de tête ne s'applique qu'à une
+bande non vide. **Entre l'issue #23 et la chaîne « carte », le chrome nominal ne rend donc aucun filet de
+4 px.** Aucune règle n'est violée dans l'intervalle : le slab, le filet 2 px, le filet 1 px et le repère
+tiennent la composition. C'est enregistré au §17, divergence 8, pour qu'aucune revue ne le compte comme un
+défaut.
 
 ### 6.4 Élévation — aucune ombre floue
 
@@ -583,21 +732,20 @@ Composition en **bandes horizontales pleine largeur** (strates calcaires), de ha
 ├────────────────────────────────────────────────────────────┤
 │ ▌                                                          │
 │ ▌ L'ARDOISE   mistral-nuit, pleine largeur, ~34vh          │
-│ ▌  ┌────────┐  AUJOURD'HUI, 12 MASSIFS SUR 25              │
-│ ▌  │   12   │  SONT D'ACCÈS AUTORISÉ.        (fs-700, caps)│
+│ ▌  ┌────────┐  Aujourd'hui, 12 massifs sur 25              │
+│ ▌  │   12   │  sont d'accès autorisé.              (fs-700)│
 │ ▌  │ /25    │  Statuts du mardi 11 août 2026, publiés la   │
 │ ▌  └────────┘  veille à 17 h par la préfecture             │
-│ ▌  ▪▪▪▪▪▨▨▪▪▪▨▨▨▪▪▪▪▨▨▪▪▪▪▨▨   ← LA FRISE, 25 marques      │
 │ ▲ le repère, version bloc, pleine hauteur                  │
 ├────────────────────────────────────────────────────────────┤
-│ NON-OFFICIALITÉ  calcaire-ombre · bord-fort en haut · fs-200│
+│ NON-OFFICIALITÉ calcaire-ombre · bord-moyen en haut · fs-200│
 ├════════════════════════════════════════════════════════════┤
 │                                                            │
 │           LA CARTE — plein cadre, bord à bord              │
 │           min(72vh, 640px) · fond calcaire monochrome      │
 │           2 aplats seulement : la lecture est immédiate    │
 │                                                            │
-├════════════════════════════════════════════════════════════┤
+├────────────────────────────────────────────────────────────┤
 │ LÉGENDE DE LA CARTE   bande horizontale, 2 + 2 entrées     │
 │   ▬ Accès au massif autorisé   ▬▨ Accès au massif interdit │
 │   ▮ Accès à la ZAPEF* autorisé ▮ Accès à la ZAPEF* interdite│
@@ -615,9 +763,15 @@ Composition en **bandes horizontales pleine largeur** (strates calcaires), de ha
 └────────────────────────────────────────────────────────────┘
 ```
 
-**Ce qui fait la capture d'écran** : l'empilement ardoise sombre + frise → carte monochrome où **deux
-couleurs seulement** se répondent → bande de légende de quatre entrées. Trois bandes, aucun bruit, un
-chiffre énorme. Rien d'autre n'a le droit d'attirer l'œil.
+> **[v2.3] Comment lire ce croquis.** Les intitulés de bande écrits en capitales — `BARRE`, `L'ARDOISE`,
+> `LÉGENDE DE LA CARTE`, `LA LISTE DU JOUR`, `PIED` — **nomment des zones du schéma ; ils ne prescrivent
+> aucune casse**. La seule ligne qui figurait un rendu de titre, le `h1` de l'ardoise, est **repassée en
+> casse normale** et son annotation `caps` retirée (D-26). Le croquis a aussi perdu la rangée de marques
+> qu'il montrait sous l'ardoise (D-27), et son filet de bas de carte est passé en `--bord-moyen` (§6.3).
+
+**Ce qui fait la capture d'écran** : l'empilement ardoise sombre → carte monochrome où **deux couleurs
+seulement** se répondent → bande de légende de quatre entrées. Trois bandes, aucun bruit, un chiffre net.
+Rien d'autre n'a le droit d'attirer l'œil.
 
 **Points non négociables de cette composition :**
 - La carte **touche les deux bords** de la fenêtre à toutes les tailles. Elle n'est jamais dans un conteneur
@@ -646,8 +800,8 @@ Leaflet par défaut, jamais une infobulle au survol.
 
 | Token | Valeur | Ce qui change |
 |---|---|---|
-| base | 360 px | Une colonne, gouttière `--esp-m`, légende en 2 colonnes, tableau en cartes empilées, frise sur 2 rangs |
-| `--bp-s` | `37.5rem` (600 px) | Légende en ligne, tableau en vraies colonnes, gouttière `--esp-l`, frise sur 1 rang |
+| base | 360 px | Une colonne, gouttière `--esp-m`, légende en 2 colonnes *(voir §17, divergence 2 : le code livré la rend sur **une** colonne)*, tableau en cartes empilées |
+| `--bp-s` | `37.5rem` (600 px) | Légende en ligne, tableau en vraies colonnes, gouttière `--esp-l` |
 | `--bp-m` | `56.25rem` (900 px) | Panneau massif à droite de la carte, ardoise en deux colonnes |
 | `--bp-l` | `80rem` (1280 px) | Contenu bridé à `--largeur-max: 1200px` ; **la carte reste plein cadre** |
 
@@ -657,6 +811,13 @@ feuille du bas et la barre d'action du portail.
 ### 7.2 Portail gestionnaire
 
 Même système, chrome plus dense — c'est un outil, pas une vitrine, mais il doit être aussi soigné (§6 du brief).
+
+> **[v2.3] Portée typographique du portail** (§5.1). Le **chrome** du portail — en-tête, tableau, boutons,
+> barre d'action, historique — est **entièrement en famille de texte**, en casse normale. **Les étiquettes
+> de statut `--fs-250` restent en famille d'affichage**, capitales et `--ls-etiquette` comprises : ce sont
+> des titres de statut au sens de la règle, et ce sont elles qui portent les libellés officiels reproduits
+> verbatim (§11.4). C'est la borne (a) de la règle de portée, et elle vaut **ici en particulier** : sans
+> elle, la paire segmentée ci-dessous perdrait la famille de ses libellés officiels.
 
 - **En-tête** `--c-mistral-nuit`, 56 px : « MASSIFS · Mise à jour des statuts », date de la session, déconnexion.
 - **Écran unique** : un tableau, une ligne par massif. Colonnes : massif · état d'aujourd'hui (lecture seule,
@@ -682,7 +843,10 @@ Même système, chrome plus dense — c'est un outil, pas une vitrine, mais il d
 
 - Une seule colonne, `--mesure` 68ch, alignée à gauche de la grille (pas centrée : la page garde son bord
   gauche commun avec l'ardoise et les titres).
-- `h2` en capitales condensées + repère, `--esp-section` avant chacun.
+- **[v2.3]** `h2` en **famille de texte** (`--police-texte`), en **casse normale**, **sans repère**,
+  `--esp-section` avant chacun. C'est l'application de la **règle de portée** du §5.1 — les pages
+  éditoriales sont hors portée de la famille d'affichage — et de l'**amendement du §3.2** : le repère est
+  la signature de l'information de statut ; devant un titre éditorial, il ne signale plus rien.
 - Les citations et encarts sont des **slabs `--c-calcaire-ombre` avec `--bord-fort` en haut**, jamais des
   cartes ombrées ni des filets fins verticaux. **C'est ce même encart qui accueillera la consigne** quand
   elle sera fournie (§8.4) : le composant existe déjà, il n'y a rien à dessiner le jour venu.
@@ -690,6 +854,33 @@ Même système, chrome plus dense — c'est un outil, pas une vitrine, mais il d
 - Aucun visuel décoratif. Les seules images du site sont : l'image statique du département (repli sans JS)
   et, éventuellement, des photographies personnelles créditées sur « La démarche » — jamais en fond, jamais
   en bandeau héroïque, jamais derrière du texte.
+
+#### [v2.3] Le pied de page — une convention de **menu**, jamais du balisage
+
+Le web public français attend trois entrées au pied : **Mentions légales**, **Accessibilité**,
+**La démarche**. Ce document les prescrit — mais comme des **éléments de menu**, et c'est une décision, pas
+une commodité.
+
+- Ce sont **trois entrées de menu** que l'administrateur affecte à l'emplacement `pied` **le jour où les
+  pages existent**. **Aucune ligne de thème ne change ce jour-là** : le gabarit rend déjà l'emplacement, et
+  il se tait tant qu'aucun menu n'y est affecté. La politique de navigation reste chez le propriétaire du
+  site, pas dans le code.
+- **Aucun lien codé en dur.** Les trois pages n'existent pas : un lien écrit aujourd'hui produirait une
+  **404 dans le chrome de chaque page du site**. Un slug inventé et un libellé inventé sont, de la même
+  façon, des inventions interdites par le §4.2 du brief.
+- **Aucun taux ni qualificatif de conformité RGAA, nulle part.** Aucun audit n'a été mené ; or « non
+  conforme », « partiellement conforme » et « totalement conforme » sont eux-mêmes des **résultats
+  d'audit**. En écrire un — fût-ce le plus pessimiste, par prudence apparente — serait affirmer un fait non
+  établi. Et une valeur figée dans un gabarit devient **fausse en silence** au premier audit suivant :
+  c'est exactement la classe d'erreur que le §16 interdit déjà pour le chiffre du jour. Ligne de revue
+  ajoutée au §16.
+
+> **`OUVERT` — la phrase « zéro cookie » du croquis §7.1.** Le croquis fait figurer « zéro cookie » au
+> pied. **Cette phrase n'a aucune chaîne normative au §11.3**, qui est la liste **fermée** des phrases que
+> le site a le droit de rédiger. Deux issues, et deux seulement : ou bien elle est **fournie mot pour mot**
+> par le propriétaire du projet et entre au §11.3, ou bien elle reste **traitée sur « La démarche »**, où
+> le §9 du brief place le choix de conception « zéro cookie assumé et affiché ». **Tant que ce n'est pas
+> tranché, aucun gabarit n'en écrit une variante.** On ne rédige pas une phrase de pied par déduction.
 
 ---
 
@@ -787,7 +978,7 @@ l'information.
 panneau massif, dans la liste du jour et dans la légende. Le jalon décrit ici est **prêt**, pas
 « à venir » : le jour où les points existent, il n'y a rien à concevoir.
 
-### 8.2 L'ardoise — le chiffre du jour et **la frise**
+### 8.2 L'ardoise — **le chiffre du jour**
 
 - Fond `--c-mistral-nuit`, texte `--c-calcaire` (12,66:1 conforme), méta en `--c-mistral-clair` (7,73:1).
 - Chiffre en `--fs-800`. **[v2.1] Correction d'une promesse fausse.** La v2.0 obtenait la stabilité du
@@ -801,33 +992,40 @@ panneau massif, dans la liste du jour et dans la légende. Le jalon décrit ici 
   ce qui est normatif ici, c'est le résultat : **rien ne bouge autour du chiffre.**
   *(La police de labeur, elle, expose bien `tnum` : `tabular-nums` reste légitime dans les tableaux.)*
 - Le dénominateur (« /25 ») est en `--fs-500`, aligné sur la ligne de base basse du chiffre.
+- **[v2.3]** Le chiffre est **bridé en consommation à `5.75rem`** (§5.1) — jeton `--fs-800` inchangé,
+  plafond en `rem`, inerte à 360 px et agissant à partir de ≈ 800 px de large. Au-delà de ce plafond, le
+  chiffre cessait d'être **une donnée dans une bande d'information** pour devenir **une affiche**.
 - Repère version `--bloc` sur toute la hauteur du slab, à gauche : `::after` `--c-calcaire`, `::before`
   `--c-mistral`.
 
-**La frise — ce que la légende binaire permet et qu'une échelle à 5 crans interdisait.**
-
-Une rangée de **25 marques** — une par massif, dans l'ordre exact de la liste du jour — chacune étant la
-pastille du §8.1 réduite à 14 × 10 px, `--esp-2xs` de gouttière. Sur un dispositif binaire, cette rangée
-donne **la forme de la journée en un coup d'œil**, à quatre mètres, sans lire un mot : un bloc
-majoritairement nu = journée ouverte ; un bloc majoritairement hachuré = journée fermée.
-
-Contraintes, strictes, parce que c'est une répétition et que les répétitions dérapent :
-- **Exactement un emplacement : l'ardoise.** Nulle part ailleurs. Jamais dans le pied, jamais dans le
-  panneau, jamais dans le portail.
-- **`aria-hidden="true"`.** Elle ne porte aucune information que la liste du jour ne porte déjà en toutes
-  lettres, immédiatement en dessous. Elle n'est ni focusable, ni cliquable, ni survolable.
-- Sur chrome sombre, le liseré et l'encre du motif basculent en `--c-calcaire` (§12). Mesuré : vert sur
-  mistral-nuit 5,24:1, rouge sur mistral-nuit 3,53:1, liseré calcaire sur mistral-nuit 12,66:1 — la forme
-  de chaque marque reste détachée du fond.
-- **Elle disparaît entièrement si `etat_global !== 'disponible'`.** Une frise partielle laisserait croire
-  à une journée partiellement connue.
-- À 360 px, elle passe sur 2 rangs. Elle ne défile jamais horizontalement.
-- **Aucun mouvement**, aucune apparition séquentielle, aucun compteur animé.
+> **[v2.3] La rangée de 25 marques que cette section prescrivait est retirée — D-27.** Le paragraphe qui
+> la décrivait et ses six contraintes sortent d'ici. La décision, ce qu'elle coûte et ce qui la remplace sont
+> écrits en **D-27** (§15) ; l'archive de la passe 2 bis (§14.2) et **D-19** ne sont **ni réécrites ni
+> annotées** — une décision levée n'est pas une décision effacée. L'ardoise garde le chiffre du jour, son
+> dénominateur, sa ligne de fraîcheur et son repère `--bloc` : **rien d'autre n'y entre.**
 
 **Si l'information du jour est indisponible** : le chiffre disparaît, remplacé par le mot
-« INDISPONIBLE » en `--fs-700`, la frise disparaît, l'ardoise prend la hachure `\` `--c-mistral` en
-surimpression à 12 %, et le lien « Ouvrir la carte officielle de la préfecture » passe en bouton primaire.
-On ne montre **jamais** un chiffre de la veille.
+« **Indisponible** » en `--fs-700`, l'ardoise prend la hachure `\` `--c-mistral` en surimpression à 12 %,
+et le lien « Ouvrir la carte officielle de la préfecture » passe en bouton primaire. On ne montre
+**jamais** un chiffre de la veille.
+
+> **[v2.3] Deux précisions sur ce mot, et sur lui seul** — le reste du comportement d'indisponibilité
+> (disparition du chiffre, hachure, lien passé en bouton primaire) est **inchangé et reste prescrit**.
+>
+> **(a) Il s'écrit en casse normale, « Indisponible ».** Il est composé en `--fs-700`, c'est-à-dire **au
+> corps du `h1`, dans la même bande et à la place du chiffre du jour** : capitalisé à côté d'un `h1`
+> désormais en casse normale, il produirait exactement l'incohérence que cette révision existe pour
+> supprimer. Le §5.1 réserve les capitales aux **étiquettes `--fs-250`**, et ce mot n'en est pas une —
+> le laisser capitalisé ouvrirait une **troisième catégorie non écrite**, que chaque revue re-litigerait.
+> Enfin c'est **l'état de dégradation le plus visible du site** : un mot d'absence d'information crié en
+> capitales est précisément le registre dont D-26 s'écarte.
+>
+> **(b) Cette prescription décrit ce qui est autorisé, pas ce qui est livré** — au même titre que celle du
+> §8.5. **Le thème ne rend pas ce mot** : le `h1` porte à sa place la chaîne du §11.3, « Information du
+> jour non disponible. Consultez la carte officielle de la préfecture. », et le chiffre n'est émis que
+> dans le bras `disponible`. La raison est bonne et elle est écrite dans le code (chaîne #5, arbitrage
+> A-5) : rendre ce mot poserait un **second bloc `--fs-700` adjacent au `h1`**, qui dit déjà exactement
+> cela. Enregistré au **§17, divergence 9**.
 
 ### 8.3 Bandeau d'alerte (péremption, source indisponible, hors-saison)
 
@@ -844,12 +1042,18 @@ panneau prévisible au clavier et au lecteur d'écran.
 
 | # | Bloc | Toujours présent ? |
 |---|---|---|
-| 1 | Nom du massif — `h2` + repère, capitales condensées | oui |
+| 1 | Nom du massif — `h2` + repère, **famille d'affichage, casse normale** *([v2.3] D-26)* | oui |
 | 2 | **État du massif** — pastille + libellé officiel verbatim en `--fs-400` | oui, si `etat === 'disponible'` |
 | 3 | **État des ZAPEF** — jalon + libellé officiel verbatim + note `*ZAPEF : …` en `--fs-100` | oui, si le massif porte des ZAPEF et `etat === 'disponible'` |
 | 4 | **Emplacement de la consigne** | **conditionnel — voir ci-dessous** |
 | 5 | Fraîcheur et source (§11.3) | oui |
 | 6 | Lien « Ouvrir la carte officielle de la préfecture » | oui |
+
+> **[v2.3] Pourquoi ce `h2`-ci garde tout ce que D-26 ne lui retire pas.** Le nom du massif est un **titre
+> de statut** au sens de la règle de portée (§5.1) : il reste donc en **famille d'affichage** et **garde
+> son repère** (§3.2, emplacement n° 2, qui vise les `h2` **en portée**). Seules les **capitales** tombent.
+> Un `h2` peut donc perdre ses capitales sans perdre sa famille ni son repère : les trois questions sont
+> distinctes, et les confondre ferait passer ce panneau en chrome éditorial.
 
 **Comment l'emplacement de la consigne se comporte aujourd'hui, où aucune consigne n'est publiée.**
 
@@ -895,8 +1099,11 @@ définition opérationnelle de « ça tombe dedans sans rien redessiner ».
 - **Une seconde ligne, séparée par `--bord-fin` et introduite par l'étiquette `SUR CE SITE`**, présente
   les états hors niveau (`information non disponible`, `dispositif estival inactif`). Cette séparation est
   **obligatoire** : elle empêche d'attribuer à la préfecture des états qui sont les nôtres.
-- Le bloc porte `--ombre-decalee`. C'est, avec le panneau massif, l'un des deux seuls composants du site
-  autorisés à porter une ombre.
+- **[v2.3]** Le bloc **est autorisé à porter `--ombre-decalee`** — il reste, avec le panneau massif, l'un
+  des deux seuls composants du site à qui le §6.4 l'accorde. **Mais il ne la porte pas dans le code
+  livré** : sa mise en volume est faite par le **filet 2 px en tête de bande** et par le repère de son
+  `h2`. Cette phrase disait « le bloc porte » ; elle décrivait un rendu qui n'existe pas. Le jeton n'est ni
+  supprimé ni retiré du §6.4 — voir §12.1 (jetons orphelins) et §17, divergence 1.
 - **La légende n'est jamais masquée derrière un bouton, un accordéon ou un survol.** Elle est visible en
   permanence, sans interaction, y compris sans JavaScript.
 
@@ -967,7 +1174,7 @@ visuelle avec les statuts.
   Les jalons ZAPEF, physiquement petits, reçoivent une zone de frappe transparente de 44 px.
 - **Échap ferme** le panneau massif, la feuille du bas, le sélecteur de date, et rend le focus à l'élément
   déclencheur. Aucun piège clavier.
-- Ordre de tabulation : évitement → en-tête → ardoise (**la frise est sautée**, elle est `aria-hidden`) →
+- Ordre de tabulation : évitement → en-tête → ardoise →
   **carte (un seul arrêt, puis flèches pour parcourir les massifs)** → légende → liste → sections → pied.
 - Liens d'évitement « Aller au contenu » et « Aller à la liste des statuts » : cachés hors focus, visibles
   au focus en haut à gauche, fond `--c-mistral-nuit`, texte `--c-calcaire`.
@@ -983,8 +1190,8 @@ visuelle avec les statuts.
 | `--ease-retrait` | `cubic-bezier(0.4, 0, 1, 1)` | Sorties |
 
 **Il n'existe que trois animations sur ce site** : le panneau (translation 12 px + opacité), les changements
-d'état des puces (fond), le zoom de la carte. Rien d'autre ne bouge. **La frise ne bouge pas. Les jalons ne
-bougent pas. Le repère ne bouge jamais.**
+d'état des puces (fond), le zoom de la carte. Rien d'autre ne bouge. **Les jalons ne bougent pas. Le
+repère ne bouge jamais.**
 
 Interdits explicites : parallaxe, apparition au défilement, compteur qui s'incrémente, souffle de vent
 animé (la tentation « mistral » est refusée : la métaphore vaut pour la palette, pas pour le mouvement),
@@ -1033,7 +1240,7 @@ Seuil applicable aux aplats et aux limites de forme : **3:1** (WCAG 1.4.11, non-
 | `#E63A3C` vs `--c-carte-eau` | **2,79:1** | **ÉCHEC** |
 | **`#22B14C` vs `#E63A3C`** — deux massifs voisins d'états opposés | **1,48:1** | **ÉCHEC — le plus grave de tous** |
 | `--statut-indisponible` `#DEDFD9` vs `--c-carte-fond` `#E6E7E1` | **1,08:1** | **ÉCHEC** |
-| `#22B14C` vs `--c-mistral-nuit` (frise sur l'ardoise) | 5,24:1 | conforme |
+| `#22B14C` vs `--c-mistral-nuit` (**aplat de statut sur chrome sombre**) | 5,24:1 | conforme |
 | `#E63A3C` vs `--c-mistral-nuit` | 3,53:1 | conforme |
 
 **Constat, écrit noir sur blanc : la teinte officielle seule ne satisfait pas l'exigence AA du §8 du
@@ -1066,9 +1273,15 @@ en conflit, parce que **ce n'est pas la teinte qui doit porter la conformité**.
 liseré interpose une bande à 6,10:1 d'un côté et 4,11:1 de l'autre. La limite de forme est perceptible
 partout, indépendamment de la teinte, indépendamment du daltonisme, et indépendamment du fond de carte.
 
-Sur chrome sombre (`.sur-sombre` : ardoise, frise, bandeau, barre d'action), le liseré bascule en
+Sur chrome sombre (`.sur-sombre` : ardoise, bandeau, barre d'action), le liseré bascule en
 `--c-calcaire` : **12,66:1 contre `--c-mistral-nuit`**. La forme reste détachée du fond dans les deux
 familles de contexte.
+
+> **[v2.3] Ces deux mesures ne sont pas devenues sans objet.** Elles ont été écrites pour une rangée de
+> marques retirée depuis (D-27), mais elles couvrent **tout aplat de statut posé sur chrome sombre** — et
+> il en reste un, prévu et spécifié : la **barre d'action du portail** (§7.2), qui est un chrome
+> `--c-mistral-nuit` portant des pastilles. **Le mot a disparu de ces sections ; la mesure y reste, parce
+> qu'elle reste nécessaire.**
 
 C'est pourquoi le liseré est déclaré **porteur d'accessibilité** et non décoratif : le supprimer, l'amincir
 sous 2 px, l'arrondir au point de le manger dans les angles (§6.2) ou le teinter est un défaut **bloquant**.
@@ -1159,8 +1372,9 @@ insuffisant sur plusieurs surfaces et ne doit jamais être livré sans son trait
 
 1. **Aucun statut n'est jamais porté par la seule couleur.** Trois canaux obligatoires et simultanés :
    teinte + motif + libellé officiel en toutes lettres.
-2. **Toute pastille est accompagnée de son libellé**, sauf dans la frise (§8.2), qui est `aria-hidden` et
-   dont l'information intégrale figure en toutes lettres dans la liste du jour, immédiatement en dessous.
+2. **Toute pastille est accompagnée de son libellé — [v2.3] sans aucune exception.** La seule exception que
+   ce document ait jamais admise portait sur un objet retiré par **D-27** ; elle tombe avec lui. Une marque
+   de statut sans libellé n'existe plus nulle part dans le système.
 3. **La forme distingue les dimensions** : rectangle large = massif (surface), carré planté = ZAPEF
    (point). Un daltonien lit la dimension sans couleur ; un voyant lit l'état sans texte ; un lecteur
    d'écran lit les deux.
@@ -1510,6 +1724,38 @@ normative** attendue par la chaîne front.
 | `--statut-lisere-n5` | Le niveau 5 n'existe pas. Le liseré est unique et bascule par contexte, pas par niveau |
 | `--c-pin-alep` | H 146°, S 25 % : viole la règle §2.1 s'il est peint. Reste un ingrédient de mélange documenté, dont le produit `--c-carte-vegetation` est, lui, un jeton |
 
+#### [v2.3] Jetons **déclarés et consommés par personne** — ils restent dans `tokens.css`
+
+Rubrique distincte de la précédente, et il faut lire la différence : ci-dessus, des jetons **supprimés** ;
+ici, des jetons **conservés que plus aucune règle ne consomme**.
+
+| Jeton | Ce qui le laisse sans consommateur | Statut |
+|---|---|---|
+| `--ombre-decalee` | Direction du propriétaire : le panneau massif et le bloc de légende ne portent pas d'ombre dans le code livré ; le **filet 2 px en tête de bande** et le repère font la mise en volume (§8.5, §17 divergence 1) | **déclaré, orphelin** |
+| `--ombre-decalee-sombre` | Même décision, variante sur chrome sombre | **déclaré, orphelin** |
+| `--frise-l` | **D-27** — l'objet qu'il dimensionnait est retiré | **déclaré, orphelin** |
+| `--frise-h` | **D-27** — idem | **déclaré, orphelin** |
+
+> **Règle générale du projet, énoncée ici une fois pour toutes : on ne supprime pas un jeton — on cesse de
+> le consommer.** Deux raisons, et la première suffit. **(a)** Le **sha256 de `tokens.css` est épinglé** et
+> son **compte de propriétés est un invariant du contrat #4**. Compte **vérifié au shell sur le fichier
+> réel** : **111 déclarations de custom properties dans `:root`** — c'est l'invariant —, plus **5 sous
+> `.sur-sombre`** et **4 dans les deux `@media`**, soit **120 dans le fichier entier**. Retirer une
+> déclaration casse les deux, et transforme une décision de design en incident d'intégration pour des
+> chaînes qui n'ont rien demandé. *(L'empreinte n'est pas recopiée ici : ce document ne duplique jamais un
+> hachage — §5, même règle que pour les polices. Le fichier et le contrat #4 font foi.)* **(b)** Un jeton orphelin ne coûte rien — quelques octets, aucun rendu, aucune cascade ; un
+> jeton supprimé puis re-nécessaire revient sous un autre nom, ou sous la même valeur écrite en dur
+> ailleurs, ce qui est précisément l'accident que le §4.1.d règle 6 interdit.
+>
+> **Ce que cette règle n'autorise pas** : conserver une **prescription** qui décrit un rendu inexistant.
+> Le jeton reste ; la phrase qui affirmait au présent qu'un composant le porte est corrigée (§8.5). Le
+> §6.4 garde le jeton, sa valeur et sa raison d'être — il redeviendra consommable sans rien redessiner.
+>
+> **Cas signalé et volontairement non modifié** : le **§9.2** prescrit encore, à l'état « Actif »,
+> « `--ombre-decalee` réduite à `2px 3px 0` ». Cet état concerne des composants **qui n'existent pas
+> encore** ; la phrase n'est donc fausse sur rien de livré, et la réécrire aujourd'hui reviendrait à
+> arbitrer par avance le jour où une ombre reviendra. Elle est signalée, pas touchée.
+
 **Correspondance avec le contrat de l'issue #3 — [v2.1] corrigée.** L'extension émet **quatorze** noms de
 jetons, par les clés `jeton_css` / `jeton_encre_css` de `legende.config.php` : `--statut-autorise`,
 `--statut-interdit`, `--statut-zapef-autorise`, `--statut-zapef-interdit`, `--statut-indisponible`,
@@ -1553,13 +1799,19 @@ s'impriment sans ambiguïté en noir et blanc, là où cinq crans gris auraient 
   Le libellé officiel accompagne toujours la pastille. La couleur n'est donc **jamais** nécessaire à la
   compréhension d'une page imprimée en niveaux de gris.
   `print-color-adjust: exact` uniquement sur les pastilles et les jalons, pour préserver les motifs.
-- **La frise n'est pas imprimée** (`display: none`) : elle est `aria-hidden` et redondante avec la liste.
 - **Toujours imprimés** : le titre, le jour de validité, la ligne de fraîcheur, le bandeau de non-officialité,
   la légende complète (quatre entrées + note ZAPEF), les attributions (§9 du brief).
 - Les liens de contenu voient leur URL dépliée (`a[href^="http"]::after { content: " (" attr(href) ")"; }`),
   sauf dans les menus et le pied, masqués à l'impression.
 - Le repère s'imprime : `::after` noir, `::before` gris 45 %. C'est la signature de la feuille papier.
 - Corps à 10,5 pt / 1,45 ; `h1` 20 pt ; `h2` 14 pt ; le chiffre du jour à 34 pt.
+
+> **[v2.3] Quatre écarts entre cette section et la feuille d'impression livrée sont enregistrés au §17** —
+> échelle `pt` non écrite (divergence 3), « gris 45 % » rendu par `--statut-indisponible-encre`
+> (divergence 4), repère non forcé à l'impression (divergence 5), filet de 4 px en tête de première page
+> (divergence 7). Chacun est **décidé et argumenté** ; aucun n'est un défaut, et `print.css` est **gelé**.
+> Cette section n'est pas réécrite pour autant : elle reste l'intention, le §17 dit où le rendu s'en écarte
+> et pourquoi.
 
 ---
 
@@ -1691,8 +1943,10 @@ par trois règles, dont deux n'étaient pas écrites** :
 (a) les capitales sont produites par **`text-transform: uppercase`** sur une source **normalement
 casée** ; **jamais** saisies en capitales dans le HTML. Ainsi le lecteur d'écran, le `Ctrl+F` et le
 copier-coller reçoivent la casse véritable.
-(b) capitales **uniquement au-dessus de `--fs-500`** et sur les étiquettes `--fs-250` — le §5.1 le dit
-déjà ; jamais sur du texte courant, jamais sur un paragraphe.
+(b) **[v2.3, réduite]** capitales **uniquement sur les étiquettes `--fs-250`** — le §5.1 le dit ; jamais
+sur un `h1`, jamais sur un `h2`, jamais sur du texte courant, jamais sur un paragraphe. *La borne écrite
+en v2.1 comportait une seconde moitié, « au-dessus de `--fs-500` » : **D-26 la supprime**, et l'issue #23
+l'applique. Ce qui subsiste ici est la moitié que D-26 a expressément maintenue.*
 (c) **un conflit non vu jusqu'ici, tranché ici.** `Légende de la carte` est **à la fois** une chaîne
 officielle *verbatim* (§11.4, où toute modification est un défaut bloquant) **et** un `h2` (§8.5), donc
 capitalisé par le §5.1. Ces deux règles ont l'air de se contredire. **Résolution : `text-transform` est un
@@ -1700,6 +1954,14 @@ rendu, pas une édition.** Le texte du DOM reste `Légende de la carte`, mot pou
 d'origine comprises ; seul l'affichage est en capitales. Le §11.4 est donc honoré. Sans cette phrase,
 `review-cms` signalerait un faux défaut — ou, bien pire, un intégrateur « corrigerait » en tapant
 `LÉGENDE DE LA CARTE` dans le gabarit et **casserait le §11.4 pour de bon**.
+
+**[v2.3]** L'exemple de cette entrée est caduc (« Légende de la carte » n'est plus capitalisé, D-26) ; la
+règle qu'il établit reste en vigueur et vise désormais « Niveau d'Accès » et les quatre libellés officiels.
+
+**[v2.3] Sur le verdict de cette entrée.** « Conservé » n'est plus le verdict en vigueur : **D-26 lève
+cette défense** — elle ne l'invalide pas, elle était juste sur la cible qu'elle connaissait — et l'issue
+#23 en tire les conséquences normatives. Le texte ci-dessus **n'est pas réécrit** : c'est la trace d'un
+raisonnement mené de bonne foi, et l'effacer rendrait D-26 illisible. Voir §14.4.
 
 **6. La décision `prefers-color-scheme` manquante.** Ce n'était pas un motif douteux : c'était un
 **silence**. Le document n'a jamais dit s'il existe un mode sombre, et un silence de 1580 lignes se remplit
@@ -1719,6 +1981,40 @@ ajoute des **bornes** à quatre motifs empruntés qui avaient été retenus sans
 bas, typographie fluide, chiffre géant, barre collée), elle **tranche un conflit non vu** entre le §5.1 et
 le §11.4, et elle **ferme une question restée ouverte pendant 1580 lignes**. Aucun élément visuel nouveau
 n'est introduit, aucun jeton n'est ajouté : ce qui manquait n'était pas du dessin, c'était de l'écrit.
+
+### 14.4 [v2.3] Passe 2 quater — quand la cible de réception change, pas le goût
+
+**Pourquoi cette passe existe, et en quoi elle diffère des trois autres.** Le §7 du brief impose un
+**processus d'autocritique** ; l'issue #23 en est une application formelle, et le document doit le dire au
+lieu de laisser croire que ces changements sont des corrections de détail. Les passes 2, 2 bis et 2 ter
+posaient toutes la même question — *ce choix est-il générique, est-ce un tell « design IA », l'audace
+est-elle unique, la palette vient-elle du sujet ?* — et **infirmaient des choix qui étaient faux**. Celle-ci
+est d'une autre nature : **elle renverse un choix qui était juste**, et qui avait été **explicitement
+examiné puis défendu** (§14.3 entrée 5, verdict « conservé »). Le motif n'est pas que le raisonnement était
+mauvais ; c'est que **le destinataire du rendu a été écrit après lui**.
+
+| Décision réexaminée | Question posée | Verdict | Ce qui a été fait |
+|---|---|---|---|
+| **Les capitales sur `h1` / `h2`** | Le choix était-il faux ? | **Non — il était juste sur la cible qu'il connaissait.** Ce qui a changé est le §7 du brief : le rendu s'adresse à un **décideur communal**. Pour lui, un titrage intégralement capitalisé lit comme de la signalétique ou de la campagne, pas comme un service | **Renversé** (D-26) et **appliqué ici** : §5.1, §7.3, §8.4, §14.3 entrée 5 (b), §16. Les capitales restent sur les **étiquettes `--fs-250`**, qui portent les chaînes officielles |
+| **Le motif du renversement** | Puis-je l'attribuer à l'accessibilité, puisque le gain existe ? | **Non, et c'est le point le plus important de cette passe.** Le §14.3 entrée 5 avait déjà relevé et **borné** le risque de lecture : rien de neuf n'est apparu de ce côté. Le gain est un **effet secondaire non recherché** | **Écrit tel quel** partout où le renoncement est justifié. Attribuer à l'accessibilité un arbitrage de **registre** rendrait D-26 illisible pour qui le relira — et affaiblirait, par contagion, les vraies décisions d'accessibilité de ce document, qui sont toutes **mesurées** |
+| **La rangée de 25 marques** | La passe 2 bis avait-elle vu juste ? | **Oui, et c'est ce qui rend son retrait indolore.** Elle écrivait déjà : « si un doute subsiste en revue, elle est le premier élément à retirer — et le système tient sans elle » | **Retirée** (D-27). Ce qui est perdu est **nommé**, pas minimisé : la forme de la journée d'un coup d'œil. Une autocritique qui prépare sa propre sortie est une autocritique qui a fonctionné |
+| **Trois filets de 4 px sur une page qui en prescrit « un »** | Détail de mise en page ? | **Non : une règle qui ment un jour sur trois n'est pas une règle**, et celle-là mentait depuis la v1.0 sans que trois passes la voient | **Redistribués** (§6.3) : une occurrence dans le chrome nominal, à l'entrée du héros ; l'exception du bandeau d'alerte est **nommée** au lieu d'être ignorée |
+| **Le chiffre du jour à 8rem** | Le « big number » de tableau de bord, déjà défendu en passe 2 ter ? | **Défense maintenue, échelle bridée.** Les quatre différenciations du §14.3 entrée 3 restent vraies ; ce n'était pas le motif qui posait problème, c'était son amplitude | **Plafond de consommation** `5.75rem` (§5.1). Le chiffre redevient **une donnée dans une bande d'information**. Aucun jeton modifié |
+
+**Le risque propre à cette passe, nommé.** Retirer des capitales, réduire un chiffre et supprimer une
+rangée de marques va toujours dans le même sens : **vers le sage**. Trois pas de plus dans cette direction
+et le site ressemblerait à n'importe quel site cartographique — c'est-à-dire au défaut que le §7 du brief
+interdit. **Contre-mesure, vérifiée point par point** : la signature (§3) est **intacte** et reste tenue à
+sept emplacements ; le pari du fond monochrome (§1) est **intact** ; le rayon nul, l'absence d'ombre floue,
+les aplats opaques, le liseré charbon et la famille **condensée** de titrage sont **intacts** ; l'ancrage
+DFCI du §2 perd **un** geste sur trois et conserve les deux autres. **Ce qui a été retiré est de
+l'amplitude, jamais de l'identité** — et c'est la ligne à tenir si une révision ultérieure était tentée de
+continuer dans ce sens.
+
+**Verdict global de la passe 2 quater.** Aucune audace nouvelle, aucun élément visuel nouveau, aucun jeton
+nouveau. Une décision de registre renversée pour un motif de registre, une décision de composition retirée
+comme sa propre archive l'avait prévu, deux amplitudes bridées, une règle rendue vraie. Ce qui manquait
+n'était toujours pas du dessin : c'était de l'écrit — et, cette fois, de l'écrit **opposable en revue**.
 
 ---
 
@@ -1752,6 +2048,7 @@ n'est introduit, aucun jeton n'est ajouté : ce qui manquait n'était pas du des
 | **D-24** | **[v2.1] Ordre des couches : étiquettes du fond de carte sous les aplats de statut ; chrome de carte flottant sur aplat opaque `--c-calcaire`** | Mesuré : `--c-carte-encre` plafonne à **2,03:1 sur `#E63A3C`** et 3,02:1 sur `#22B14C` (§10.7). Aucune encre ne passe sur le rouge officiel — **l'ordre des couches est le seul mécanisme disponible** pour appliquer la règle 3 du §4.1.d sur une carte. Coût nul : en raster les étiquettes sont cuites dans la tuile, en vectoriel c'est un ordre explicite | Un pane « étiquettes au-dessus » ; un halo ou un contour sur les toponymes — sur 2,03:1, un halo ne rattrape rien |
 | **D-25** | **[v2.1] La flèche `→` (U+2192) est rendue en SVG en ligne, jamais en caractère** | Mesuré : U+2192 est **hors du sous-ensemble `latin` et absent des deux polices**. Écrit en caractère, il afficherait un rectangle vide dans l'historique du portail (§7.2). Cohérent avec le §16 en vigueur : « les rares symboles sont du SVG en ligne » | Taper `→` dans le gabarit ; ou élargir le sous-ensemble pour un seul glyphe — ce qui rouvrirait D-20 |
 | **D-26** | **[v2.2] Renoncement aux capitales condensées comme parti de titrage.** Borne dure : capitales admises **uniquement sur les étiquettes**, **interdites sur `h1` et `h2`**. Ce qui est perdu est nommé : le §2, ligne « Panneaux DFCI », tire de la signalétique **trois gestes** — capitales condensées, sérigraphie, rayon nul — et **le premier est abandonné**. Le §14.3 entrée 5 le **défendait explicitement** : « **Verdict : conservé** — c'est le langage du panneau DFCI, il est le sujet et non un effet ». Cette défense est **levée, elle n'est pas invalidée** : elle était juste sur la cible qu'elle connaissait. Restent la sérigraphie, le rayon nul, et la condensée elle-même, qui **demeure la famille de titrage** | **Le déplacement de la cible de réception, et lui seul.** Le rendu vise un **décideur communal** — l'élu ou le directeur général des services qui évalue une offre (§7 du brief, `CLAUDE.md` n°4). Pour ce destinataire, un `h1`/`h2` intégralement en capitales condensées lit comme de la signalétique ou de la campagne, pas comme un service. Le §1 l. 41-42 énonçait déjà la tension — « sobriété de service public, mais avec la brutalité graphique d'une signalétique de terrain » : l'arbitrage bascule vers le premier pôle **pour la typographie seule**, la couleur, les formes, le rayon nul, le repère et le fond monochrome restant au second. **Cette décision n'est pas motivée par l'accessibilité.** Le §14.3 entrée 5 avait déjà relevé le risque — « les capitales dégradent la vitesse de lecture », « certains lecteurs d'écran épellent » les chaînes courtes — et l'avait **borné**, donc tenu pour couvert : rien de neuf n'est apparu de ce côté. Le gain de lisibilité est un **effet secondaire, non recherché**, et **ne doit jamais être cité comme la raison** — ce serait attribuer à l'accessibilité un arbitrage de registre, et rendre D-26 illisible pour qui le relira. **Référence avant.** L'application normative — §5.1, §7.3, §14.3 entrée 5 (b), §16 — appartient à l'issue #23. Jusqu'à son exécution, ces sections restent en vigueur et cette contradiction est **connue et assumée** | Maintenir le parti de la v2.0/v2.1, capitales sur tout le titrage — conclusion de bonne foi du §14.3 entrée 5, prise sur une cible de réception qui n'était alors écrite nulle part ; ou abandonner la condensée elle-même, ce qui ferait tomber les deux autres gestes du §2 avec elle et viderait l'ancrage DFCI de sa substance typographique |
+| **D-27** | **[v2.3] Retrait de la frise des 25 marques de l'ardoise — abandon définitif, non différé.** La frise n'existait **nulle part dans le code** : aucun gabarit ne l'émettait, aucune règle CSS ne la stylisait. Elle n'était prescrite que par **ce document**, en **17 points d'ancrage** — §1, §3.3, §4.1.d, §6.1, §7.1 (croquis, texte, tableau des points de rupture), §8.2, §9.3, §9.4, §10.6, §13, §16. Ces prescriptions sont retirées. **Ce qui est perdu est nommé, pas minimisé** : la lecture de la **forme de la journée d'un coup d'œil, à quatre mètres** (§1, §14.2). Elle reste portée par le **chiffre du jour** et, en toutes lettres, par la **liste du jour** — qui portait déjà l'intégralité de cette information, la frise étant `aria-hidden` (§10.6 règle 2, dont l'unique exception tombe ici). **Ce qui n'est pas touché** : **D-19 n'est ni réécrite ni annotée**, et l'archive §14.2 non plus. Le document fournit lui-même le patron, en D-26 : « cette défense est **levée**, elle n'est pas invalidée ». **Ce qui reste dans `tokens.css`** : `--frise-l` et `--frise-h` **demeurent déclarés et orphelins** (§12.1) — sha256 épinglé et **111 déclarations dans `:root`** (120 dans le fichier entier), invariant du contrat #4 **vérifié**. **On ne supprime pas un jeton : on cesse de le consommer.** Même traitement que `--ombre-decalee`. **Conséquence à consigner, sans quoi elle se perdrait** : l'arbitrage 13 du contrat #22 (`print.css`, protection du liseré sous `.sur-sombre`) était justifié par « bloquant **le jour de la frise** ». Cette règle devient **définitivement latente — et non morte** : la **barre d'action du portail** (§7.2) est un chrome sombre portant des pastilles. Un refacto futur qui la supprimerait comme du code mort commettrait une régression d'accessibilité silencieuse | **Direction du propriétaire, dans le même recadrage que D-26** — et **D-19 avait elle-même prévu ce retrait comme sortie nominale** : la passe 2 bis écrit en toutes lettres « si un doute subsiste en revue, elle est le premier élément à retirer — et le système tient sans elle ». Ce n'est donc pas une infirmation : c'est l'exercice d'une sortie que la décision d'origine avait ménagée, et c'est la preuve que la borne posée en §14.2 servait à quelque chose. **Abandonnée et non différée**, parce qu'« en attente » maintiendrait **17 prescriptions vivantes** dans un document normatif et **inviterait une chaîne future à la construire** de bonne foi : un document qui décrit un composant que personne ne doit fabriquer est un piège, pas une archive | La **différer** — les 17 prescriptions restent, et la première chaîne « carte » ou « portail » qui lit le §8.2 la fabrique ; la **supprimer de `tokens.css`** avec ses deux jetons — casse le sha256 épinglé et le compte de 111 propriétés, c'est-à-dire une décision de design payée par un incident d'intégration chez des chaînes sœurs ; la **remplacer** par un autre indicateur de forme (jauge, anneau, barre de proportion) — deuxième audace, déjà refusée par D-19 elle-même |
 
 ---
 
@@ -1774,11 +2071,19 @@ Tout élément ci-dessous constaté par `review-cms` est un **défaut bloquant**
 - `border-radius` > 2 px. Pilules, avatars ronds, boutons arrondis, **pastille de statut arrondie**.
 - Ombre floue (`blur-radius` ≠ 0), dégradé décoratif, verre dépoli, néomorphisme.
 - Ombre portée sur autre chose que le panneau massif et le bloc de légende.
-- Repère hors des 7 emplacements du §3.2, deux repères dans le même bloc, repère sur un jalon ou sur la frise.
+- Repère hors des 7 emplacements du §3.2, deux repères dans le même bloc, repère sur un jalon.
+- **[v2.3]** Repère devant un `h2` **hors portée** de la famille d'affichage — chrome, page éditoriale,
+  portail (§3.2 amendé, §5.1 règle de portée).
 - **[v2.1]** Poignée de la feuille du bas rendue en **pilule** ; **coins supérieurs arrondis** sur la
   feuille ; fermeture par **glissement sans bouton équivalent** (§14.3 entrée 1).
+- **[v2.3]** **`h1` ou `h2` rendu en capitales** — par `text-transform` ou de quelque autre façon (D-26).
+  Les capitales sont réservées aux **étiquettes `--fs-250`**.
+- **[v2.3]** Famille **d'affichage** employée **hors** des trois zones en portée, ou famille **de texte**
+  employée **dans** l'une d'elles (règle de portée, §5.1). Cas le plus probable en revue : un `h2` de page
+  éditoriale ou de portail composé en `--police-titre`.
 - Carte enfermée dans un conteneur centré à coins arrondis.
-- Frise ailleurs que dans l'ardoise, frise focusable, frise animée.
+- **[v2.3]** Plus d'**une** occurrence de `--bord-fort` dans le **chrome nominal** d'une page — le bandeau
+  d'alerte, état exceptionnel, porte le sien et ne compte pas (§6.3).
 
 **Couleur et sens**
 - Couleur officielle modifiée, réinterprétée, désaturée, éclaircie au survol ou « harmonisée ».
@@ -1836,6 +2141,52 @@ Tout élément ci-dessous constaté par `review-cms` est un **défaut bloquant**
 - Bandeau de consentement aux cookies (il n'y a rien à consentir — §9 du brief).
 - **[v2.1]** Le thème calculant lui-même **le chiffre du jour, son dénominateur, un décompte ou une
   date** : ces valeurs viennent de l'extension (§11.1 règle 6, §14.3 entrée 3).
+- **[v2.3]** **Taux ou qualificatif de conformité RGAA écrit dans un gabarit** — « non conforme »,
+  « partiellement conforme », « totalement conforme », « x % des critères » : ce sont des **résultats
+  d'audit**, et aucun audit n'a été mené (§4.2 du brief). Même classe d'erreur que le chiffre du jour
+  calculé par le thème : une valeur figée dans un gabarit devient **fausse en silence** au premier audit
+  suivant. Le jour venu, elle vient du contenu, jamais du code (§7.3).
+- **[v2.3]** Lien de pied **codé en dur** vers « Mentions légales », « Accessibilité » ou « La démarche »,
+  ou **slug/libellé inventé** : ce sont des **entrées de menu** affectées à l'emplacement `pied` (§7.3).
+- **[v2.3]** Phrase « zéro cookie » rédigée dans un gabarit : elle n'a **aucune chaîne normative** au
+  §11.3, qui est une liste **fermée** (§7.3, `OUVERT`).
+
+---
+
+## 17. [v2.3] Divergences enregistrées entre le document et le code livré
+
+**À quoi sert cette section, et pourquoi elle est placée juste après le §16.** Le §16 est la liste de ce
+qui est un **défaut**. Celle-ci est la liste de ce qui **n'en est pas un** : des écarts entre ce document et
+un code **déjà commité**, chacun **décidé, argumenté et opposable**. La règle de lecture en tête de document
+dit qu'« une divergence constatée en revue est un défaut, pas une variante » — elle reste vraie, et c'est
+précisément pourquoi les exceptions doivent être **écrites ici** plutôt que découvertes en revue.
+
+**Six de ces neuf divergences sont héritées.** Le contrat `docs/contracts/issue-22.md` se termine par six
+écarts « à enregistrer par la chaîne #21, propriétaire du document » — et la chaîne #21 **s'est close sans
+les écrire**, ce fichier n'étant pas dans son empreinte. Le contrat #22 prédisait littéralement la
+conséquence : « sans enregistrement, `review-cms` signalera des **faux défauts** ». L'issue #23 est la
+première chaîne à posséder ce document après #22 : elle les enregistre.
+
+| # | Divergence | Origine | Pourquoi c'est la bonne décision |
+|---|---|---|---|
+| **1** | `--ombre-decalee` et `--ombre-decalee-sombre` sont **déclarés et consommés par personne**, alors que le §6.4 les accorde et que le §8.5 les prescrivait au panneau massif et au bloc de légende | #22, arbitrage 8 | **Direction du propriétaire.** La mise en volume est faite par le **filet 2 px en tête de bande** et par le repère du `h2`. Le §8.5 est corrigé pour cesser de décrire un rendu inexistant ; **le jeton et sa description au §6.4 restent** (§12.1) |
+| **2** | La légende est rendue sur **une seule colonne** sous `--bp-s`, quand le croquis §7.1 et le tableau des points de rupture en annoncent deux | #22, arbitrage 9 | Les libellés officiels ont été établis **après** le croquis : `Accès à la ZAPEF* interdite` sur ≈ 140 px empile trois lignes. **Le §10.6 règle 6 — aucun libellé tronqué, aucun défilement horizontal — l'emporte sur un croquis.** Un croquis est une intention de composition, pas une mesure |
+| **3** | L'**échelle typographique d'impression en `pt`** du §13 (10,5 / 20 / 14 / 34) n'est **écrite nulle part** dans le CSS | #22, arbitrage 16 | **Aucun jeton `pt` n'existe au §12**, et une valeur brute hors jeton est interdite. Créer quatre jetons aurait modifié le §12 — gelé, sha256 épinglé — pour une échelle non vérifiée sur épreuve papier. **Non créés**, et la question reste ouverte pour la chaîne qui imprimera réellement |
+| **4** | Le « **gris 45 %** » du §13 est rendu par `--statut-indisponible-encre` (`--c-charbon-doux`, **6,33:1**), jamais par `--c-trace` (**1,96:1**) | #22, arbitrage 15 | `--c-trace` est **interdit dans tout motif de statut** depuis D-17, sur mesure. Le littéral « 45 % » du §13 est une **intention de valeur**, pas un jeton ; le rendu obtenu est **plus sombre** que 45 %, ce qui ne peut qu'aider sur papier. **La mesure l'emporte sur le littéral** |
+| **5** | Le **repère n'est pas forcé à l'impression**, alors que le §13 écrit qu'il s'imprime | #22, arbitrage 14 | Le §13 se contredit avec le §3.4, et le redessiner en `border` pour l'impression serait une **seconde implémentation de l'élément signature** — interdit par le §3.1, qui n'en admet **qu'une**. Divergence assumée : la trancher est une décision de design à écrire, pas un correctif de feuille d'impression |
+| **6** | L'**interligne 1,2** que le §5.1 assigne à `--fs-250` n'est pas appliqué : l'étiquette hérite `--lh-corps` | #22, arbitrage 18 | **Aucun jeton ne porte 1,2** au §12 (`--lh-sous` vaut 1,15, `--lh-dense` 1,35 : ce seraient des substitutions silencieuses), et 1,15 à 13 px sur un paragraphe serait une régression de lisibilité. **Jeton non créé** — le §12 n'est pas ouvert pour ça |
+| **7** | À l'impression, la **première page commence par un filet de 4 px** : `print.css` pose `--bord-fort` en tête de `.sur-sombre`, et `header.php` porte `sur-sombre` sur la barre haute | #23, arbitrage A-12 | **Conforme à la lettre du §13** (« `--c-mistral-nuit` → blanc avec `--bord-fort` en haut »). `print.css` est **gelé** (chaîne #22) : l'ouvrir depuis une chaîne sœur pour une préférence esthétique casserait la disjonction des empreintes pour un gain nul. **Divergence assumée : la modifier serait une décision de design à écrire, jamais une correction CSS silencieuse** |
+| **8** | **Aucun filet de 4 px n'est rendu dans le chrome nominal** entre l'issue #23 et la chaîne « carte » | #23, arbitrage A-3 | Le filet de tête est porté par la **bande carte**, qui est **vide** tant que la carte n'est pas livrée, et la règle ne s'applique pas à une bande vide. **Aucune règle n'est violée dans l'intervalle** : le slab, le filet 2 px, le filet 1 px et le repère tiennent la composition, et le bandeau de non-officialité reste détaché (§6.3) |
+| **9** | Le §8.2 prescrit qu'en cas d'indisponibilité le chiffre du jour soit **remplacé par le mot « Indisponible » en `--fs-700`** ; **le thème ne rend pas ce mot.** Le `h1` porte à sa place la chaîne du §11.3 — « Information du jour non disponible. Consultez la carte officielle de la préfecture. » | #5, arbitrage A-5 (`front-page.php`, raison écrite dans le code) | **La raison est bonne** : rendre ce mot poserait un **second bloc `--fs-700` adjacent au `h1`**, qui dit déjà exactement cela — deux affiches pour une seule information, dans la bande même que cette révision recadre. La **règle de sécurité produit reste tenue par la structure** : le chiffre n'est émis que dans le bras `disponible`, donc aucune valeur de la veille ne peut survivre à l'état d'indisponibilité. **Le §8.2 est assoupli comme le §8.5 l'a été** : il décrit ce qui est **autorisé**, pas ce qui est **livré**. Le reste du comportement — disparition du chiffre, hachure `--c-mistral` à 12 %, lien passé en bouton primaire — **reste prescrit et n'est pas en cause** |
+
+**Ces neuf ne sont pas des défauts à corriger.** Aucune ne demande une modification de code, et la plupart
+portent sur des fichiers **gelés** (`composants.css`, `print.css`, `tokens.css`). Elles sont écrites pour une seule raison : qu'une revue de
+lot ne les compte pas **deux fois** — une fois comme écart au document, une fois comme défaut de code.
+
+**Règle de tenue de cette section.** Une divergence en sort par une **décision écrite** (§15), jamais par
+une correction silencieuse. Si le code rejoint le document, la ligne est retirée en le déclarant au journal
+de révision ; si le document rejoint le code, la section concernée est amendée et la ligne disparaît de la
+même façon. **Une divergence qu'on cesse simplement de mentionner redevient un faux défaut au lot suivant.**
 
 
 
