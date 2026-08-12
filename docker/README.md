@@ -64,17 +64,47 @@ rejoué à tout moment sur une stack déjà provisionnée.
 
 Il effectue, dans l'ordre :
 1. installation de WordPress (locale `fr_FR`, identifiants issus de `.env`) ;
-2. activation du thème `massifs` et de l'extension `massifs-core` ;
-3. suppression des thèmes par défaut (`Twenty*`) et extensions tierces
+2. fuseau horaire `Europe/Paris` (`timezone_string`) — sans effet sur le
+   domaine, qui fige déjà son fuseau (`Horloge.php` de l'extension), mais
+   évite que l'administration affiche des heures UTC au gestionnaire sur un
+   site dont tout le propos est le statut *du jour* ;
+3. activation du thème `massifs` et de l'extension `massifs-core` ;
+4. suppression des thèmes par défaut (`Twenty*`) et extensions tierces
    (`akismet`, `hello dolly`) — surface tierce réduite à zéro (brief §3, §9) ;
-4. réglage des permaliens en structure `/%postname%/` (routes REST et pages
+5. réglage des permaliens en structure `/%postname%/` (routes REST et pages
    propres) ;
-5. création du rôle `gestionnaire` (calqué sur `editor` — les capacités fines
-   sont affinées par la chaîne `securite`) et d'un compte de démonstration
+6. création du rôle `gestionnaire` **à capacités minimales** (voir
+   « Rôle `gestionnaire` » ci-dessous) et d'un compte de démonstration
    (`WP_MANAGER_USER` dans `.env`) ;
-6. rejeu des fixtures si `docker/provision/fixtures/seed.php` existe (voir
+7. rejeu des fixtures si `docker/provision/fixtures/seed.php` existe (voir
    `docker/provision/fixtures/README.md` — vide pour l'instant, câblé pour les
    chaînes fonctionnelles).
+
+### Rôle `gestionnaire` — volontairement minimal
+
+Le rôle est créé à partir de `subscriber` (capacité `read` seule : accès à
+l'administration, aucune capacité de contenu), puis, à **chaque**
+provisionnement, une liste explicite de capacités éditoriales/administratives
+(`edit_posts`, `upload_files`, `unfiltered_html`, `manage_options`,
+`edit_users`, etc. — voir `CAPACITES_INTERDITES` dans
+`docker/provision/provision.sh`) est retirée si elle est présente. Ce n'est
+pas cosmétique : c'est le rôle du **compte de démonstration dont le brief §6
+impose de publier les identifiants** sur le site public. `unfiltered_html`
+(offert par défaut par un clone d'`editor`, utilisé ici avant correction) sur
+un compte dont les identifiants sont publics est un XSS stocké prêt à
+l'emploi — inoffensif tant que rien n'est déployé publiquement, critique au
+premier déploiement de `demo.[DOMAINE]`.
+
+La purge est rejouée à chaque provisionnement (pas seulement à la création du
+rôle) précisément pour corriger aussi une stack existante dont le volume
+porte encore l'ancien rôle cloné d'`editor` — `wp cap remove` sur une
+capacité déjà absente ne fait rien, donc rejouable sans risque.
+
+**L'ajout de capacités passe par l'extension, jamais par le provisionnement.**
+Les capacités métier du portail (mettre à jour un statut, consulter
+l'historique) seront ajoutées par le code de `massifs-core`
+(`includes/security/`, chaîne `securite`, épique 5) — ce script ne connaît et
+ne doit connaître qu'un principe : zéro capacité de contenu par défaut.
 
 ## Utiliser WP-CLI directement
 

@@ -38,6 +38,15 @@ else
 fi
 $WP option update WPLANG fr_FR >/dev/null 2>&1 || true
 
+echo "==> Fuseau horaire"
+# Dépendance signalée par le contrat gelé de l'issue #3
+# (docs/contracts/issue-3.md, « Dépendances hors empreinte », #1) : sans
+# effet sur le domaine (Horloge.php fige déjà le fuseau), mais évite que
+# l'administration affiche des heures UTC au gestionnaire sur un site dont
+# tout le propos est le statut du jour. `option update` est idempotent par
+# construction (positionne la valeur, ne duplique rien).
+$WP option update timezone_string 'Europe/Paris'
+
 echo "==> Activation du thème massifs"
 $WP theme activate massifs
 
@@ -69,11 +78,44 @@ $WP rewrite flush --hard
 
 echo "==> Rôle gestionnaire"
 if ! $WP role list --field=role 2>/dev/null | grep -qx gestionnaire; then
-	$WP role create gestionnaire "Gestionnaire" --clone=editor
-	echo "   rôle 'gestionnaire' créé (droits calqués sur editor — affinés ensuite par la chaîne 'securite')."
+	$WP role create gestionnaire "Gestionnaire" --clone=subscriber
+	echo "   rôle 'gestionnaire' créé (capacités minimales, calquées sur 'subscriber' : accès à l'administration, aucune capacité de contenu)."
 else
 	echo "   rôle 'gestionnaire' déjà présent."
 fi
+
+echo "==> Purge des capacités de contenu du rôle gestionnaire"
+# Le rôle 'gestionnaire' ne doit porter AUCUNE capacité de contenu (brief §6 :
+# consulter/mettre à jour les statuts, voir l'historique — rien d'autre). Et
+# c'est le rôle du compte de démonstration dont le brief §6 impose de publier
+# les identifiants sur le site public : `unfiltered_html` sur ce compte serait
+# un XSS stocké offert à quiconque lit la page de démo du portail.
+# On énumère et retire explicitement les capacités éditoriales/administratives
+# à *chaque* provisionnement — idempotent (`wp cap remove` sur une capacité
+# déjà absente ne fait rien) — pour couvrir aussi bien un rôle fraîchement créé
+# que ce même rôle hérité d'un ancien clone d'`editor` sur une stack existante.
+# Les capacités métier du portail (mise à jour des statuts, lecture de
+# l'historique) sont ajoutées par l'extension massifs-core elle-même (chaîne
+# 'securite', épique 5) — jamais par ce script de provisionnement.
+# Inclut aussi les niveaux `level_1`…`level_10` : système de "user level"
+# historique de WordPress (antérieur aux capacités, WP < 3.0), déprécié mais
+# encore vérifié par du code ancien comme un proxy des droits d'édition —
+# un clone d'`editor` porte `level_7`. On ne garde que `level_0` (subscriber).
+CAPACITES_INTERDITES="edit_posts edit_others_posts edit_published_posts edit_private_posts \
+	publish_posts delete_posts delete_others_posts delete_published_posts delete_private_posts \
+	read_private_posts edit_pages edit_others_pages edit_published_pages edit_private_pages \
+	publish_pages delete_pages delete_others_pages delete_published_pages delete_private_pages \
+	read_private_pages manage_categories manage_links moderate_comments upload_files \
+	unfiltered_html unfiltered_upload edit_theme_options switch_themes edit_users delete_users \
+	create_users list_users promote_users remove_users manage_options activate_plugins \
+	edit_plugins delete_plugins install_plugins edit_themes delete_themes install_themes \
+	update_core update_plugins update_themes export import \
+	level_1 level_2 level_3 level_4 level_5 level_6 level_7 level_8 level_9 level_10"
+for cap in $CAPACITES_INTERDITES; do
+	$WP cap remove gestionnaire "$cap" >/dev/null 2>&1 || true
+done
+$WP cap add gestionnaire read >/dev/null 2>&1 || true
+echo "   capacités de contenu/administration retirées ; 'read' garanti (accès admin minimal)."
 
 echo "==> Compte gestionnaire de démonstration"
 MANAGER_USER="${WP_MANAGER_USER:-gestionnaire-demo}"
