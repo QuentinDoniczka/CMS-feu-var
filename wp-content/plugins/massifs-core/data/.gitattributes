@@ -1,0 +1,24 @@
+# Les octets SONT le contrat.
+#
+# `massifs-13.geometrie.json` et `massifs-13.php` portent chacun une empreinte
+# sha256 calculée au build sur les octets du fichier, et un jeton de
+# cache-busting dérivé de cette empreinte. Une conversion de fins de ligne au
+# clone (`core.autocrlf=true`, valeur courante sous Windows) changerait ces
+# octets sans changer l'empreinte consignée : la recette échouerait, et le
+# jeton de version mentirait.
+#
+# `-text` et non `binary` : `binary` implique `-diff`, or relire le diff de
+# `massifs-13.php` avant de commiter est un contrôle d'identité imposé par le
+# README (« aucun `code` ne doit changer »). On désactive la conversion, pas la
+# lisibilité.
+#
+# `-text` et non `text eol=lf` : `text eol=lf` absorberait silencieusement une
+# conversion CRLF au moment du commit, ce qui découplerait les octets présents
+# sur le disque — ceux dont on calcule le sha256 — de ceux du blob. On veut
+# l'inverse : aucune conversion, dans aucun sens, jamais.
+#
+# PAS de motif fourre-tout `*.json` ici : les chaînes météo, EFFIS et tuiles
+# déposeront dans ce répertoire des caches servis au navigateur qui n'ont aucune
+# empreinte contractuelle. Un fourre-tout serait un piège pour elles.
+massifs-13.geometrie.json -text
+massifs-13.php            -text

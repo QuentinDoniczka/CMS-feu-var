@@ -1,0 +1,20 @@
+{
+  "a_propos": "Empreinte de référence des artefacts. ÉMIS PAR `npm run importer`, jamais édité à la main. `npm run verifier` compare les artefacts en place à ces valeurs : une différence est une dérive à expliquer. Si le changement est voulu, régénérer les artefacts ET ce fichier par `npm run importer`, dans le même commit.",
+  "genere_le": "2026-08-13T10:29:13Z",
+  "outillage": {
+    "mapshaper": "0.6.102",
+    "node_major": 24
+  },
+  "source": {
+    "fichier": "includes/domain/massifs/build/source/massifs-13.full.geojson",
+    "sha256": "d0316cbcf4693f7fe2d7bb663d9633c93aa9902fcdfeb871498edfecabe61394",
+    "octets": 3022441
+  },
+  "geometrie": {
+    "fichier": "massifs-13.geometrie.json",
+    "sha256": "744fba53429d8f8e1eda9aa8e31a4b8162622901321d0139838ed0b5f5e5a7d1",
+    "octets": 278894,
+    "sommets": 16282,
+    "ecart_max_m": 93.62
+  }
+}

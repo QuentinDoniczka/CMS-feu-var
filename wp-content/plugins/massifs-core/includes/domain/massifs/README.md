@@ -18,16 +18,24 @@ Ce fichier ne décrit que la **procédure de ré-import**.
 | `attribution.php` | Mention §9 et lacunes assumées |
 | `compat.php` | Les 16 fonctions publiques `massifs_*()` |
 | `.htaccess` | Interdit l'accès web à tout ce répertoire — code, outillage, et surtout l'archive source de 3 Mo |
-| `build/package.json` · `build/.gitignore` | Outillage de build seulement ; jamais exécuté à l'exécution du site |
+| `build/package.json` · `build/package-lock.json` · `build/.nvmrc` · `build/.gitignore` | Outillage de build seulement ; jamais exécuté à l'exécution du site. Le lockfile et le `.nvmrc` sont ce qui rend l'import **rejouable à l'octet** |
+| `build/.gitattributes` · `../../../data/.gitattributes` | Interdisent toute conversion de fins de ligne sur les fichiers dont les octets sont mesurés |
 | `build/identites.json` | **Registre d'identités gelées, édité à la main, en ajout seul. Fait autorité sur l'identité** |
 | `build/importer.mjs` | Chaîne d'import reproductible |
 | `build/verifier.mjs` | Recette : rejoue tous les contrôles sans rien réécrire |
 | `build/source/massifs-13.full.geojson` | Source archivée (3 Mo), entrée du pipeline |
+| `build/massifs-13.fidelite.json` | **Généré.** Recette de fidélité, hors contrat, aucun consommateur applicatif |
+| `build/reference.json` | **Généré.** Empreinte de référence des artefacts : c'est elle que la recette compare pour détecter une dérive |
 | `../../../data/massifs-13.php` | **Généré.** Métadonnées et 25 lignes de massif |
 | `../../../data/massifs-13.geometrie.json` | **Généré.** Géométrie simplifiée, servie en statique au navigateur |
-| `../../../data/massifs-13.fidelite.json` | **Généré.** Recette de fidélité, hors contrat, aucun consommateur applicatif |
 
-Les trois artefacts de `data/` ne s'éditent **jamais** à la main.
+**Invariant de rangement : `data/` est servi au navigateur ; `build/` ne l'est jamais.** Les deux
+artefacts de recette vivent donc dans `build/`, sous le `.htaccess` de ce répertoire et sous le garde-fou
+Apache de `docker/wordpress/plugins-guard.conf`. Un artefact de recette accessible à une URL publique
+exposerait la mécanique interne du projet sans qu'aucun consommateur en ait besoin.
+
+Les **quatre** artefacts générés ne s'éditent **jamais** à la main, `reference.json` compris — il est émis
+par l'import, en même temps que les trois autres.
 
 ## Source et licence
 
@@ -162,20 +170,111 @@ Sur un **Arrêt**, rien n'est écrit : les artefacts en place restent cohérents
 
 ```sh
 cd wp-content/plugins/massifs-core/includes/domain/massifs/build
-npm install            # mapshaper épinglé à 0.6.102 ; `npm ci` une fois le lockfile commité
+nvm use                # lit .nvmrc : Node 24 (le majeur, pas le correctif)
+npm ci                 # JAMAIS `npm install` : `ci` installe le lockfile à l'identique
 # remplacer build/source/massifs-13.full.geojson par la nouvelle source (EPSG:4326)
-npm run importer       # émet les 3 artefacts, ou s'arrête sans rien écrire
+npm run importer       # émet les 4 artefacts, ou s'arrête sans rien écrire
 npm run verifier       # rejoue tous les contrôles, code de sortie ≠ 0 en cas de dérive
 ```
 
-`npm run verifier` a besoin d'un binaire `php` (variable `PHP_BIN` pour le désigner) : il lit
-`data/massifs-13.php` via `php -r`. C'est pour cela que la garde de ce fichier généré est volontairement
-**sans `exit`** — hors WordPress, il retourne un tableau vide au lieu d'interrompre le processus.
+`npm ci` et non `npm install` : `install` peut **remonter** une dépendance transitive de mapshaper et
+produire une géométrie aux octets différents à source identique. C'est arrivé, et c'est mesuré — voir
+« Reproductibilité ».
 
-Relire ensuite le diff de `data/massifs-13.php` avant de commiter : **aucun `code` ne doit changer**. Un
-`code` modifié dans un diff est un défaut, jamais une variante.
+### Jouer la recette sans PHP sur la machine
 
-### Contrôles bloquants de l'import
+`npm run verifier` lit `data/massifs-13.php` via `php -r` : c'est pour cela que la garde de ce fichier
+généré est volontairement **sans `exit`** — hors WordPress, il retourne un tableau vide au lieu
+d'interrompre le processus. Sans PHP joignable, la recette **échoue** ; elle ne passe jamais un contrôle
+en silence.
+
+Aucun PHP sur l'hôte est un cas courant (Windows, poste sans stack locale). Deux variables suffisent :
+
+| Variable | Rôle |
+|---|---|
+| `PHP_BIN` | Commande PHP, **arguments admis**. Défaut : `php` |
+| `MASSIFS_PHP_RACINE` | Racine de l'extension **telle que la voit le PHP invoqué**. Sans elle, un PHP conteneurisé échouerait sur « fichier introuvable » |
+
+```sh
+PHP_BIN="docker compose run --rm -T wpcli php" \
+MASSIFS_PHP_RACINE=/var/www/html/wp-content/plugins/massifs-core \
+npm run verifier
+```
+
+Sous Git Bash, préfixer par `MSYS_NO_PATHCONV=1` : sinon MSYS traduit le chemin de conteneur en chemin
+Windows avant de le passer à `docker.exe`.
+
+### `reference.json` — l'empreinte de référence
+
+`reference.json` porte l'empreinte des artefacts au dernier import **assumé** : sha256 et octets de la
+géométrie et de la source archivée, nombre de sommets, écart maximal, version de mapshaper, majeur de Node.
+Il est **émis par l'import**, jamais édité à la main.
+
+C'est ce qui sépare deux questions que les seuils confondaient :
+
+- les **seuils** disent que la géométrie est acceptable, quelle qu'elle soit ;
+- `reference.json` dit qu'elle est **la même** qu'au dernier import assumé.
+
+Un artefact peut tenir tous les seuils et avoir néanmoins changé sans que personne l'ait décidé. Quand la
+recette signale une dérive : la comprendre d'abord. Si le changement est voulu, régénérer les artefacts
+**et** `reference.json` par `npm run importer`, **dans le même commit** — les quatre artefacts forment un
+tout, et un `reference.json` en retard laisse la recette rouge en permanence, donc bientôt ignorée.
+
+L'import affiche de lui-même, avant d'écrire, un bloc `DÉRIVE PAR RAPPORT À reference.json` clé par clé.
+Cet affichage est **informatif** : une dérive n'arrête pas l'import — c'est la recette qui échoue dessus,
+et elle seule. Dans la recette, le majeur de Node est le seul écart **non bloquant** : il s'affiche en
+avertissement, y compris dans le bloc d'échec comme contexte de diagnostic. Un échec dur sur Node 26 alors
+que les octets concordent est un faux positif, et un faux positif répété apprend à régénérer la référence
+par réflexe.
+
+### `.gitattributes` — pourquoi
+
+**Les octets sont le contrat.** L'empreinte sha256 de la géométrie, son jeton de cache-busting, la taille
+consignée : tout est calculé sur les octets du fichier. Avec `core.autocrlf=true` — valeur courante sous
+Windows — un clone convertirait ces octets sans changer les empreintes consignées. La recette échouerait
+sur trois contrôles d'empreinte sans jamais nommer la cause, et `massifs_geometrie()['version']` mentirait.
+
+Les deux `.gitattributes` (`data/` et `build/`) posent `-text` sur les fichiers mesurés :
+`massifs-13.geometrie.json`, `massifs-13.php`, `source/massifs-13.full.geojson`,
+`massifs-13.fidelite.json`, `reference.json`. `-text` et non `binary` (qui implique `-diff`, or relire le
+diff de `massifs-13.php` est un contrôle imposé ci-dessous) ; `-text` et non `text eol=lf` (qui
+absorberait la conversion au commit et découplerait les octets du disque de ceux du blob).
+
+`verifier.mjs` contrôle en plus la présence d'un octet `0x0D` dans les deux artefacts de `data/`,
+**indépendamment de git et de sa configuration**. C'est ce qui transforme une heure de recherche en dix
+secondes.
+
+Relire enfin le diff de `data/massifs-13.php` avant de commiter : **aucun `code` ne doit changer**. Un
+`code` modifié dans un diff est un défaut, jamais une variante. Sur un ré-import à source inchangée, les
+seules lignes qui ont le droit de bouger sont `genere_le` et `geometrie.{version, sha256, octets}` —
+`bbox`, `centre` et `emprise` sont mesurés sur la source, pas sur la sortie simplifiée, et n'ont donc
+aucune raison de bouger.
+
+## Reproductibilité
+
+**La géométrie publiée est reproductible à l'octet ; les métadonnées portent un horodatage d'import
+assumé.**
+
+Vérifié : deux imports consécutifs, à `MASSIFS_GENERE_LE` figé, produisent les **mêmes sha256 sur les
+quatre artefacts**. Ce qui le garantit :
+
+| Élément | Ce qu'il fixe |
+|---|---|
+| `package-lock.json` | mapshaper **et toutes ses dépendances transitives**. Épingler `mapshaper: "0.6.102"` dans `package.json` ne suffisait pas |
+| `.nvmrc` | Le majeur de Node |
+| `.gitattributes` | Les octets sur le disque après clone |
+| `reference.json` | Le point de comparaison, et donc la détection de dérive |
+
+`genere_le` est le seul champ non reproductible, **délibérément** : il date l'import. Il n'est pas dérivé
+de la révision de la source (`2023-02-14`), parce que ce serait annoncer une date de génération fausse —
+dans un projet dont la règle cardinale est de ne jamais présenter une date pour une autre (§4.2, §4.5).
+
+`MASSIFS_GENERE_LE=AAAA-MM-JJThh:mm:ssZ` fige cet horodatage. C'est un **outil de preuve**, à n'utiliser
+que pour démontrer la reproductibilité : il ne sert **jamais** à produire des artefacts commités, qui
+doivent porter l'heure réelle de leur génération. Une forme non conforme arrête l'import au lieu d'être
+réinterprétée.
+
+## Contrôles bloquants de l'import
 
 Aucun artefact n'est écrit si l'un d'eux échoue (émission atomique : fichiers temporaires puis renommage).
 
@@ -191,31 +290,115 @@ Aucun artefact n'est écrit si l'un d'eux échoue (émission atomique : fichiers
 - une `Feature` publiée portant autre chose que `properties.code` ;
 - une bbox de massif qui déborde de l'emprise ;
 - géométrie > 300 Ko bruts, écart max > 120 m, écart de surface global > 0,5 %, pire massif > 3 %,
-  anneaux supprimés > 0,5 % de la surface.
+  anneaux supprimés > 0,5 % de la surface ;
+- un `MASSIFS_GENERE_LE` qui ne respecte pas `AAAA-MM-JJThh:mm:ssZ` ;
+- `node_modules/mapshaper` absent (la version consignée est lue dans son manifeste, jamais codée en dur).
+
+**Un seuil ne se desserre jamais pour faire passer un import.** Si l'import s'arrête sur un seuil, c'est le
+seuil qui a raison.
+
+Le renommage final porte sur les quatre artefacts. S'il échouait à mi-parcours, le dépôt porterait une
+géométrie neuve avec des métadonnées anciennes — donc un jeton de cache-busting **faux**. Dans ce cas
+l'import purge les temporaires restants, **nomme les fichiers déjà remplacés** et donne la commande
+`git checkout --` pour les restaurer. Il ne tente **aucun retour en arrière automatique** : ce serait une
+seconde écriture dans un état déjà incertain. Corollaire : partir d'un arbre de travail propre sur ces
+quatre fichiers.
 
 ## Simplification et budget
 
 ```
-mapshaper source.geojson -simplify dp interval=90 keep-shapes -o precision=0.0001 format=geojson sortie.json
+node node_modules/mapshaper/bin/mapshaper _src_code.geojson \
+  -simplify dp interval=90 keep-shapes \
+  -o precision=0.0001 format=geojson _simplifie.geojson
 ```
 
-Mesuré : **278 728 octets bruts** (74 133 gzip), 16 272 sommets conservés sur 160 602 (10,1 %),
-**écart maximal 94,55 m**, p99 79,3 m, moyenne 21,9 m, écart de surface global −0,07 %, pire massif
-`collines-de-gardanne` à 1,49 %. La topologie est préservée : les 10 frontières partagées sont simplifiées
-une seule fois, en arcs partagés — donc ni trou ni recouvrement entre voisins.
+Commande rejouable depuis `build/`, telle que le pipeline l'exécute. `_src_code.geojson` est la source
+réduite à `properties.code` (la géométrie publiée ne porte rien d'autre) et `_simplifie.geojson` la sortie
+avant émission : les deux sont créés puis supprimés par le pipeline. La commande exacte est aussi consignée
+dans `build/massifs-13.fidelite.json` (`simplification.argv` / `.commande`), construite à partir de l'argv
+réellement passé.
 
-Le budget de 300 Ko porte sur les **octets bruts**, pas sur le gzip : la compression HTTP n'est vérifiée sur
-aucune cible, elle reste une marge et non une béquille.
+Mesuré sur la **source archivée**, avec le lockfile en place (2026-08-13) : **278 894 octets bruts**,
+16 282 sommets conservés sur 160 594 (10,14 %), **écart maximal 93,62 m**, p99,9 88,25 m, p99 79,41 m,
+moyenne 21,93 m, écart de surface global −0,079 %, écart absolu moyen par massif 0,47 %, pire massif
+`collines-de-gardanne` à 1,44 %, 45 anneaux supprimés valant 0,086 % de la surface totale. La topologie est
+préservée : les 10 frontières partagées sont simplifiées une seule fois, en arcs partagés — donc ni trou ni
+recouvrement entre voisins.
 
-`zoom_max = 11` est **mesuré** : 94,55 m valent 0,85 px à z10 et 1,71 px à z11 à la latitude 43,5°. La carte
-officielle de référence est elle-même départementale ; l'écart est invisible à l'échelle où l'information est
-publiée. **Voie de relèvement documentée** : si la compression HTTP est confirmée sur la cible, `interval=20`
-donne un écart de 20 m, sous-pixel à z12, pour 809 833 octets bruts / 196 905 gzip — c'est un simple changement
-de `SIMPLIFICATION.intervalle_m` dans `importer.mjs`, aucun code applicatif à retoucher.
+Le budget de 300 Ko porte sur les **octets bruts**, pas sur le gzip.
 
-La source archivée est arrondie à 5 décimales (~1,1 m), très en dessous de l'intervalle de 90 m : un ré-import
-peut produire des octets différents de l'artefact actuel, mais des métriques équivalentes. La recette porte sur
-les **seuils**, jamais sur une égalité binaire.
+### Compression : marge, pas béquille
+
+Deux mesures, deux méthodes, jamais l'une présentée pour l'autre :
+
+| Méthode | Mesure | Date |
+|---|---|---|
+| Transféré, `bash tests/verifier-http.sh` sur la cible Docker (`mod_deflate`, `Accept-Encoding: gzip`) | **74 023 o** | 2026-08-13 |
+| Build, `zlib.gzipSync` (consigné dans `massifs-13.fidelite.json`) | **73 737 o** | 2026-08-13 |
+
+Le budget reste exprimé en **octets bruts** : la cible mesurée est la stack Docker locale, **la production
+o2switch ne l'est pas**. Une compression confirmée sur un environnement ne l'est pas sur l'autre ; elle
+reste une marge.
+
+### `zoom_max = 11`, et pourquoi pas `interval=20`
+
+`zoom_max = 11` est **mesuré** : 93,62 m valent 0,844 px à z10 et 1,688 px à z11 à la latitude 43,5°
+(échelle calculée, non saisie : 110,89 m/px à z10, 55,45 à z11, 27,72 à z12, 13,86 à z13). L'écart est
+donc sous-pixel jusqu'à z10 inclus. La carte officielle de référence est elle-même départementale : l'écart
+est invisible à l'échelle où l'information est publiée.
+
+`interval=20 m` a été mesuré et **écarté**. Trois raisons, écrites une fois pour que la question ne se
+redécouvre pas à chaque revue :
+
+1. **L'interdit 12 du contrat plafonne la couche massifs à z11.** Une fidélité sous-pixel à z12 n'est
+   visible à aucun zoom que le front est autorisé à proposer.
+2. **Le coût est hors budget** : 809 966 octets bruts, soit **2,64 × le budget brut** de 300 Ko, et
+   47 931 sommets, soit **2,94 ×** ceux d'aujourd'hui — autant à décompresser, analyser et rasteriser sur
+   mobile, contre les 2,5 s du §10 (mesuré le 2026-08-13, même outillage).
+3. **Le consommateur n'existe pas encore** : la carte n'est pas écrite. Resserrer une tolérance pour un
+   besoin que personne n'a exprimé, c'est payer un coût mesuré contre un bénéfice supposé.
+
+Ce n'est pas une porte fermée : `SIMPLIFICATION.intervalle_m` dans `importer.mjs` est un seul paramètre,
+aucun code applicatif à retoucher. Mais la décision appartient à la chaîne qui construira la carte, avec
+une mesure de terrain à l'appui.
+
+**Question ouverte, adressée à la chaîne front qui construira la carte** : le §10 du brief écrit
+« géométries < 300 Ko » sans préciser **bruts ou transférés**. Le référentiel a tranché pour les octets
+bruts (arbitrage B-11), l'hypothèse la plus stricte. Si le propriétaire du projet confirme que le budget
+porte sur le transféré, la marge disponible change complètement — et la question du point 2 se rouvre.
+
+### Pourquoi les octets peuvent bouger à source inchangée
+
+**Une dépendance transitive de mapshaper qui remonte change la sortie.** C'est constaté, pas supposé : à
+source rigoureusement identique (même sha256 `d0316cbc…`, 3 022 441 o), l'import initial — sans lockfile,
+dépendances transitives résolues par intervalle sémantique — produisait **278 728 octets**, le ré-import
+sous lockfile en produit **278 894**. C'est précisément la raison du lockfile, de `.nvmrc` et de
+`reference.json`.
+
+### Trois écarts maximaux, trois provenances
+
+Trois nombres circulent dans ce dépôt pour « l'écart maximal ». **Ils sont tous les trois exacts et ils ne
+mesurent pas la même chose.** Aucun ne peut être présenté à la place d'un autre.
+
+| Valeur | Géométrie mesurée | Source de référence | Qui l'a produite |
+|---|---|---|---|
+| **94,55 m** | l'ancienne, 278 728 o | le téléchargement **pleine précision**, 3 664 738 o | chaîne #2, avec son propre outillage. **Cette source est absente du dépôt** : le chiffre n'est donc plus recalculable |
+| **94,31 m** | **la même**, 278 728 o | l'**archive à 5 décimales**, 3 022 441 o | `verifier.mjs`, re-mesure. Même géométrie que ci-dessus, même code de mesure : seule la source de référence change |
+| **93,62 m** | la nouvelle, 278 894 o | la même archive à 5 décimales | l'import sous lockfile. **C'est la valeur courante**, celle que porte `reference.json` |
+
+Deux variables distinctes, à ne pas confondre :
+
+- **94,55 → 94,31** : la géométrie n'a pas bougé d'un octet. Seule la **source contre laquelle on mesure**
+  change — pleine précision contre archive arrondie à 5 décimales (~1,1 m). L'ancien artefact de recette le
+  disait lui-même : « les métriques ci-dessous ont été mesurées sur la source pleine précision ». C'est
+  aussi la raison d'être de `TOLERANCES.ecart_m = 2` dans `verifier.mjs`, écrite dès la chaîne #2 : sans
+  elle, la recette aurait été rouge en permanence sur une différence attendue.
+- **94,31 → 93,62** : la source de mesure est la même. C'est la **géométrie** qui a changé, sous l'effet de
+  la remontée de dépendance décrite ci-dessus.
+
+Depuis le lockfile, cette ambiguïté est fermée : les seuils disent que la géométrie est acceptable,
+`reference.json` dit qu'elle est **la même**, et les deux se mesurent contre l'archive versionnée — la
+seule source que n'importe qui peut recalculer depuis le dépôt.
 
 ## Lacunes assumées
 

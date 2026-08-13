@@ -266,10 +266,36 @@ chargé via `RUN a2enmod ... deflate` dans le `Dockerfile`) pour
 `wp-content/plugins/massifs-core/data/massifs-13.geometrie.json`, servi tel
 quel par Apache : avec un client qui négocie `Accept-Encoding: gzip`, la
 réponse revient avec `Content-Encoding: gzip` et une taille transférée
-divisée par ~3,8 (mesuré : 278 728 o bruts → ~74 Ko gzippés). C'est le budget
-poids §10 du brief, et ce qui permet à la chaîne `carte` de resserrer la
-tolérance de simplification de la géométrie (90 m → 20 m) en s'appuyant sur
-une compression confirmée plutôt que supposée.
+divisée par ~3,8 — **278 894 o bruts → 74 023 o transférés**, mesuré le
+2026-08-13 par `bash tests/verifier-http.sh` sur cette stack.
+
+Deux précisions qui évitent de sur-interpréter ce chiffre.
+
+**Brut ≠ transféré, et le budget porte sur le brut.** Le §10 du brief plafonne
+les géométries à 300 Ko ; l'arbitrage B-11 du contrat `docs/contracts/issue-2.md`
+a tranché pour les **octets bruts**, l'hypothèse la plus stricte. La cible
+mesurée ici est la stack Docker locale ; **la production o2switch n'est pas
+mesurée**. La compression reste donc une **marge, pas une béquille**. À ne pas
+confondre non plus avec les 73 737 o mesurés au build par `zlib.gzipSync` et
+consignés dans `massifs-13.fidelite.json` : deux méthodes, deux nombres, jamais
+l'un présenté pour l'autre.
+
+**Cette compression n'autorise pas à resserrer la simplification de la
+géométrie** (90 m → 20 m). Trois raisons, mesurées le 2026-08-13 avec
+l'outillage épinglé :
+
+1. l'interdit 12 du contrat plafonne la couche massifs à **z11** ; une fidélité
+   sous-pixel à z12 n'est visible à aucun zoom que le front est autorisé à
+   proposer ;
+2. `interval=20 m` pèse **809 966 o bruts**, soit 2,64 × le budget brut, et
+   47 931 sommets, soit 2,94 × ceux d'aujourd'hui — autant à décompresser,
+   analyser et rasteriser sur mobile, contre les 2,5 s du §10 ;
+3. le consommateur — la carte — n'est pas écrit. Le choix appartient à la
+   chaîne qui la construira, mesure de terrain à l'appui.
+
+Détail et voie de relèvement :
+`wp-content/plugins/massifs-core/includes/domain/massifs/README.md`,
+section « Simplification et budget ».
 
 ### Garde-fou sur les fichiers .php de thème/extension
 
@@ -295,6 +321,24 @@ existant de la chaîne `referentiel` (celui-ci continue de protéger son
 sous-arbre même en dehors de cette image, ex. un hébergement mutualisé sans
 cette configuration Apache globale — la défense reste en profondeur, pas en
 un seul point).
+
+**Second bloc : des sous-arbres entiers, pas seulement les `.php`.** Le premier
+bloc laissait partir en 200 tout ce qui n'est pas `.php` — un `README.md` de
+note interne, un `.json`, un `.geojson`. `plugins-guard.conf` refuse donc aussi
+`includes/`, `build/` et `node_modules/` à n'importe quelle profondeur sous
+`wp-content/plugins/` ou `wp-content/themes/` : ces trois noms désignent des
+répertoires structurellement non publics (code de domaine, outillage de build,
+dépendances npm). Un sous-arbre refusé protège aussi les fichiers qui n'existent
+pas encore, ce qu'une liste noire de noms ne fait pas.
+
+Deux répertoires sont **délibérément épargnés** et doivent le rester :
+`wp-content/themes/massifs/assets/` (CSS, polices auto-hébergées et
+`assets/vendor/` qui portera Leaflet vendorisé — le §3 du brief impose de servir
+ces fichiers depuis notre origine) et `wp-content/plugins/massifs-core/data/`
+(géométrie publiée, puis caches météo / EFFIS / tuiles des chaînes suivantes).
+La matrice HTTP de `tests/verifier-http.sh` fixe les deux sens : `403` sur
+`build/source/` et `build/identites.json`, `200` sur la géométrie de `data/` et
+sur `themes/massifs/style.css`.
 
 ## Windows (win32)
 

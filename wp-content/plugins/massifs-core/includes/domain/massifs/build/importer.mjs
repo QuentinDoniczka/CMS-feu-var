@@ -2,7 +2,9 @@
  * Import du référentiel des massifs forestiers des Bouches-du-Rhône.
  *
  * Chaîne reproductible : source archivée -> réconciliation d'identités ->
- * simplification mapshaper -> émission atomique des trois artefacts.
+ * simplification mapshaper -> émission atomique des quatre artefacts
+ * (`data/massifs-13.geometrie.json`, `data/massifs-13.php`,
+ * `build/massifs-13.fidelite.json`, `build/reference.json`).
  *
  *   node importer.mjs      (ou : npm run importer)
  *
@@ -10,6 +12,11 @@
  * partent d'abord dans des fichiers temporaires, puis sont renommées en bloc.
  * Un import à moitié appliqué laisserait le site avec une géométrie neuve et
  * des métadonnées anciennes — donc un cache-busting faux.
+ *
+ * La géométrie est reproductible à l'octet. Les métadonnées portent un
+ * horodatage d'import assumé : `MASSIFS_GENERE_LE=AAAA-MM-JJThh:mm:ssZ` le fige
+ * pour DÉMONTRER cette reproductibilité, et ne sert jamais à produire des
+ * artefacts commités.
  *
  * L'import peut mettre à jour une géométrie automatiquement ; il ne peut jamais
  * créer, supprimer, renommer ni re-lier une identité sans décision humaine.
@@ -27,15 +34,31 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const RACINE = path.dirname( fileURLToPath( import.meta.url ) );
-const EXTENSION = path.resolve( RACINE, '../../../..' );
 
-const CHEMINS = {
+/** Racine de l'extension, telle que la voit aussi la recette. */
+export const EXTENSION = path.resolve( RACINE, '../../../..' );
+
+/** Racine du dépôt : sert à composer des commandes `git` copiables telles quelles. */
+const DEPOT = path.resolve( EXTENSION, '../../..' );
+
+/**
+ * Chemins des artefacts, définis ici et importés par `verifier.mjs`.
+ *
+ * Une seconde liste de chemins recopiée dans la recette finirait par contrôler
+ * un autre fichier que celui qu'écrit l'import — une recette verte sur le mauvais
+ * fichier est pire que pas de recette.
+ */
+export const CHEMINS = {
 	source: path.join( RACINE, 'source/massifs-13.full.geojson' ),
 	identites: path.join( RACINE, 'identites.json' ),
 	geometrie: path.join( EXTENSION, 'data/massifs-13.geometrie.json' ),
 	metadonnees: path.join( EXTENSION, 'data/massifs-13.php' ),
-	fidelite: path.join( EXTENSION, 'data/massifs-13.fidelite.json' ),
+	// `data/` est servi au navigateur, `build/` ne l'est jamais : un artefact de
+	// recette n'a rien à faire à une URL publique.
+	fidelite: path.join( RACINE, 'massifs-13.fidelite.json' ),
+	reference: path.join( RACINE, 'reference.json' ),
 	mapshaper: path.join( RACINE, 'node_modules/mapshaper/bin/mapshaper' ),
+	mapshaper_manifeste: path.join( RACINE, 'node_modules/mapshaper/package.json' ),
 };
 
 /** Chemin de la source archivée, relatif à la racine de l'extension, tel que consigné dans les artefacts. */
@@ -61,6 +84,14 @@ export const SIMPLIFICATION = {
 	precision_decimales: 4,
 	zoom_max: 11,
 };
+
+/**
+ * Zooms auxquels l'écart de simplification est converti en pixels.
+ *
+ * z10 est le zoom départemental, z11 le plafond de la couche (`zoom_max`) ; z12
+ * et z13 sont conservés pour montrer où l'écart cesse d'être sous-pixel.
+ */
+export const ZOOMS_EVALUES = [ 10, 11, 12, 13 ];
 
 /**
  * Seuils de recette. Le budget est exprimé en octets BRUTS : la compression
@@ -134,9 +165,70 @@ export const LACUNES = {
 	},
 };
 
+/**
+ * Projection locale équirectangulaire dans laquelle TOUTES les distances et
+ * surfaces sont mesurées, à la latitude de référence du département.
+ *
+ * Les définitions consignées dans l'artefact de recette sont composées à partir
+ * de ces constantes : une formule réécrite à la main dans la phrase finirait par
+ * décrire une autre projection que celle qui a produit les mesures.
+ */
 const LAT_REFERENCE = 43.5;
 const METRES_PAR_DEGRE_LAT = 110540;
-const METRES_PAR_DEGRE_LON = 111320 * Math.cos( ( LAT_REFERENCE * Math.PI ) / 180 );
+const METRES_PAR_DEGRE_LON_EQUATEUR = 111320;
+const METRES_PAR_DEGRE_LON =
+	METRES_PAR_DEGRE_LON_EQUATEUR * Math.cos( ( LAT_REFERENCE * Math.PI ) / 180 );
+
+/** Côté d'une tuile web-mercator, en pixels. */
+const TAILLE_TUILE_PX = 256;
+
+/** Longitudes couvertes par le niveau de zoom 0, en degrés. */
+const DEGRES_DE_LONGITUDE = 360;
+
+/** Borne de recherche du zoom sous-pixel : au-delà, aucun fond de carte ne propose de niveau. */
+const ZOOM_RECHERCHE_MAX = 22;
+
+/**
+ * Décimales conservées sur les bbox et les centres publiés.
+ *
+ * C'est la précision que porte déjà la source archivée (~1,1 m) : en écrire
+ * davantage annoncerait une précision que la donnée n'a pas.
+ */
+const DECIMALES_COORDONNEES = 5;
+
+/**
+ * Définitions portées par l'artefact de recette.
+ *
+ * Ce ne sont pas des mesures mais les conventions SANS LESQUELLES les mesures ne
+ * veulent rien dire : « écart max 94 m » est illisible tant qu'on ne sait pas
+ * dans quel sens l'écart est mesuré ni dans quelle projection. Les détruire
+ * viderait la garantie §4.1 de son contenu opposable.
+ */
+export const RECETTE = {
+	a_propos:
+		'Recette de fidélité des périmètres (§4.1, §12). Artefact de recette : hors contrat, aucun consommateur applicatif ne le lit. Régénéré par `npm run importer`, revérifié par `npm run verifier`.',
+	deviation_definition: {
+		primary:
+			'source_to_simplified: for every vertex of every source ring, distance to the nearest segment of the matched simplified ring (one-sided Hausdorff, source -> simplified). This is the direction that carries the simplification error.',
+		secondary:
+			'quantization_max_m = simplified_to_source: distance from every simplified vertex to the nearest source segment. Douglas-Peucker never moves a vertex, so this measures only the coordinate rounding to 4 decimals.',
+	},
+	projection_metriques: {
+		type: 'local equirectangular',
+		x_m: `lon * cos(${ LAT_REFERENCE } deg) * ${ METRES_PAR_DEGRE_LON_EQUATEUR }`,
+		y_m: `lat * ${ METRES_PAR_DEGRE_LAT }`,
+		accuracy_note: '~0.1% over the 130 km extent of the departement',
+	},
+	topology_note:
+		'mapshaper builds a shared-arc topology on import; the 10 shared borders are simplified once as shared arcs, so no gaps or overlaps can appear.',
+	zooms_evalues: ZOOMS_EVALUES,
+};
+
+/** Message unique : deux formulations divergentes du même remède se périmeraient séparément. */
+const MAPSHAPER_ABSENT = 'mapshaper est absent : lancer `npm ci` dans includes/domain/massifs/build/.';
+
+/** Forme imposée à `MASSIFS_GENERE_LE` : ISO 8601 en UTC, à la seconde. */
+const FORME_HORODATAGE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
 /** Arrêt volontaire de l'import : rien n'a été écrit. */
 export class Arret extends Error {}
@@ -172,6 +264,121 @@ function lireJson( chemin ) {
 function arrondir( valeur, decimales ) {
 	const facteur = 10 ** decimales;
 	return Math.round( valeur * facteur ) / facteur;
+}
+
+/** Chemin rendu relatif à `build/`, en séparateurs POSIX : rejouable sur n'importe quelle machine. */
+function relatifAuBuild( chemin ) {
+	return path.relative( RACINE, chemin ).split( path.sep ).join( '/' );
+}
+
+/** Chemin rendu relatif à la racine du dépôt : utilisable tel quel dans une commande git. */
+function relatifAuDepot( chemin ) {
+	return path.relative( DEPOT, chemin ).split( path.sep ).join( '/' );
+}
+
+/**
+ * Version de mapshaper réellement installée, lue dans son manifeste.
+ *
+ * Codée en dur, elle mentait dès la première montée de version du lockfile — et
+ * l'artefact de recette affirmait alors un outillage qui n'était plus celui qui
+ * avait produit la géométrie.
+ */
+export function versionMapshaper() {
+	if ( ! fs.existsSync( CHEMINS.mapshaper_manifeste ) ) {
+		throw new Arret( MAPSHAPER_ABSENT );
+	}
+
+	return lireJson( CHEMINS.mapshaper_manifeste ).version;
+}
+
+/**
+ * Majeur de Node en cours d'exécution.
+ *
+ * Consigné par l'import dans `reference.json`, recomparé par la recette : les
+ * deux doivent lire la même valeur de la même façon, donc au même endroit.
+ */
+export function nodeMajeur() {
+	return Number.parseInt( process.versions.node.split( '.' )[ 0 ], 10 );
+}
+
+/**
+ * Horodatage porté par tous les artefacts émis.
+ *
+ * `MASSIFS_GENERE_LE` est un OUTIL DE PREUVE : il fige l'horodatage pour
+ * démontrer que deux imports successifs produisent les mêmes octets. Il ne sert
+ * jamais à produire les artefacts commités, qui portent l'heure réelle de leur
+ * génération. Une forme approximative est refusée plutôt que réinterprétée : une
+ * date silencieusement décalée est exactement ce que ce projet s'interdit.
+ */
+export function horodatageImport() {
+	const impose = process.env.MASSIFS_GENERE_LE;
+
+	if ( undefined === impose || '' === impose ) {
+		return new Date().toISOString().replace( /\.\d{3}Z$/, 'Z' );
+	}
+
+	if ( ! FORME_HORODATAGE.test( impose ) ) {
+		throw new Arret(
+			`MASSIFS_GENERE_LE = « ${ impose } » ne respecte pas AAAA-MM-JJThh:mm:ssZ. ` +
+				'Rien n\'a été écrit : corriger la variable, ou la retirer pour horodater à l\'heure réelle.'
+		);
+	}
+
+	return impose;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Échelle : mètres par pixel                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Résolution d'un pixel de tuile web-mercator à la latitude de référence.
+ *
+ * Dérivée des constantes déjà utilisées pour projeter les mesures : aucune valeur
+ * d'échelle n'est saisie à la main, donc aucune ne peut se désaligner de la
+ * projection dans laquelle les écarts sont mesurés.
+ */
+export function metresParPixel( zoom ) {
+	return ( METRES_PAR_DEGRE_LON * DEGRES_DE_LONGITUDE ) / ( TAILLE_TUILE_PX * 2 ** zoom );
+}
+
+/** Convertit un écart métrique en pixels, zoom par zoom. */
+export function deviationsEnPixels( ecartMetres, zooms = ZOOMS_EVALUES ) {
+	const pixels = {};
+
+	for ( const zoom of zooms ) {
+		pixels[ `z${ zoom }` ] = arrondir( ecartMetres / metresParPixel( zoom ), 3 );
+	}
+
+	return pixels;
+}
+
+/**
+ * Zoom le plus élevé auquel l'écart reste sous le pixel.
+ *
+ * Un entier, pas une étiquette : `subpixel_below_zoom: "z10"` se lisait aussi
+ * bien « sous-pixel à z10 » que « sous-pixel en dessous de z10 », deux
+ * affirmations différentes.
+ */
+export function maxZoomSousPixel( ecartMetres, zoomMaximal = ZOOM_RECHERCHE_MAX ) {
+	let zoom = 0;
+
+	while ( zoom < zoomMaximal && ecartMetres < metresParPixel( zoom + 1 ) ) {
+		zoom += 1;
+	}
+
+	return zoom;
+}
+
+/** Échelle consignée dans l'artefact de recette, aux zooms évalués. */
+export function echelleParZoom( zooms = ZOOMS_EVALUES ) {
+	const echelle = {};
+
+	for ( const zoom of zooms ) {
+		echelle[ `z${ zoom }` ] = arrondir( metresParPixel( zoom ), 2 );
+	}
+
+	return echelle;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -332,12 +539,15 @@ export function mesurerMassif( geometrie ) {
 
 	return {
 		bbox: {
-			ouest: arrondir( boite.ouest, 5 ),
-			sud: arrondir( boite.sud, 5 ),
-			est: arrondir( boite.est, 5 ),
-			nord: arrondir( boite.nord, 5 ),
+			ouest: arrondir( boite.ouest, DECIMALES_COORDONNEES ),
+			sud: arrondir( boite.sud, DECIMALES_COORDONNEES ),
+			est: arrondir( boite.est, DECIMALES_COORDONNEES ),
+			nord: arrondir( boite.nord, DECIMALES_COORDONNEES ),
 		},
-		centre: { lon: arrondir( lon, 5 ), lat: arrondir( lat, 5 ) },
+		centre: {
+			lon: arrondir( lon, DECIMALES_COORDONNEES ),
+			lat: arrondir( lat, DECIMALES_COORDONNEES ),
+		},
 	};
 }
 
@@ -488,6 +698,8 @@ export function mesurerFidelite( sourceFC, simplifieFC ) {
 	const pires = [ ...parMassif ].sort(
 		( a, b ) => Math.abs( b.area_delta_pct ) - Math.abs( a.area_delta_pct )
 	);
+	const ecartMaximal = arrondir( ecarts[ ecarts.length - 1 ], 2 );
+	const ecartP99 = quantile( 0.99 );
 
 	return {
 		global_metrics: {
@@ -503,12 +715,24 @@ export function mesurerFidelite( sourceFC, simplifieFC ) {
 			src_area_km2: arrondir( aireSource, 4 ),
 			out_area_km2: arrondir( aireSimplifiee, 4 ),
 			area_delta_pct: arrondir( ( 100 * ( aireSimplifiee - aireSource ) ) / aireSource, 4 ),
+			// Moyenne des écarts ABSOLUS par massif : l'écart global se compense
+			// entre massifs qui grossissent et massifs qui maigrissent, et sous-estime
+			// donc l'ampleur réelle de la déformation individuelle.
+			area_delta_abs_mean_pct: arrondir(
+				parMassif.reduce( ( somme, m ) => somme + Math.abs( m.area_delta_pct ), 0 ) / parMassif.length,
+				4
+			),
 			area_delta_abs_worst_pct: Math.abs( pires[ 0 ].area_delta_pct ),
 			area_delta_abs_worst_massif: pires[ 0 ].code,
-			max_deviation_m: arrondir( ecarts[ ecarts.length - 1 ], 2 ),
-			p99_deviation_m: quantile( 0.99 ),
+			max_deviation_m: ecartMaximal,
+			p999_deviation_m: quantile( 0.999 ),
+			p99_deviation_m: ecartP99,
 			mean_deviation_m: arrondir( ecarts.reduce( ( a, b ) => a + b, 0 ) / ecarts.length, 3 ),
 			quantization_max_m: arrondir( quantisationMax, 3 ),
+			metres_per_pixel_at_lat_43_5: echelleParZoom(),
+			max_deviation_px: deviationsEnPixels( ecartMaximal ),
+			p99_deviation_px: deviationsEnPixels( ecartP99 ),
+			max_zoom_subpixel: maxZoomSousPixel( ecartMaximal ),
 		},
 		per_massif: parMassif,
 	};
@@ -816,14 +1040,14 @@ export function construireDonnees( { lignes, geometrie, genereLe, sourceSha256, 
 		geometrie,
 		emprise: {
 			bbox: {
-				ouest: flottant( arrondir( bbox.ouest, 5 ) ),
-				sud: flottant( arrondir( bbox.sud, 5 ) ),
-				est: flottant( arrondir( bbox.est, 5 ) ),
-				nord: flottant( arrondir( bbox.nord, 5 ) ),
+				ouest: flottant( arrondir( bbox.ouest, DECIMALES_COORDONNEES ) ),
+				sud: flottant( arrondir( bbox.sud, DECIMALES_COORDONNEES ) ),
+				est: flottant( arrondir( bbox.est, DECIMALES_COORDONNEES ) ),
+				nord: flottant( arrondir( bbox.nord, DECIMALES_COORDONNEES ) ),
 			},
 			centre: {
-				lon: flottant( arrondir( ( bbox.ouest + bbox.est ) / 2, 5 ) ),
-				lat: flottant( arrondir( ( bbox.sud + bbox.nord ) / 2, 5 ) ),
+				lon: flottant( arrondir( ( bbox.ouest + bbox.est ) / 2, DECIMALES_COORDONNEES ) ),
+				lat: flottant( arrondir( ( bbox.sud + bbox.nord ) / 2, DECIMALES_COORDONNEES ) ),
 			},
 			zoom_max: SIMPLIFICATION.zoom_max,
 		},
@@ -965,6 +1189,15 @@ export function verdict( controles, metriques, octets ) {
 /* Émission atomique                                                           */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Émission atomique des artefacts : tout en temporaires, puis renommage en bloc.
+ *
+ * Si un renommage échoue à mi-parcours, le dépôt porte une géométrie neuve avec
+ * des métadonnées anciennes — donc un jeton de cache-busting FAUX. On ne tente
+ * aucun retour en arrière automatique : ce serait une seconde écriture dans un
+ * état déjà incertain. On purge ce qui n'est pas encore posé, on nomme
+ * exactement ce qui l'est, et la reprise reste une décision humaine.
+ */
 function ecrireAtomique( sorties ) {
 	const temporaires = sorties.map( ( { chemin, contenu } ) => {
 		const temporaire = `${ chemin }.tmp`;
@@ -972,14 +1205,37 @@ function ecrireAtomique( sorties ) {
 		return { temporaire, chemin };
 	} );
 
+	const renommes = [];
+
 	for ( const { temporaire, chemin } of temporaires ) {
-		fs.renameSync( temporaire, chemin );
+		try {
+			fs.renameSync( temporaire, chemin );
+			renommes.push( chemin );
+		} catch ( erreur ) {
+			for ( const reste of temporaires ) {
+				if ( fs.existsSync( reste.temporaire ) ) {
+					fs.unlinkSync( reste.temporaire );
+				}
+			}
+
+			const restauration =
+				renommes.length > 0
+					? renommes.map( ( fichier ) => `    git checkout -- ${ relatifAuDepot( fichier ) }` ).join( '\n' )
+					: '    (aucun — le premier renommage a échoué, les artefacts en place sont intacts)';
+
+			throw new Arret(
+				`Renommage impossible vers ${ relatifAuDepot( chemin ) } : ${ erreur.message }\n` +
+					'Les temporaires restants ont été purgés. Fichiers DÉJÀ remplacés, à restaurer à la main :\n' +
+					`${ restauration }\n` +
+					'Aucun retour en arrière automatique : réécrire dans un état incertain l\'aggraverait.'
+			);
+		}
 	}
 }
 
 function simplifier( sourceFC ) {
 	if ( ! fs.existsSync( CHEMINS.mapshaper ) ) {
-		throw new Arret( 'mapshaper est absent : lancer `npm ci` dans includes/domain/massifs/build/.' );
+		throw new Arret( MAPSHAPER_ABSENT );
 	}
 
 	const entree = path.join( RACINE, '_src_code.geojson' );
@@ -1022,7 +1278,98 @@ function simplifier( sourceFC ) {
 	fs.unlinkSync( entree );
 	fs.unlinkSync( sortie );
 
-	return contenu;
+	// Argv réellement exécuté, chemins ramenés à `build/` : le chemin absolu du
+	// binaire node de la machine n'a rien à faire dans un artefact versionné, il
+	// produirait une dérive fantôme à chaque changement de poste.
+	return {
+		contenu,
+		argv: [
+			'node',
+			...arguments_.map( ( argument ) =>
+				path.isAbsolute( argument ) ? relatifAuBuild( argument ) : argument
+			),
+		],
+	};
+}
+
+/* -------------------------------------------------------------------------- */
+/* Empreinte de référence et dérive                                            */
+/* -------------------------------------------------------------------------- */
+
+/** Aplatit un objet en `chemin.pointé -> valeur`, pour comparer clé par clé. */
+function aplatir( valeur, prefixe = '', sortie = {} ) {
+	if ( null !== valeur && 'object' === typeof valeur && ! Array.isArray( valeur ) ) {
+		for ( const [ cle, sous ] of Object.entries( valeur ) ) {
+			aplatir( sous, '' === prefixe ? cle : `${ prefixe }.${ cle }`, sortie );
+		}
+
+		return sortie;
+	}
+
+	sortie[ prefixe ] = Array.isArray( valeur ) ? JSON.stringify( valeur ) : valeur;
+
+	return sortie;
+}
+
+/**
+ * Affiche la dérive par rapport au `reference.json` en place, avant de l'écraser.
+ *
+ * Sans cet affichage, un ré-import remplace l'empreinte de référence en silence
+ * et personne ne voit ce qui a bougé : le mécanisme de détection de dérive
+ * s'auto-annulerait à chaque exécution.
+ */
+function afficherDerive( ancienne, nouvelle ) {
+	if ( ! ancienne ) {
+		process.stdout.write( 'Aucun reference.json en place : première émission, rien à comparer.\n' );
+		return;
+	}
+
+	const avant = aplatir( ancienne );
+	const apres = aplatir( nouvelle );
+	const cles = [ ...new Set( [ ...Object.keys( avant ), ...Object.keys( apres ) ] ) ].filter(
+		( cle ) => 'a_propos' !== cle
+	);
+	const lignes = cles
+		.filter( ( cle ) => avant[ cle ] !== apres[ cle ] )
+		.map( ( cle ) => `  ${ cle } : ${ avant[ cle ] } → ${ apres[ cle ] }` );
+
+	if ( 0 === lignes.length ) {
+		process.stdout.write( 'DÉRIVE PAR RAPPORT À reference.json : aucune.\n' );
+		return;
+	}
+
+	process.stdout.write( `DÉRIVE PAR RAPPORT À reference.json :\n${ lignes.join( '\n' ) }\n` );
+}
+
+/**
+ * Empreinte de référence des artefacts, émise par l'import et jamais éditée.
+ *
+ * Elle rend la reproductibilité vérifiable : la recette compare les artefacts en
+ * place à ces valeurs. Aucune taille gzip ici — la sortie de zlib varie avec sa
+ * version et créerait une dérive fantôme sans aucun changement de géométrie.
+ */
+function construireReference( { genereLe, mapshaper, empreinteSource, octetsSource, empreinte, octets, metriques } ) {
+	return {
+		a_propos:
+			'Empreinte de référence des artefacts. ÉMIS PAR `npm run importer`, jamais édité à la main. `npm run verifier` compare les artefacts en place à ces valeurs : une différence est une dérive à expliquer. Si le changement est voulu, régénérer les artefacts ET ce fichier par `npm run importer`, dans le même commit.',
+		genere_le: genereLe,
+		outillage: {
+			mapshaper,
+			node_major: nodeMajeur(),
+		},
+		source: {
+			fichier: CHEMIN_SOURCE_RELATIF,
+			sha256: empreinteSource,
+			octets: octetsSource,
+		},
+		geometrie: {
+			fichier: path.basename( CHEMINS.geometrie ),
+			sha256: empreinte,
+			octets,
+			sommets: metriques.global_metrics.out_vertices,
+			ecart_max_m: metriques.global_metrics.max_deviation_m,
+		},
+	};
 }
 
 export async function importer() {
@@ -1031,13 +1378,15 @@ export async function importer() {
 	const registre = lireJson( CHEMINS.identites );
 	const empreinteSource = sha256( sourceBrute );
 	const nomGeometrie = path.basename( CHEMINS.geometrie );
+	const genereLe = horodatageImport();
+	const mapshaper = versionMapshaper();
 
 	const { lignes: appariement, journal } = reconcilier( sourceFC, registre );
 	const lignes = construireLignes( appariement );
 
 	journal.forEach( ( entree ) => process.stdout.write( `  · ${ entree }\n` ) );
 
-	const geometrieBrute = simplifier( sourceFC );
+	const { contenu: geometrieBrute, argv } = simplifier( sourceFC );
 	const simplifieFC = JSON.parse( geometrieBrute.toString( 'utf8' ) );
 	const empreinte = sha256( geometrieBrute );
 	const octets = geometrieBrute.length;
@@ -1046,7 +1395,7 @@ export async function importer() {
 
 	const donnees = construireDonnees( {
 		lignes,
-		genereLe: new Date().toISOString().replace( /\.\d{3}Z$/, 'Z' ),
+		genereLe,
 		sourceSha256: empreinteSource,
 		archive: {
 			fichier: CHEMIN_SOURCE_RELATIF,
@@ -1079,16 +1428,28 @@ export async function importer() {
 		throw new Arret( `Contrôles en échec : ${ conclusion.controles_en_echec.join( ', ' ) }. Rien n'a été écrit.` );
 	}
 
+	const nomSource = path.basename( CHEMINS.source );
 	const fidelite = {
 		artefact: nomGeometrie,
-		genere_le: donnees.genere_le,
+		a_propos: RECETTE.a_propos,
+		genere_le: genereLe,
+		// Tout ce bloc est MESURÉ sur la source archivée — celle que relit un
+		// ré-import et que n'importe qui peut recalculer depuis le dépôt. Aucune
+		// valeur héritée d'un fichier absent du dépôt : une preuve invérifiable
+		// n'est pas une preuve.
 		source: {
 			file: CHEMIN_SOURCE_RELATIF,
 			features: sourceFC.features.length,
 			rings: metriques.global_metrics.src_rings,
 			coordinate_pairs: metriques.global_metrics.src_vertices,
 			raw_bytes: sourceBrute.length,
+			gzip_bytes: gzipSync( sourceBrute ).length,
+			sha256: empreinteSource,
 			crs: PROVENANCE.crs_publie,
+			note:
+				`Copie de la source ramenée à 5 décimales (~1,1 m), très en dessous de l'intervalle de ` +
+				`simplification de ${ SIMPLIFICATION.intervalle_m } m. C'est ce fichier que relit un ré-import, ` +
+				'et le seul sur lequel les métriques ci-dessous sont mesurées.',
 		},
 		// `verifier.mjs` compare cette empreinte à celle du fichier relu : sans ce
 		// bloc, la recette échoue sur une clé absente au lieu d'une dérive réelle.
@@ -1096,15 +1457,26 @@ export async function importer() {
 			[ nomGeometrie ]: empreinte,
 		},
 		simplification: {
-			tool: 'mapshaper 0.6.102',
+			tool: `mapshaper ${ mapshaper }`,
 			algorithm: 'Douglas-Peucker',
 			interval_m: SIMPLIFICATION.intervalle_m,
 			keep_shapes: true,
-			output_coordinate_precision_deg: 0.0001,
+			output_coordinate_precision_deg: Number( `0.${ '0'.repeat( SIMPLIFICATION.precision_decimales - 1 ) }1` ),
 			topology_preserved: true,
+			topology_note: RECETTE.topology_note,
+			argv,
+			commande: argv.join( ' ' ),
+			temporaires_note:
+				'Commande rejouable depuis `includes/domain/massifs/build/`. `_src_code.geojson` est la source ' +
+				'réduite à `properties.code` (la géométrie publiée ne porte rien d\'autre), `_simplifie.geojson` ' +
+				'la sortie de mapshaper avant émission : les deux sont créés puis supprimés par le pipeline.',
 		},
+		projection_used_for_metrics: RECETTE.projection_metriques,
+		deviation_definition: RECETTE.deviation_definition,
+		zooms_evalues: RECETTE.zooms_evalues,
 		sizes: {
 			[ nomGeometrie ]: { raw_bytes: octets, gzip_bytes: gzipSync( geometrieBrute ).length },
+			[ nomSource ]: { raw_bytes: sourceBrute.length, gzip_bytes: gzipSync( sourceBrute ).length },
 		},
 		seuils: SEUILS,
 		global_metrics: metriques.global_metrics,
@@ -1113,15 +1485,29 @@ export async function importer() {
 		verdict: conclusion,
 	};
 
+	const reference = construireReference( {
+		genereLe,
+		mapshaper,
+		empreinteSource,
+		octetsSource: sourceBrute.length,
+		empreinte,
+		octets,
+		metriques,
+	} );
+
+	afficherDerive( fs.existsSync( CHEMINS.reference ) ? lireJson( CHEMINS.reference ) : null, reference );
+
 	ecrireAtomique( [
 		{ chemin: CHEMINS.geometrie, contenu: geometrieBrute },
 		{ chemin: CHEMINS.metadonnees, contenu: rendrePhp( donnees ) },
 		{ chemin: CHEMINS.fidelite, contenu: `${ JSON.stringify( fidelite, null, 2 ) }\n` },
+		{ chemin: CHEMINS.reference, contenu: `${ JSON.stringify( reference, null, 2 ) }\n` },
 	] );
 
 	process.stdout.write(
 		`Import conforme : ${ lignes.length } massifs, ${ octets } octets bruts, ` +
-			`écart max ${ metriques.global_metrics.max_deviation_m } m.\n`
+			`écart max ${ metriques.global_metrics.max_deviation_m } m, ` +
+			`sous-pixel jusqu'à z${ metriques.global_metrics.max_zoom_subpixel }.\n`
 	);
 }
 

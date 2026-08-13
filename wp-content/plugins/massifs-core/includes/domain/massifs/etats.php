@@ -63,9 +63,10 @@ const CODE_REGEX = '/^[a-z0-9_-]{1,64}$/';
 /**
  * Zoom maximal de la couche massifs.
  *
- * Mesuré au build (écart max 94,55 m, soit 1,71 px à z11) et recopié ici pour
- * que la valeur survive à l'absence du fichier de données : le contrat impose
- * que `massifs_emprise()['zoom_max']` reste renseigné en mode dégradé.
+ * Mesuré au build (écart max 93,62 m, soit 0,844 px à z10 et 1,688 px à z11 à la
+ * latitude 43,5°) et recopié ici pour que la valeur survive à l'absence du
+ * fichier de données : le contrat impose que `massifs_emprise()['zoom_max']`
+ * reste renseigné en mode dégradé.
  */
 const ZOOM_MAX_DEFAUT = 11;
 

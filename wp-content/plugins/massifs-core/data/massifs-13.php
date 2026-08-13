@@ -44,7 +44,7 @@ if ( ! defined( 'ABSPATH' ) && ! defined( 'MASSIFS_VERIFICATION' ) ) {
 
 return array(
 	'schema'                => 2,
-	'genere_le'             => '2026-08-12T07:24:12Z',
+	'genere_le'             => '2026-08-13T10:29:13Z',
 	'source'                => array(
 		'producteur'                                 => 'DDTM des Bouches-du-Rhône',
 		'jeu_de_donnees'                             => 'Massifs forestiers dans les Bouches-du-Rhône',
@@ -86,9 +86,9 @@ return array(
 	),
 	'geometrie'             => array(
 		'fichier'             => 'massifs-13.geometrie.json',
-		'version'             => 'c2f3854f',
-		'sha256'              => 'c2f3854f9a81a6451d6f82ef16d3d51a1fd329699d9e981463d8a6d071cc78eb',
-		'octets'              => 278728,
+		'version'             => '744fba53',
+		'sha256'              => '744fba53429d8f8e1eda9aa8e31a4b8162622901321d0139838ed0b5f5e5a7d1',
+		'octets'              => 278894,
 		'format'              => 'geojson',
 		'zoom_max'            => 11,
 		'algorithme'          => 'douglas-peucker',
