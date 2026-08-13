@@ -1,0 +1,24 @@
+# Deux régimes, pour deux natures de fichier.
+#
+# `-text` — fichiers dont les OCTETS sont mesurés puis consignés (empreinte
+# sha256, taille, dérive). `source/osm-13.json` est l'entrée du pipeline et son
+# sha256 est écrit dans `source/manifeste.json` ; `manifeste.json` porte
+# l'empreinte dont DÉRIVE la version publiée. Une conversion de fins de ligne au
+# clone (`core.autocrlf=true`, valeur courante sous Windows) ferait échouer la
+# recette pour une raison qui n'a rien à voir avec le fond de carte.
+#
+# `-text` plutôt que `binary` : `binary` implique `-diff` et on veut pouvoir
+# relire ces diffs. `-text` plutôt que `text eol=lf` : `text eol=lf` absorberait
+# la conversion au commit et découplerait les octets du disque — ceux dont on
+# calcule l'empreinte — de ceux du blob.
+source/osm-13.json      -text
+source/manifeste.json   -text
+manifeste.json          -text
+reference.json          -text
+
+# `text eol=lf` — sources et manifestes de dépendances : aucune empreinte ne
+# porte sur eux, et LF partout évite un diff de fin de ligne selon la machine.
+*.mjs             text eol=lf
+package.json      text eol=lf
+package-lock.json text eol=lf
+.nvmrc            text eol=lf

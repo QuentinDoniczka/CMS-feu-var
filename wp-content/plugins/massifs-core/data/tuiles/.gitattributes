@@ -1,0 +1,16 @@
+# Les octets SONT le contrat.
+#
+# Chaque tuile et l'image statique portent une empreinte sha256 calculée au build
+# sur les octets du fichier ; la version publiée dans le chemin dérive de ces
+# empreintes. Une conversion de fins de ligne au clone (`core.autocrlf=true`,
+# valeur courante sous Windows) changerait ces octets sans changer l'empreinte
+# consignée : la recette échouerait, et le jeton de version mentirait.
+#
+# Git détecte normalement les PNG comme binaires, mais la détection porte sur le
+# CONTENU : on ne la laisse pas décider d'un contrat.
+#
+# `fond-13.php` y figure au même titre : il est relu octet à octet par la recette,
+# via `php -r`, et sa garde volontairement dépourvue d'`exit` le rend lisible hors
+# WordPress.
+*.png        -text
+fond-13.php  -text

@@ -1,0 +1,35 @@
+# Fond de carte auto-hébergé — en-têtes de cache et fermeture du listing.
+#
+# Ce fichier est LIVRÉ PAR L'EXTENSION, et c'est tout son intérêt : il suit le
+# dépôt sur l'hébergement mutualisé, là où une configuration de conteneur
+# (docker/wordpress/*.conf) n'existe pas. Son absence est un COÛT DE PERFORMANCE,
+# jamais une panne : sans lui, les tuiles sont servies sans cache long.
+#
+# FICHIER GÉNÉRÉ par includes/ingest/tuiles/build/construire.mjs — ne pas éditer.
+
+# Forme RELATIVE obligatoire. La forme absolue (`Options None`) remplacerait
+# l'hérité et pourrait retirer `FollowSymLinks`, dont dépend le reste du site.
+Options -Indexes
+
+# La version est dans le CHEMIN, jamais en query : c'est ce qui mérite
+# `immutable`. Un `?v=` détruirait cette sémantique sur certains proxies.
+# Portée limitée aux `.png` : le fichier de métadonnées voisin n'est pas
+# immuable, et le déclarer tel gèlerait une URL qui ment après un rebuild.
+<IfModule mod_headers.c>
+	<FilesMatch "\.png$">
+		Header set Cache-Control "public, max-age=31536000, immutable"
+	</FilesMatch>
+</IfModule>
+
+# Les métadonnées sont lues par PHP en interne, jamais par une requête HTTP.
+# `plugins-guard.conf` le fait déjà en Docker ; ici, l'extension se protège
+# elle-même, sur tout hébergement.
+<Files "fond-13.php">
+	<IfModule mod_authz_core.c>
+		Require all denied
+	</IfModule>
+	<IfModule !mod_authz_core.c>
+		Order allow,deny
+		Deny from all
+	</IfModule>
+</Files>

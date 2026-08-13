@@ -1,0 +1,33 @@
+{
+	"a_propos": "Empreinte de référence des artefacts du fond de carte. ÉMIS PAR `npm run construire`, jamais édité à la main. `npm run verifier` compare les artefacts en place à ces valeurs : une différence est une dérive à expliquer. Si le changement est voulu, régénérer les artefacts ET ce fichier par `npm run construire`, dans le même commit. La reproductibilité BINAIRE inter-plateformes n'est PAS revendiquée — resvg est un binaire natif ; ce fichier garantit la DÉTECTION DE DÉRIVE, et rien de plus.",
+	"genere_le": "2026-08-13T22:14:33Z",
+	"mode": "complet",
+	"outillage": {
+		"mapshaper": "0.6.102",
+		"node_major": 24
+	},
+	"jetons": {
+		"--c-carte-fond": "#E6E7E1",
+		"--c-carte-terre": "#DEDFD9",
+		"--c-carte-vegetation": "#D6DBD3",
+		"--c-carte-eau": "#CBD5D8",
+		"--c-carte-trait": "#B4B7AC",
+		"--c-carte-encre": "#4A4E48",
+		"--c-charbon": "#1A1C19"
+	},
+	"manifeste": {
+		"sha256": "197ba0d07ed48c3864d6bbe31ee031a0b0c04f8a5d10502c4704a0ebde18f6bf",
+		"version": "197ba0d0"
+	},
+	"pyramide": {
+		"nombre": 280,
+		"octets": 546780
+	},
+	"statique": {
+		"largeur": 1600,
+		"hauteur": 1421,
+		"contours_massifs": 25,
+		"octets": 138964,
+		"sha256": "9aa6612eaa96d8fd2572c2a15d3b9362fcc4d42ec4501d2b757261bf796492f1"
+	}
+}

@@ -1,0 +1,14 @@
+# Répertoire d'ÉMISSION ATOMIQUE du build. `build/construire.mjs` l. 85 le pose
+# ici, sous `data/tuiles/` et non sous `build/` : la pyramide entière y est écrite,
+# puis renommée en bloc à la toute fin, pour qu'un build à moitié appliqué ne
+# laisse jamais des tuiles neuves avec des métadonnées anciennes. Le pipeline le
+# nettoie (l. 237), mais un build INTERROMPU — Ctrl-C, disque plein, contrôle de
+# jeton `tokens.css` en échec — y laisse des tuiles intermédiaires. Aucun
+# `.gitignore` du dépôt ne les attrape : `data/` est précisément le sous-arbre
+# qu'on commite. Un `git add` large publierait alors des octets qui ne
+# correspondent à aucune version.
+_emission/
+
+# Rien d'autre n'est ignoré ici, et c'est délibéré : `<version>/` (les tuiles),
+# `fond-13.php`, `.htaccess` et `.gitattributes` sont les artefacts du contrat #9,
+# tous commités. Élargir ce fichier casserait le déploiement en silence.

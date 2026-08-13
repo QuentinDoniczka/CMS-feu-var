@@ -1,0 +1,11 @@
+# Rien de ce répertoire n'est destiné au navigateur : code PHP du module,
+# outillage de build, et surtout l'archive source de 4 Mo (build/source/), qui ne
+# doit jamais partir sur le réseau public. Les tuiles publiées, elles, vivent dans
+# data/tuiles/ et restent servies normalement.
+<IfModule mod_authz_core.c>
+	Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+	Order allow,deny
+	Deny from all
+</IfModule>

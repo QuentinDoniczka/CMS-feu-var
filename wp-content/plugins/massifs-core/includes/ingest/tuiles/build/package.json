@@ -1,0 +1,21 @@
+{
+  "name": "massifs-fond-de-carte-build",
+  "version": "1.0.0",
+  "description": "Génération hors ligne du fond de carte auto-hébergé : pyramide raster monochrome z5-z12 et image statique du repli sans JavaScript. Outillage de build seulement : rien de ce répertoire n'est exécuté à l'exécution du site.",
+  "private": true,
+  "type": "module",
+  "license": "GPL-2.0-or-later",
+  "scripts": {
+    "recuperer": "node recuperer.mjs",
+    "construire": "node construire.mjs",
+    "verifier": "node verifier.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "mapshaper": "0.6.102",
+    "sharp": "0.34.4"
+  }
+}

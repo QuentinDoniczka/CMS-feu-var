@@ -1,0 +1,116 @@
+{
+	"a_propos": "Provenance de l'archive OpenStreetMap du fond de carte. ÉMIS PAR `npm run recuperer`, jamais édité à la main. Données © les contributeurs d'OpenStreetMap, sous Open Database License 1.0.",
+	"extrait_le": "2026-08-13T21:44:46Z",
+	"points_acces": {
+		"terre": "https://overpass-api.de/api/interpreter",
+		"vegetation": "https://overpass-api.de/api/interpreter",
+		"eau": "https://overpass-api.de/api/interpreter",
+		"routes": "https://overpass-api.de/api/interpreter"
+	},
+	"agent": "massifs-fond-de-carte/1.0 (+https://github.com/QuentinDoniczka/CMS-feu-var)",
+	"bbox": {
+		"ouest": 4.65642,
+		"sud": 43.15731,
+		"est": 5.81325,
+		"nord": 43.90238
+	},
+	"requetes": {
+		"terre": "[out:json][timeout:900][bbox:43.15731,4.65642,43.90238,5.81325];relation[\"boundary\"=\"administrative\"][\"admin_level\"=\"6\"][\"ref\"=\"13\"];out geom;",
+		"vegetation": "[out:json][timeout:900][bbox:43.15731,4.65642,43.90238,5.81325];(way[\"landuse\"=\"forest\"];relation[\"landuse\"=\"forest\"];way[\"natural\"=\"wood\"];relation[\"natural\"=\"wood\"];way[\"natural\"=\"scrub\"];relation[\"natural\"=\"scrub\"];);out geom;",
+		"eau": "[out:json][timeout:900][bbox:43.15731,4.65642,43.90238,5.81325];(way[\"natural\"=\"water\"];relation[\"natural\"=\"water\"];way[\"waterway\"=\"riverbank\"];);out geom;",
+		"routes": "[out:json][timeout:900][bbox:43.15731,4.65642,43.90238,5.81325];(way[\"highway\"~\"^(motorway|trunk|primary)$\"];);out geom;"
+	},
+	"normalisation": {
+		"decimales": 5,
+		"intervalle_m": 14,
+		"aire_min_m2": 2000,
+		"clip": "terre"
+	},
+	"outillage": {
+		"mapshaper": "0.6.102",
+		"node_major": 24
+	},
+	"mapshaper_argv": {
+		"terre": [
+			"node",
+			"node_modules/mapshaper/bin/mapshaper",
+			"source/_travail-terre.json",
+			"-simplify",
+			"dp",
+			"interval=14",
+			"keep-shapes",
+			"-filter-islands",
+			"min-area=2000",
+			"-o",
+			"precision=0.00001",
+			"format=geojson",
+			"source/_travail-terre.out.json"
+		],
+		"vegetation": [
+			"node",
+			"node_modules/mapshaper/bin/mapshaper",
+			"source/_travail-vegetation.json",
+			"-clip",
+			"source/_travail-terre.json",
+			"-simplify",
+			"dp",
+			"interval=14",
+			"keep-shapes",
+			"-filter-islands",
+			"min-area=2000",
+			"-o",
+			"precision=0.00001",
+			"format=geojson",
+			"source/_travail-vegetation.out.json"
+		],
+		"eau": [
+			"node",
+			"node_modules/mapshaper/bin/mapshaper",
+			"source/_travail-eau.json",
+			"-clip",
+			"source/_travail-terre.json",
+			"-simplify",
+			"dp",
+			"interval=14",
+			"keep-shapes",
+			"-filter-islands",
+			"min-area=2000",
+			"-o",
+			"precision=0.00001",
+			"format=geojson",
+			"source/_travail-eau.out.json"
+		],
+		"routes": [
+			"node",
+			"node_modules/mapshaper/bin/mapshaper",
+			"source/_travail-routes.json",
+			"-clip",
+			"source/_travail-terre.json",
+			"-simplify",
+			"dp",
+			"interval=14",
+			"keep-shapes",
+			"-o",
+			"precision=0.00001",
+			"format=geojson",
+			"source/_travail-routes.out.json"
+		]
+	},
+	"comptes_overpass": {
+		"terre": 1,
+		"vegetation": 12076,
+		"eau": 4885,
+		"routes": 8861
+	},
+	"comptes_normalises": {
+		"terre": 19,
+		"vegetation": 5722,
+		"eau": 1314,
+		"routes": 6647
+	},
+	"archive": {
+		"fichier": "wp-content/plugins/massifs-core/includes/ingest/tuiles/build/source/osm-13.json",
+		"sha256": "88ddfbb8aef64840964b311aef22965cd0d9fc454537ec2cdadc2bc525a786a4",
+		"octets": 4074777
+	}
+}
