@@ -2,6 +2,23 @@
 
 **Gelé le 12 août 2026** par `lead-issue-cms` (chaîne #5). Liant à partir de ce point.
 
+> **RÉVISION 5 — 13 août 2026, issue #26 « Qualifier l'ardoise sur une journée de publication
+> partielle ».** L'ardoise ignorait `synthese['partiel']` et rendait donc, les jours de publication
+> incomplète, un dénominateur **trompeur** : « Aujourd'hui, 1 massifs sur 25 sont d'accès autorisé. »
+> couvrait 24 massifs de statut en réalité **inconnu** ce jour-là. L'erreur penchait du côté sûr — elle
+> n'impliquait aucune autorisation implicite — mais l'ardoise, **premier message lu de la page**, restait
+> littéralement fausse par omission, en écart au brief §4.2 étendu (« ne jamais présenter un compte global
+> comme complet quand il ne l'est pas ») et au §5.1.
+>
+> **Arbitrage du propriétaire du projet** : dénominateur = **massifs renseignés**, plus une mention
+> explicite du manque. La journée complète est **inchangée**. Répercussions dans ce contrat : le tableau
+> des clés consommées (trois clés ajoutées, déjà offertes par le contrat #3), une ligne
+> `publication_partielle` au tableau des états spéciaux, la section « la publication partielle n'est pas
+> un état », les trois gabarits de la phrase de synthèse, une correction factuelle sur leur provenance,
+> et les arbitrages **A-27** à **A-30**.
+>
+> **Aucune ligne d'extension n'a été écrite** : l'issue consomme une surface serveur déjà gelée.
+
 Cette issue **ne touche aucun fichier de l'extension**. `leaddev-back-cms` n'a donc pas été lancé.
 Le contrat porte sur trois frontières :
 
@@ -44,7 +61,7 @@ Clés consommées, et **aucune autre** :
 
 | Appel | Clés lues |
 |---|---|
-| `massifs_synthese_du_jour( massifs_codes(), null )` | `etat_global` · `total` · `par_niveau['autorise']` · `jour_validite` |
+| `massifs_synthese_du_jour( massifs_codes(), null )` | `etat_global` · `partiel` · `total` · `disponibles` · `sans_donnee` · `par_niveau['autorise']` · `jour_validite` |
 | `massifs_fraicheur( null )` | `perimee` · `publie_prefecture_le` · `dernier_releve_le` · `evalue_le` · `jour_validite` |
 | `massifs_saison( null )` | `prochaine_ouverture` |
 | `massifs_horodatage( $instant )` | `date_longue` · `heure` · `attr_datetime` |
@@ -54,6 +71,14 @@ Clés consommées, et **aucune autre** :
 **Dépendance déclarée** : la phrase de synthèse de l'accueil est liée à l'existence de la clé de niveau
 `autorise` dans `par_niveau`. Un changement de légende qui la supprimerait casse la phrase — bruyamment,
 ce qui est le comportement voulu.
+
+**Dépendance déclarée (révision 5, issue #26)** : la phrase de synthèse dépend désormais de **quatre**
+clés de synthèse au lieu d'une — `partiel`, `disponibles`, `sans_donnee` et `par_niveau['autorise']`.
+Les trois premières sont **déjà gelées côté back** par le contrat #3 (`docs/contracts/issue-3.md` l. 98-99 :
+`partiel bool · total int · disponibles int · sans_donnee int`) et **vérifiées dans le code**
+(`includes/domain/statuts/api.php` l. 233-243). L'issue #26 n'a donc porté **aucune demande nouvelle au
+back** : elle élargit la surface **déjà offerte** que le thème consomme. `niveau_le_moins_severe` et
+`niveau_le_plus_severe` restent **non consommés**.
 
 **Accès direct, jamais `isset()`, jamais `??`** sur les tableaux du contrat : une clé absente est une
 rupture de contrat qui doit produire un avertissement PHP visible, pas un `0` silencieux.
@@ -85,6 +110,7 @@ qui est absent), et journalise sous `WP_DEBUG`. Aucune copie inventée, le `h1` 
 | État | Émis par le serveur | Rendu par le thème (#5) |
 |---|---|---|
 | `disponible` | `synthese['etat_global']` | chiffre `par_niveau['autorise']` + `/total`, `h1` de synthèse, ligne de fraîcheur |
+| `publication_partielle` (**issue #26**) | `synthese['partiel'] === true` | **Variation INTERNE au bras `disponible`, jamais un cinquième `etat_global`.** Dénominateur = `disponibles` au lieu de `total`, sur le chiffre **et** dans le `h1`, qualifié « renseigné(s) ». Phrase **ajoutée** « {`sans_donnee`} massif(s) reste(nt) sans information du jour. » dans un `<p class="ardoise__publication-partielle">`, **après le `h1`, avant la ligne de fraîcheur**. Aucun bras ajouté au `match()` |
 | `information_indisponible` (`indisponible`) | `synthese['etat_global']` | `h1` « Information du jour non disponible. Consultez la carte officielle de la préfecture. » + lien `carte_officielle_url`. **Jamais de chiffre.** |
 | `hors_saison` | `synthese['etat_global']` | `h1` **tronqué à sa première proposition** : « Dispositif estival inactif. » — voir arbitrage A-1 |
 | `non_encore_publie` | `synthese['etat_global']` | `h1` « Les statuts de demain ne sont pas encore publiés. La préfecture publie vers 17 h. » Bras inatteignable aujourd'hui, écrit quand même (`match` sans `default`) |
@@ -112,6 +138,34 @@ cinquième état ne peut apparaître que par une modification de l'extension **d
 phrase. La règle « jamais un statut périmé présenté comme courant » est donc tenue structurellement,
 pas par vigilance.
 
+#### La publication partielle n'est pas un état (révision 5, issue #26)
+
+`partiel` est un drapeau **orthogonal** à `etat_global`, au même titre que `fraicheur['perimee']`. Il est
+lu **exclusivement à l'intérieur du bras `disponible`** — donc, PHP n'évaluant que le bras retenu, il
+n'est pas même lu dans les trois autres états. Le `match()` conserve ses **quatre** bras et son absence de
+`default`. Toute évolution qui ferait de la publication partielle un cinquième `etat_global` est une
+rupture de ce contrat.
+
+**Le dénominateur reste un ternaire explicite sur `partiel`.** Employer toujours `disponibles` produirait
+aujourd'hui un rendu identique en journée complète : dans le bras `disponible`, `disponibles > 0`, donc
+`partiel === false` ⇒ `sans_donnee === 0` ⇒ `disponibles === total`. Cette égalité est un **fait de code,
+pas un fait de contrat** — le contrat #3 déclare les quatre clés sans jamais énoncer de relation entre
+elles — et « sur 25 » (les 25 massifs du référentiel, brief §5.1) ne veut pas dire « sur 25 renseignés ».
+La simplification est **explicitement rejetée** : elle masquerait le glissement de sens, sans le moindre
+diff, le jour où le référentiel passerait à 26.
+
+**Choisir n'est pas calculer.** Le gabarit **sélectionne** entre deux valeurs serveur (`disponibles` ou
+`total`) ; il n'en dérive aucune. `sans_donnee` est **lu**, jamais écrit `total - disponibles`, bien que
+ce soit arithmétiquement identique (`api.php` l. 221) : `MASTER.md` §16 fait du thème calculant lui-même
+un décompte ou un dénominateur un **défaut bloquant**.
+
+**La répétition des accès de clés dans le bras est délibérée.** Un bras de `match()` est une expression,
+pas un bloc : aucune variable locale n'y est déclarable. `par_niveau['autorise']` y est lu quatre fois,
+`partiel` trois fois. C'est le **prix de la garantie structurelle** — hisser ces lectures au-dessus du
+`match()` laisserait en mémoire, dans les états `hors_saison` / `indisponible` / `non_encore_publie`, une
+phrase chiffrée plausible et fausse, à portée de copier-coller. **Aucun `refacto-cms` ne doit factoriser
+ces lectures au-dessus du `match()`.**
+
 ---
 
 ## Chaînes fournies par le serveur
@@ -125,6 +179,45 @@ Chaînes fixes reprises **mot pour mot** de `design-system/MASTER.md` §11.3 / �
 phrase de fraîcheur, `Légende de la carte` (verbatim officiel), `La liste du jour`,
 « Aujourd'hui, {X} massifs sur {Y} sont d'accès autorisé. », et les deux libellés de lien d'évitement
 « Aller au contenu » / « Aller à la liste des statuts ».
+
+> **CORRECTION FACTUELLE (révision 5, issue #26).** Le paragraphe ci-dessus range la phrase de synthèse
+> de l'accueil parmi les « chaînes reprises mot pour mot de §11.3 / §11.4 ». **C'est inexact, et vérifié
+> comme tel.** La liste du §11.3 est une liste **fermée de huit chaînes** (non-officialité, fraîcheur,
+> indisponible, hors saison, non encore publié, consigne absente, EFFIS, attribution) et la phrase de
+> synthèse n'en fait pas partie ; le §11.4 ne fige que les **sept chaînes de la préfecture**, dont aucune
+> n'est concernée. La phrase n'apparaît que (a) dans le **croquis** du §7.1 — dont le §7.1 dit lui-même
+> qu'il « nomme des zones », et dont la divergence §17-2 pose « un croquis est une intention de
+> composition, pas une mesure » — et (b) au **brief §5.1**, entre parenthèses, avec les caractères de
+> substitution X et Y et **sans point final**. Corriger son accord grammatical ne heurte donc **aucun
+> verbatim officiel**. Voir l'arbitrage **A-27**.
+
+### La phrase de synthèse du jour — trois gabarits (révision 5, issue #26)
+
+Rédigés par le thème. Apostrophes en **U+2019** (A-15). Le thème **sélectionne** entre valeurs serveur ;
+il n'en calcule aucune.
+
+| Condition | Gabarit | Dénominateur |
+|---|---|---|
+| `partiel === false` | `Aujourd’hui, {X} {massif\|massifs} sur {Y} {est\|sont} d’accès autorisé.` | Y = `total` |
+| `partiel === true` | `Aujourd’hui, {X} {massif\|massifs} sur {Y} {renseigné\|renseignés} {est\|sont} d’accès autorisé.` | Y = `disponibles` |
+| `partiel === true` | `{Z} {massif\|massifs} {reste\|restent} sans information du jour.` | Z = `sans_donnee` |
+
+X = `par_niveau['autorise']`. Le mot `renseigné` **n'est jamais rendu en journée complète** : l'accord ne
+se pose donc jamais sur `total`.
+
+**Règle d'accord : pluriel à partir de 2** — 0 et 1 au singulier, donc un test `> 1`, **jamais** `=== 1`.
+Trois accords **indépendants**, dont aucun ne se déduit d'un autre : `massif`/`sont` sur X,
+`renseigné` sur Y, `reste` sur Z. Le cas mixte X ≤ Y est réel et doit être recetté :
+« Aujourd’hui, 0 massif sur 5 renseignés **est** d’accès autorisé. »
+
+**`_n()` est INTERDIT ici.** Le thème déclare `Text Domain: massifs` mais ne charge **aucun catalogue** de
+traduction ; la règle de repli de WordPress est `n == 1`, qui rendrait « **0 massifs** » là où le français
+écrit « 0 massif ». Les ternaires `> 1` sont la forme **correcte**, pas un raccourci — commentés comme
+tels dans le gabarit pour qu'aucun relecteur ne « corrige » vers `_n()`.
+
+Portée : l'accord corrige aussi un défaut **préexistant** de la journée complète, où `massifs` et `sont`
+étaient figés dans le gabarit. Le cas X = 0 d'une journée complète — les 25 massifs interdits, soit le
+pic de canicule d'août, **le rendu le plus visible de la saison** — écrivait « 0 massifs … sont ».
 
 **Apostrophes** : U+2019 pour toute prose rédigée par le thème ; les chaînes officielles de §11.4 sont
 reproduites **octet pour octet**, `Niveau d'Accès` en U+0027 et `Zones d’Accueil` en U+2019 compris.
@@ -142,6 +235,14 @@ serveur est `null`**, jamais en réécrivant des mots :
 
 Les instants (`publie_prefecture_le`, `dernier_releve_le`) sont des ISO valides et passent par
 `massifs_horodatage()`. Les dates s'affichent dans un `<time datetime="…">` alimenté par `attr_datetime`.
+
+> **PRÉCISION (révision 5, issue #26)** — phrase ci-dessus trop elliptique, relevée par `refacto-cms`.
+> Elle vaut pour les deux propositions bâties sur un **instant** (`publication`, `releve`). La
+> proposition `validite`, elle, alimente son `<time datetime="…">` avec **`synthese['jour_validite']`**,
+> un `YYYY-MM-DD` — valeur `datetime` HTML parfaitement valide et **sémantiquement juste**, puisque cette
+> proposition porte un **jour civil de validité**, non un instant. Y substituer `attr_datetime` mettrait
+> un instant d'évaluation là où un jour est attendu : **c'est le code qui a raison, pas la phrase.**
+> Aucun changement de comportement — précision documentaire seule.
 
 ---
 
@@ -405,6 +506,11 @@ Décisions du lead. Chacune tranche un désaccord, une ambiguïté ou un trou co
 | **A-23** | La chaîne #6 émet ses propres `<section id>` + titres → **doublons d'`id` et de `h2`**, HTML invalide, cible d'évitement ambiguë | **#5 cède l'enveloppe sémantique** des bandes `legende` et `liste` : `<div class="bande bande--…">` de mise en page seule, sans `id`, sans `aria-labelledby`, sans `tabindex`, sans `h2` | `templates/parts/**` est hors de mon empreinte — c'est le seul côté que je peux corriger. Les parties de #6 sont auto-portantes et leurs titres portent déjà `.repere` (§3.2). Détail complet en révision 3 ci-dessus |
 | **A-24** | `A-11` **incomplet face à WordPress 7.0.2** : depuis WP 6.9, `wp_enqueue_global_styles()` n'enfile plus `global-styles` sur `wp_enqueue_scripts` pour un thème classique — il pose une poignée-placeholder, enfile la vraie feuille sur `wp_footer` (prio 1), et `wp_hoist_late_printed_styles()` la remonte dans le `<head>`. Les quatre dequeues à la priorité 100 **laissaient donc passer l'intégralité des `--wp--preset--*`** (mesuré) | **Étendu** : la poignée `wp-global-styles-placeholder` est ajoutée à la liste, et le même callback est accroché **aussi** à `wp_footer` priorité 2. Après correctif, `grep -c "wp--preset"` = **0** | Sans cette extension, `MASTER.md` §12 (« aucun autre fichier ne définit de custom property ») est violé en production. **A-20 s'est matérialisé** : le tag Docker non épinglé a changé le comportement du cœur sans qu'aucun fichier du dépôt ne bouge. À signaler fermement à `docker-cms` |
 | **A-25** | `A-10 (b)` (typographie du chiffre de l'ardoise) non appliqué au premier passage : les deux devs tournant en parallèle, `dev-ux-cms` ignorait les crochets de classe réellement émis | **Réappliqué** sur les crochets constatés : `.ardoise__chiffre` et `.ardoise__texte` sont **enfants directs** de `.bande__contenu.ardoise` — exactement le regroupement qui rend écrivable la grille à deux colonnes de §7.1 à `--bp-m` | Sans cela le chiffre s'affiche **à 17 px en police de labeur** et l'ardoise n'existe pas visuellement, en écart direct à §7.1 et §8.2 |
+
+| **A-27** | La phrase « {Z} massifs restent sans information du jour. » et la variante « sur {Y} renseignés » **n'ont aucune chaîne normative au §11.3**, qui est une liste **fermée** (§16 en fait un défaut bloquant en revue) | **Rédigées et rendues.** Le fond est **arbitré par le propriétaire du projet** (dénominateur = massifs renseignés + mention explicite du manque) ; le mot à mot est arbitré par le lead : « sans information **du jour** », et non « à cette heure » | « à cette heure » est une affirmation **temporelle que le gabarit ne peut pas étayer**, et qui deviendra fausse dès que le sélecteur de date du brief §5.2 affichera un jour passé. « du jour » reprend le lexique **déjà gelé** (« Information du jour non disponible », `liste-statuts.php` l. 256). Précédent : la phrase de synthèse elle-même ne figure pas au §11.3 (voir la correction factuelle ci-dessus). **Divergence signalée à `lead-design-cms`** : les trois gabarits doivent entrer au §11.3, et la divergence au §17 |
+| **A-28** | Crochet CSS sans règle : `assets/css/**` est **hors de l'empreinte de #26**, la classe neuve n'aura donc aucun style | **`.ardoise__publication-partielle` est émise sans aucune règle CSS.** Ce n'est **pas** un défaut de rendu, vérifié propriété par propriété | L'élément hérite `--police-texte` / `--fs-300` / `--lh-corps` de `body`, `--c-calcaire` de `.sur-sombre` (**12,66:1**, AA large), et `--esp-s` de `.ardoise__texte > * + *` (`layout.css` l. 274) — y compris à l'impression (charbon sur blanc, 14,74:1). **Précédent identique dans le thème** : `.liste-statuts--partielle`, émise par la chaîne #6 sur **exactement le même drapeau serveur**, n'a elle non plus aucune règle. La classe est une **ancre documentée** pour une chaîne CSS ultérieure, pas un style manquant |
+| **A-29** | §8.2 écrit « L'ardoise garde le chiffre du jour, son dénominateur, sa ligne de fraîcheur et son repère `--bloc` : **rien d'autre n'y entre** ». Un `<p>` supplémentaire est littéralement « autre chose qui y entre » | **Ajout assumé**, au **même traitement que le précédent A-4** : arbitrage consigné ici, divergence à enregistrer au §17 de `MASTER.md` par une chaîne ultérieure | A-4 a déjà introduit `.ardoise__peremption` dans l'ardoise sur ce même régime (« forme dégradée assumée, signalée »). L'alternative — loger la seconde phrase dans le `h1` — est **irrattrapable dans cette empreinte** : le `h1` est en `min(var(--fs-700), 3rem)`, soit jusqu'à **48 px en famille d'affichage condensée** ; sur 360 px l'ardoise gagnerait trois à quatre lignes et repousserait le bandeau de non-officialité sous la ligne de flottaison, et le corriger exigerait du CSS, **hors empreinte** |
+| **A-30** | Nommage de la clé de gabarit | `publication_partielle`, **et non `partiel`** | `partiel` donnerait **le même identifiant à deux choses de types différents dans le même fichier** : `$massifs_synthese['partiel']` est un `bool` du serveur, `$massifs_ardoise['partiel']` serait une chaîne de rendu. Économiser le réalignement WPCS des cinq littéraux au prix d'un piège de lecture est un mauvais échange |
 
 ### Demandes fermes portées au back — hors lot, à ordonnancer
 
