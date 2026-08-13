@@ -2,6 +2,44 @@
 
 **Gelé le 12 août 2026** par `lead-issue-cms` (chaîne #5). Liant à partir de ce point.
 
+> **RÉVISION 6 — 13 août 2026, issue #27 « Réconcilier la garde du `match()` de `front-page.php` avec
+> l'arbitrage écran-blanc de la chaîne #6 ».** Le `match()` de l'ardoise s'exécute **avant le premier
+> octet de sortie** et **avant toute inclusion de partie**, et il n'était **ni gardé ni enveloppé**. Un
+> `etat_global` hors de ses quatre bras levait `\UnhandledMatchError`, que `WP_Fatal_Error_Handler`
+> convertit en **HTTP 500 + la page « Erreur critique sur ce site. » du cœur de WordPress** — donc **zéro
+> statut, zéro lien officiel**, aucun de nos jetons, hors de toute vérification d'accessibilité, et un
+> contenu qui ne nous appartient pas. Le brief §4.2 et la contrainte non négociable #3 étaient annulés.
+>
+> **CORRECTION FACTUELLE — ce n'était pas un « écran blanc ».** `WORDPRESS_DEBUG: 0` et aucun
+> `wp-content/php-error.php` dans le dépôt : l'`E_ERROR` est capté par le cœur. Le défaut est aussi grave
+> que décrit, **pour une autre raison que celle invoquée**. Un contrat qui invoque un fait faux se fait
+> contredire en revue.
+>
+> **La mitigation censée couvrir ce risque était inatteignable.** Les **sept** `match()` de
+> `templates/parts/**` sont enveloppés d'un `try/catch ( \UnhandledMatchError )` (contrat #6, arbitrage
+> E) précisément pour cela — mais le `throw` de l'ardoise précédait les inclusions. **Deux contrats gelés
+> donnaient la réponse inverse au même risque sur le même chemin de rendu, et c'est celui qui disait
+> « panne » qui gagnait, parce qu'il s'exécute le premier.**
+>
+> **Deux déclencheurs, pas un seul.** (1) un cinquième `etat_global` ajouté à `api.php` ; (2) la clé
+> `etat_global` **renommée ou retirée** — l'accès étant direct, sans `isset()` ni `??` (interdit
+> délibéré de ce contrat), l'expression vaut alors `null` et `match(null)` lève la **même** erreur. **Le
+> second est le plus probable des deux.** L'arbitrage originel n'était donc pas naïf : il était
+> proportionné à un risque de **code** (aucun `apply_filters` ne traverse `etat_global`, chaîne
+> `if/elseif` fermée, `api.php` l. 223-231) ; ce qui le renverse, ce sont **la sévérité et le lieu** — la
+> sanction tombait sur le visiteur anonyme de l'accueil — plus le déclencheur (2).
+>
+> **Décision : enveloppe `try/catch ( \UnhandledMatchError )` au niveau page, calquée sur l'arbitrage E.**
+> Le `match()` **conserve ses quatre bras et son absence de `default`** : l'interdit 11 du contrat #3 est
+> honoré **à la lettre** et **dans son intention**, cet interdit visant la **non-silence** de l'ajout d'un
+> état, jamais la panne. **Le contrat #3 n'est pas révisé et n'a pas besoin de l'être : #27 généralise
+> #6, il ne renégocie pas #3.**
+>
+> Répercussions dans ce contrat : une ligne au tableau des états spéciaux, la réécriture de la section
+> « Le `match()` — sans bras `default` », et les arbitrages **A-31** à **A-38**. Contrat complet de
+> l'issue : `docs/contracts/issue-27.md`. **Aucune ligne d'extension n'a été écrite**, aucune demande
+> nouvelle portée au back.
+
 > **RÉVISION 5 — 13 août 2026, issue #26 « Qualifier l'ardoise sur une journée de publication
 > partielle ».** L'ardoise ignorait `synthese['partiel']` et rendait donc, les jours de publication
 > incomplète, un dénominateur **trompeur** : « Aujourd'hui, 1 massifs sur 25 sont d'accès autorisé. »
@@ -114,25 +152,56 @@ qui est absent), et journalise sous `WP_DEBUG`. Aucune copie inventée, le `h1` 
 | `information_indisponible` (`indisponible`) | `synthese['etat_global']` | `h1` « Information du jour non disponible. Consultez la carte officielle de la préfecture. » + lien `carte_officielle_url`. **Jamais de chiffre.** |
 | `hors_saison` | `synthese['etat_global']` | `h1` **tronqué à sa première proposition** : « Dispositif estival inactif. » — voir arbitrage A-1 |
 | `non_encore_publie` | `synthese['etat_global']` | `h1` « Les statuts de demain ne sont pas encore publiés. La préfecture publie vers 17 h. » Bras inatteignable aujourd'hui, écrit quand même (`match` sans `default`) |
+| **`etat_global` inconnu** (**révision 6, issue #27**) — cinquième état, **ou** clé `etat_global` renommée/retirée ⇒ l'expression vaut `null` | **Par aucun chemin de donnée** : ni ingestion, ni base, ni portail, ni option, ni filtre. `etat_global` naît d'une chaîne `if/elseif` locale fermée (`api.php` l. 223-231) que **aucun `apply_filters`** ne traverse. Exige une modification de `api.php`, dans ce même dépôt | `try { … } catch ( \UnhandledMatchError $massifs_erreur )` autour du `match()`. Repli sur l'**ardoise d'absence** `$massifs_ardoise_absente` — état `indisponible`, **AVEC** le lien `carte_officielle_url` (l'URL est obtenable, `$massifs_api === true`). **Jamais de chiffre** : `chiffre`, `chiffre_total`, `publication_partielle` vides, `fraicheur => false`. Clé `journal` **distincte** du bras `indisponible` normal, émise par `massifs_journaliser()`. **Aucun `_doing_it_wrong()`** (A-33). Le `catch` **ne touche pas** `$massifs_peremption` : le repli se comporte exactement comme le bras `indisponible` réel |
 | `donnee_perimee` | `fraicheur['perimee'] === true` | phrase « Donnée périmée. » **ajoutée** sous la ligne de fraîcheur. Ne masque, ne remplace, ne conditionne **rien** |
 | `referentiel_indisponible` | `massifs_codes() === []` | `total = 0` et `etat_global = 'indisponible'` → branche indisponible, sans cas particulier |
 | `couche_effis_indisponible` | — | **hors périmètre** : aucune couche EFFIS n'existe |
 | API absente | garde `function_exists` | branche indisponible, sans lien |
 
-### Le `match()` — sans bras `default`
+### Le `match()` — sans bras `default`, **sous enveloppe** (révisé, issue #27)
 
 ```php
-match ( $synthese['etat_global'] ) {
-    'disponible'        => …,
-    'indisponible'      => …,
-    'hors_saison'       => …,
-    'non_encore_publie' => …,
+$massifs_ardoise_absente = array( /* ardoise d'absence, indisponible AVEC le lien */ );
+
+try {
+    $massifs_ardoise = match ( $synthese['etat_global'] ) {
+        'disponible'        => …,
+        'indisponible'      => $massifs_ardoise_absente,
+        'hors_saison'       => …,
+        'non_encore_publie' => …,
+    };
+} catch ( \UnhandledMatchError $massifs_erreur ) {
+    $massifs_ardoise            = $massifs_ardoise_absente;
+    $massifs_ardoise['journal'] = 'massifs: etat_global hors des quatre états du gabarit — …';
 }
 ```
 
-Imposé par le contrat #3. Un cinquième état lève `UnhandledMatchError` sur l'accueil public : c'est
-délibéré. Sur une donnée de sécurité, l'échec bruyant vaut mieux qu'un rendu silencieusement faux, et un
-cinquième état ne peut apparaître que par une modification de l'extension **dans ce même dépôt**.
+Les **quatre bras et l'absence de `default`** sont imposés par le contrat #3 et **conservés**.
+
+> **SUPERSÉDÉ — révision 6, issue #27.** Ce contrat écrivait : « Un cinquième état lève
+> `UnhandledMatchError` sur l'accueil public : c'est délibéré. Sur une donnée de sécurité, l'échec
+> bruyant vaut mieux qu'un rendu silencieusement faux. » **La phrase est conservée pour l'histoire, elle
+> n'est plus le comportement.** Le `throw` n'était pas un 500 délibéré : c'était un **bord non
+> réconcilié** entre deux contrats gelés, dont l'un (#6, arbitrage E) enveloppait le même risque à
+> quelques lignes de là. Ce qui était juste dans cette phrase — l'échec doit être **bruyant** — est
+> conservé ; ce qui était faux — bruyant *signifie fatal* — est abandonné.
+>
+> **Comportement délibéré, désormais** : quatre bras, aucun `default`, **enveloppés d'un
+> `try/catch ( \UnhandledMatchError )`** qui retient l'**absence**, jamais une donnée, et **jamais un
+> chiffre**. L'interdit 11 du contrat #3 est honoré **à la lettre** (aucune branche « sinon » dans le
+> `match`) **et dans son intention** : son motif écrit est qu'un `if/else` « rendrait silencieux l'ajout
+> d'un cinquième état », or l'ajout reste ici **bruyant** — par un rendu dégradé **visible** sur la page
+> la plus lue du site, plus une ligne de journal sous `WP_DEBUG`. **Le contrat #3 n'est pas révisé.**
+>
+> L'enveloppe **ne peut pas masquer un bras légitimement ajouté** : un cinquième bras écrit est retenu par
+> le `match()`, et le `catch` n'est alors jamais atteint. C'est la propriété qu'une liste blanche d'états
+> en amont ne possède pas — raison pour laquelle elle est **explicitement rejetée** (interdit 2 du contrat
+> #27).
+
+**`$massifs_ardoise_absente` est déclarée à l'intérieur de la garde `if ( $massifs_api )`**, jamais
+au-dessus : elle appelle `massifs_attribution_statuts()`, absente quand `$massifs_api === false`. Elle
+n'est **jamais** réutilisée dans la branche `else`, dont la phrase tient en **un seul fragment** et
+**sans** lien.
 
 **Le chiffre n'est écrit que dans le bras `disponible`**, et ce bras produit à la fois le chiffre et sa
 phrase. La règle « jamais un statut périmé présenté comme courant » est donc tenue structurellement,
@@ -165,6 +234,20 @@ pas un bloc : aucune variable locale n'y est déclarable. `par_niveau['autorise'
 `match()` laisserait en mémoire, dans les états `hors_saison` / `indisponible` / `non_encore_publie`, une
 phrase chiffrée plausible et fausse, à portée de copier-coller. **Aucun `refacto-cms` ne doit factoriser
 ces lectures au-dessus du `match()`.**
+
+> **PORTÉE PRÉCISÉE — révision 6, issue #27.** Cet interdit porte sur **quatre clés nommées** —
+> `par_niveau['autorise']`, `partiel`, `disponibles`, `sans_donnee` — lues dans le **seul** bras
+> `disponible`, et son motif écrit est de ne laisser aucune **phrase chiffrée plausible et fausse** en
+> mémoire dans un état sans chiffre. **Critère de revue opposable : une variable hissée au-dessus du
+> `match()` est un défaut si et seulement si elle peut contenir un nombre, ou une phrase contenant un
+> nombre.**
+>
+> `$massifs_ardoise_absente` (issue #27) ne lit **aucune** de ces quatre clés et ne contient **aucun
+> chiffre** : `chiffre` et `chiffre_total` sont des chaînes vides, `publication_partielle` est vide,
+> `fraicheur` vaut `false`, et sa seule valeur serveur est une **URL**. Il est **l'inverse exact** du
+> danger visé, et le hisser **renforce** la garantie structurelle au lieu de l'entamer, puisqu'il rend
+> l'unique chemin de repli **provablement** dépourvu de chiffre (assertion 4 de la recette R-27). La
+> garantie « le chiffre n'est écrit que dans le bras `disponible` » reste **intégralement vraie**.
 
 ---
 
@@ -511,6 +594,14 @@ Décisions du lead. Chacune tranche un désaccord, une ambiguïté ou un trou co
 | **A-28** | Crochet CSS sans règle : `assets/css/**` est **hors de l'empreinte de #26**, la classe neuve n'aura donc aucun style | **`.ardoise__publication-partielle` est émise sans aucune règle CSS.** Ce n'est **pas** un défaut de rendu, vérifié propriété par propriété | L'élément hérite `--police-texte` / `--fs-300` / `--lh-corps` de `body`, `--c-calcaire` de `.sur-sombre` (**12,66:1**, AA large), et `--esp-s` de `.ardoise__texte > * + *` (`layout.css` l. 274) — y compris à l'impression (charbon sur blanc, 14,74:1). **Précédent identique dans le thème** : `.liste-statuts--partielle`, émise par la chaîne #6 sur **exactement le même drapeau serveur**, n'a elle non plus aucune règle. La classe est une **ancre documentée** pour une chaîne CSS ultérieure, pas un style manquant |
 | **A-29** | §8.2 écrit « L'ardoise garde le chiffre du jour, son dénominateur, sa ligne de fraîcheur et son repère `--bloc` : **rien d'autre n'y entre** ». Un `<p>` supplémentaire est littéralement « autre chose qui y entre » | **Ajout assumé**, au **même traitement que le précédent A-4** : arbitrage consigné ici, divergence à enregistrer au §17 de `MASTER.md` par une chaîne ultérieure | A-4 a déjà introduit `.ardoise__peremption` dans l'ardoise sur ce même régime (« forme dégradée assumée, signalée »). L'alternative — loger la seconde phrase dans le `h1` — est **irrattrapable dans cette empreinte** : le `h1` est en `min(var(--fs-700), 3rem)`, soit jusqu'à **48 px en famille d'affichage condensée** ; sur 360 px l'ardoise gagnerait trois à quatre lignes et repousserait le bandeau de non-officialité sous la ligne de flottaison, et le corriger exigerait du CSS, **hors empreinte** |
 | **A-30** | Nommage de la clé de gabarit | `publication_partielle`, **et non `partiel`** | `partiel` donnerait **le même identifiant à deux choses de types différents dans le même fichier** : `$massifs_synthese['partiel']` est un `bool` du serveur, `$massifs_ardoise['partiel']` serait une chaîne de rendu. Économiser le réalignement WPCS des cinq littéraux au prix d'un piège de lecture est un mauvais échange |
+| **A-31** | **Issue #27.** Deux contrats gelés répondent l'inverse au même risque sur le même chemin de rendu : ce contrat pose le `throw` du `match()` comme délibéré, le contrat #6 (arbitrage E) l'enveloppe pour éviter la panne. **Celui qui dit « panne » gagnait, parce qu'il s'exécute le premier** | **Enveloppe `try/catch ( \UnhandledMatchError )` adoptée au niveau page**, calquée sur l'arbitrage E. Le `match()` garde ses quatre bras et son absence de `default` | Le `match()` précède le **premier octet de sortie** *et* **toutes** les inclusions de parties : il précédait donc la mitigation censée le couvrir, qui était **inatteignable**. Deux déclencheurs réels, dont l'un (clé renommée ⇒ `null`) ne suppose **aucun** cinquième état et est le plus probable. Le brief §4.2 exige l'état « information non disponible » **avec lien**, sur la carte **ET** dans la liste — ce qu'une page 500 du cœur ne peut pas rendre, et ce qui annule aussi la contrainte non négociable #3. **#27 confirme et généralise #6 ; il ne renégocie pas #3** — c'est ce qui permet de tout tenir dans l'empreinte, `docs/contracts/issue-3.md` étant hors empreinte |
+| **A-32** | **Issue #27.** Le bras `indisponible` et le repli du `catch` doivent rendre **la même chose** à `journal` près : hisser en variable, ou dupliquer ? | **Hissage** de `$massifs_ardoise_absente`, **avec la précision de portée** de l'interdit d'anti-factorisation (voir l'encadré « PORTÉE PRÉCISÉE » ci-dessus). Critère de revue : *une variable hissée est un défaut si et seulement si elle peut contenir un nombre* | La **duplication est rejetée** : deux copies divergeraient à la première retouche de la phrase §11.3 ou de la source de l'URL (arbitrage F′ du contrat #6 : « deux sources d'une même valeur finissent par diverger ; une seule ne le peut pas »). Or **la divergence entre deux chemins de rendu d'un même état est exactement le défaut que #27 existe pour refermer** : dupliquer serait refermer une divergence en en ouvrant une autre, de même nature, à trois lignes d'écart. Coût réel : `massifs_attribution_statuts()` appelée dans les quatre états au lieu d'un — sans argument, sans exception, `carte_officielle_url` garanti sur ses **deux** chemins de retour (`api.php` l. 332 et 353), et **déjà appelée sans condition trois fois sur cette page** (`templates/footer.php` l. 52, `bandeau-non-officialite.php` l. 41, `liste-statuts.php` l. 129) |
+| **A-33** | **Issue #27.** Canal du bruit : `_doing_it_wrong()` comme les sept `catch` de `templates/parts/**`, ou `massifs_journaliser()` ? | **`massifs_journaliser()` ; `_doing_it_wrong()` est INTERDIT dans `front-page.php`** | `_doing_it_wrong()` déclenche `trigger_error( E_USER_WARNING )`, et `E_USER_WARNING` **reste dans `error_reporting()` même avec `WP_DEBUG` à faux** : si `display_errors` était actif sur l'hébergement cible, l'avertissement s'imprimerait **dans le HTML du visiteur**. Or ce contrat interdit déjà **tout texte de repli visible par le visiteur** — y ajouter un avertissement PHP serait la même faute en pire. `massifs_journaliser()` est le **point unique** de la garde `WP_DEBUG` du thème (`functions.php` l. 55-74) et la clé `journal` est **déjà consommée** en aval : zéro plomberie neuve. Divergence de canal **assumée** avec `templates/parts/**`, hors empreinte — signalée O-27-2 |
+| **A-34** | **Issue #27.** `catch` avec ou sans variable d'exception ? Nommer ou non la valeur inattendue ? | **`catch ( \UnhandledMatchError $massifs_erreur )`**, message = phrase du thème + `$massifs_erreur->getMessage()` entre parenthèses | A-33 retirant `_doing_it_wrong()` — et avec lui le backtrace —, la ligne de journal est la **seule trace existante** et doit porter le fait discriminant : `case '…'` = cinquième état, `case NULL` = la clé a disparu du contrat. **Deux causes racines, dans deux fichiers différents.** `getMessage()` retourne **toujours** une `string` (indispensable : `massifs_journaliser( string )` sous `strict_types=1` lèverait un `TypeError` sur autre chose), ne lève rien, et c'est **PHP** qui met la valeur en forme — le thème n'en compose rien. **Écartées** : relire `$synthese['etat_global']` dans le `catch` (dans le scénario « clé absente », cela émettrait un **second** `Undefined array key`, exactement la classe d'exposition que A-33 refuse) ; assainir la valeur à la main. **Mesuré** (PHP 8.2 et 8.3) : PHP **tronque** la valeur à 15 caractères + points de suspension, et imprime `NULL` en capitales — donc ne jamais asserter la fin de la ligne de journal |
+| **A-35** | **Issue #27.** Le repli d'un état inconnu porte-t-il le lien officiel, ou non ? | **AVEC le lien** `massifs_attribution_statuts()['carte_officielle_url']` | Trois raisons, aucune inventée : (a) le brief §4.2 **exige** le lien ; (b) le repli **sans** lien n'existe que parce que l'URL est **inobtenable** (garde `$massifs_api === false`, arbitrage F de #6 « elle ne vient de nulle part ») — or ici `$massifs_api === true` : omettre le lien serait dégrader **sans nécessité** ; (c) **cohérence carte ET liste** : `liste-statuts.php` (l. 157-161) et `etats-vides.php` (l. 86-90) retiennent déjà `indisponible` **avec** son lien via l'arbitrage E — après #27 les trois rendus de la page **convergent sur le même état et le même lien** |
+| **A-36** | **Issue #27.** Le caractère « bruyant » subsiste-t-il, `massifs_journaliser()` n'écrivant **rien** hors `WP_DEBUG` ? | **Oui, et il est porté par le rendu, non par le journal.** Conséquence enregistrée sans détour : **en production, le repli ne laisse aucune trace dans les logs** | C'est exactement l'argument de l'arbitrage E (« journal + état dégradé visible »). L'ardoise **cesse d'afficher un chiffre** et annonce « Information du jour non disponible » **sur la page la plus lue du site** : un développeur qui vient d'ajouter un état le voit à la première page chargée. Ce qui est abandonné est l'échec **fatal** ; ce qui est conservé est l'échec **visible** — ce que le contrat #3 demandait réellement |
+| **A-37** | **Issue #27.** Portée du `try` : la seule affectation, ou aussi les trois appels domaine qui la précèdent ? | **La seule affectation.** `massifs_synthese_du_jour()`, `massifs_fraicheur()` et le calcul de `$massifs_peremption` restent **dehors** | (1) Ces appels lèvent `\InvalidArgumentException`, pas `\UnhandledMatchError` : les englober élargirait le sens du `catch` **sans rien capter de plus**. (2) Englobés, `$massifs_synthese` et `$massifs_fraicheur` seraient potentiellement **indéfinies** en aval : la panne se **déplacerait** au lieu de disparaître. (3) `$massifs_peremption` calculé avant le `try` et **non touché** par le `catch` fait que le repli se comporte **exactement** comme le bras `indisponible` réel, qui laisse déjà « Donnée périmée. » s'ajouter (A-4) — une différence de comportement ici serait une **seconde divergence**, du type même que #27 referme |
+| **A-38** | **Issue #27.** Le commentaire conservé du bras `indisponible` disait « Les trois fragments **ci-dessous** », or le hissage les a déplacés une centaine de lignes plus haut | **Déixis corrigée** : « Les trois fragments du tableau d'absence hissé plus haut, … ». Le reste du bloc (pourquoi « INDISPONIBLE » de §8.2 n'est pas rendu) est **conservé mot pour mot**, aucun octet de code touché | La phrase **devenait fausse**, soit exactement la classe de défaut que #27 referme : une divergence entre ce qui est écrit et ce que fait le code. Règle désormais **opposable en revue** : un commentaire qui situe du code par « ci-dessus » / « ci-dessous » doit être revérifié à chaque déplacement de ce code |
 
 ### Demandes fermes portées au back — hors lot, à ordonnancer
 

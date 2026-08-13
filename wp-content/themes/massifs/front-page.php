@@ -36,114 +36,195 @@ if ( $massifs_api ) {
 	$massifs_fraicheur  = massifs_fraicheur( null );
 	$massifs_peremption = true === $massifs_fraicheur['perimee'];
 
-	// `match` SANS bras `default`, imposé par le contrat #3 : un cinquième état
-	// lèvera UnhandledMatchError plutôt que de produire un rendu silencieusement
-	// faux. Sur une donnée de sécurité, l'échec bruyant est le bon comportement.
+	// Ce tableau existe parce que le bras `indisponible` et le repli du `catch`
+	// doivent rendre EXACTEMENT la même chose, à la clé `journal` près. Deux
+	// copies divergeraient à la première retouche de la phrase §11.3 ou de la
+	// source de l'URL — or la divergence entre deux chemins de rendu d'un même
+	// état est précisément le défaut que cette issue referme : dupliquer ici
+	// serait refermer une divergence en en ouvrant une autre, de même nature, à
+	// trois lignes d'écart.
+	//
+	// Le hissage n'entame PAS l'interdit d'anti-factorisation du contrat #5 :
+	// celui-ci porte sur les quatre lectures chiffrées du bras `disponible`
+	// (`par_niveau['autorise']`, `partiel`, `disponibles`, `sans_donnee`), et son
+	// motif est de ne laisser aucune phrase chiffrée plausible et fausse en
+	// mémoire dans un état sans chiffre. Ce tableau ne lit AUCUNE de ces clés et
+	// ne contient AUCUN chiffre : il est l'inverse exact du danger visé, et il
+	// rend l'unique chemin de repli provablement dépourvu de chiffre.
+	// CRITÈRE DE REVUE : une variable hissée au-dessus du `match()` est un défaut
+	// si et seulement si elle peut contenir un nombre, ou une phrase contenant un
+	// nombre.
+	//
+	// massifs_attribution_statuts() ne prend aucun argument, ne lève rien et
+	// retourne `carte_officielle_url` sur ses deux chemins de retour ; elle est
+	// déjà appelée sans condition sur cette page (templates/footer.php l. 52,
+	// parts/bandeau-non-officialite.php l. 41, parts/liste-statuts.php l. 129).
+	// Un appel de plus ne coûte rien.
+	//
+	// Ce tableau doit rester DANS la garde $massifs_api : cette fonction n'existe
+	// pas quand elle est fausse. Il n'est jamais réutilisable dans la branche
+	// `else`, dont la phrase tient en un seul fragment et n'a pas de lien.
+	$massifs_ardoise_absente = array(
+		'chiffre'               => '',
+		'chiffre_total'         => '',
+		'titre_debut'           => 'Information du jour non disponible. Consultez',
+		'titre_url'             => massifs_attribution_statuts()['carte_officielle_url'],
+		'titre_lien'            => 'la carte officielle de la préfecture',
+		'titre_fin'             => '.',
+		'publication_partielle' => '',
+		'fraicheur'             => false,
+		'journal'               => '',
+	);
+
+	// `match` à quatre bras et SANS bras `default`, imposé par le contrat #3.
+	// L'enveloppe ci-dessous ne rend PAS silencieux l'ajout d'un cinquième état :
+	// un bras ajouté est retenu par le `match()`, et le `catch` n'est alors jamais
+	// atteint.
+	//
+	// Pourquoi l'enveloppe existe : ce `match()` s'exécute avant le premier octet
+	// de sortie. Sans elle, un `etat_global` hors des quatre bras lève
+	// \UnhandledMatchError, que WP_Fatal_Error_Handler convertit en HTTP 500 + la
+	// page « Erreur critique sur ce site. » du cœur de WordPress — et non en écran
+	// blanc : WORDPRESS_DEBUG vaut 0 et il n'existe pas de wp-content/php-error.php.
+	// Le visiteur reçoit alors zéro statut et zéro lien officiel, à rebours du
+	// brief §4.2.
+	//
+	// Deux déclencheurs, pas un seul : un cinquième état ajouté à api.php, OU la
+	// clé `etat_global` renommée ou retirée — son accès direct, imposé par le
+	// contrat sans isset() ni ??, fait alors valoir l'expression `null`, ce qui
+	// lève le même UnhandledMatchError. Le second est le plus probable des deux.
+	//
+	// Réconciliation, non superstition : les sept `match()` de templates/parts/**
+	// portent déjà la même enveloppe (contrat #6, arbitrage E), et elle était
+	// inatteignable tant que celui-ci levait avant les inclusions. Deux contrats
+	// gelés se contredisaient sur un même chemin de rendu ; ils sont ici mis
+	// d'accord.
+	//
+	// Où passe le bruit : l'échec reste bruyant par le rendu dégradé VISIBLE —
+	// l'ardoise cesse d'afficher un chiffre sur la page la plus lue du site — et
+	// par une ligne de journal sous WP_DEBUG, jamais par une panne. Le repli est
+	// une absence, jamais une donnée, et jamais un chiffre.
+	//
 	// `non_encore_publie` est inatteignable pour aujourd'hui ; le bras est écrit
 	// parce que `match` sans `default` l'exige et parce qu'un sélecteur de date
 	// le rendra atteignable.
-	$massifs_ardoise = match ( $massifs_synthese['etat_global'] ) {
-		// LE CHIFFRE N'EST ÉCRIT QUE DANS CE BRAS. La règle « jamais un statut
-		// périmé présenté comme courant » est ainsi tenue par la structure, pas
-		// par la vigilance. Accès direct aux clés du contrat, sans isset() ni ?? :
-		// une clé absente doit produire un avertissement PHP visible.
-		//
-		// La répétition des lectures de clés dans ce bras est délibérée : PHP
-		// n'évalue que le bras retenu, donc `partiel`, `disponibles` et
-		// `sans_donnee` ne sont même pas lus dans les états indisponible /
-		// hors_saison / non_encore_publie. Les hisser au-dessus du `match()`
-		// laisserait en mémoire, dans ces états, une phrase chiffrée plausible et
-		// fausse, à portée de copier-coller. C'est le prix de la garantie
-		// structurelle : NE PAS factoriser ces lectures.
-		'disponible'            => array(
-			'chiffre'               => (string) $massifs_synthese['par_niveau']['autorise'],
-			// Le dénominateur reste un ternaire EXPLICITE sur `partiel`. Qu'en
-			// journée complète `disponibles` vaille `total` est un fait de code,
-			// pas un fait de contrat : toujours écrire `disponibles` masquerait le
-			// glissement de sens le jour où le référentiel changerait de taille.
-			'chiffre_total'         => '/' . ( true === $massifs_synthese['partiel'] ? $massifs_synthese['disponibles'] : $massifs_synthese['total'] ),
-			// Accords par ternaires « > 1 » et NON par _n() : le thème déclare un
-			// domaine de texte mais ne charge aucun catalogue, or la règle de repli
-			// de WordPress est « n == 1 », qui écrirait « 0 massifs » là où le
-			// français écrit « 0 massif ». Zéro et un au singulier, pluriel à partir
-			// de deux. Ne pas « corriger » vers _n() : ce serait rouvrir le défaut.
+	try {
+		$massifs_ardoise = match ( $massifs_synthese['etat_global'] ) {
+			// LE CHIFFRE N'EST ÉCRIT QUE DANS CE BRAS. La règle « jamais un statut
+			// périmé présenté comme courant » est ainsi tenue par la structure, pas
+			// par la vigilance. Accès direct aux clés du contrat, sans isset() ni ?? :
+			// une clé absente doit produire un avertissement PHP visible.
 			//
-			// Le groupe dénominateur (%3$s) porte son nombre ET son qualificatif :
-			// le mot « renseigné » n'existe ainsi que là où il doit exister, et
-			// chaque espace du gabarit reste réel dans les deux cas, sans jamais
-			// produire de double espace en journée complète.
-			'titre_debut'           => sprintf(
-				'Aujourd’hui, %1$s %2$s sur %3$s %4$s d’accès autorisé.',
-				$massifs_synthese['par_niveau']['autorise'],
-				$massifs_synthese['par_niveau']['autorise'] > 1 ? 'massifs' : 'massif',
-				true === $massifs_synthese['partiel']
+			// La répétition des lectures de clés dans ce bras est délibérée : PHP
+			// n'évalue que le bras retenu, donc `partiel`, `disponibles` et
+			// `sans_donnee` ne sont même pas lus dans les états indisponible /
+			// hors_saison / non_encore_publie. Les hisser au-dessus du `match()`
+			// laisserait en mémoire, dans ces états, une phrase chiffrée plausible et
+			// fausse, à portée de copier-coller. C'est le prix de la garantie
+			// structurelle : NE PAS factoriser ces lectures. L'interdit porte sur CES
+			// QUATRE LECTURES CHIFFRÉES, non sur le tableau d'absence hissé au-dessus
+			// du `match()`, qui ne contient aucun chiffre : une variable hissée est un
+			// défaut si et seulement si elle peut contenir un nombre, ou une phrase
+			// contenant un nombre.
+			'disponible'            => array(
+				'chiffre'               => (string) $massifs_synthese['par_niveau']['autorise'],
+				// Le dénominateur reste un ternaire EXPLICITE sur `partiel`. Qu'en
+				// journée complète `disponibles` vaille `total` est un fait de code,
+				// pas un fait de contrat : toujours écrire `disponibles` masquerait le
+				// glissement de sens le jour où le référentiel changerait de taille.
+				'chiffre_total'         => '/' . ( true === $massifs_synthese['partiel'] ? $massifs_synthese['disponibles'] : $massifs_synthese['total'] ),
+				// Accords par ternaires « > 1 » et NON par _n() : le thème déclare un
+				// domaine de texte mais ne charge aucun catalogue, or la règle de repli
+				// de WordPress est « n == 1 », qui écrirait « 0 massifs » là où le
+				// français écrit « 0 massif ». Zéro et un au singulier, pluriel à partir
+				// de deux. Ne pas « corriger » vers _n() : ce serait rouvrir le défaut.
+				//
+				// Le groupe dénominateur (%3$s) porte son nombre ET son qualificatif :
+				// le mot « renseigné » n'existe ainsi que là où il doit exister, et
+				// chaque espace du gabarit reste réel dans les deux cas, sans jamais
+				// produire de double espace en journée complète.
+				'titre_debut'           => sprintf(
+					'Aujourd’hui, %1$s %2$s sur %3$s %4$s d’accès autorisé.',
+					$massifs_synthese['par_niveau']['autorise'],
+					$massifs_synthese['par_niveau']['autorise'] > 1 ? 'massifs' : 'massif',
+					true === $massifs_synthese['partiel']
+						? sprintf(
+							'%1$s %2$s',
+							$massifs_synthese['disponibles'],
+							$massifs_synthese['disponibles'] > 1 ? 'renseignés' : 'renseigné'
+						)
+						: $massifs_synthese['total'],
+					$massifs_synthese['par_niveau']['autorise'] > 1 ? 'sont' : 'est'
+				),
+				'titre_url'             => '',
+				'titre_lien'            => '',
+				'titre_fin'             => '',
+				// `sans_donnee` est LU, jamais recomposé en « total - disponibles » :
+				// le thème ne calcule jamais un décompte ni un dénominateur.
+				// `journal` reste vide — une publication incomplète est un état
+				// d'exploitation normal, pas une rupture de contrat.
+				'publication_partielle' => true === $massifs_synthese['partiel']
 					? sprintf(
-						'%1$s %2$s',
-						$massifs_synthese['disponibles'],
-						$massifs_synthese['disponibles'] > 1 ? 'renseignés' : 'renseigné'
+						'%1$s %2$s %3$s sans information du jour.',
+						$massifs_synthese['sans_donnee'],
+						$massifs_synthese['sans_donnee'] > 1 ? 'massifs' : 'massif',
+						$massifs_synthese['sans_donnee'] > 1 ? 'restent' : 'reste'
 					)
-					: $massifs_synthese['total'],
-				$massifs_synthese['par_niveau']['autorise'] > 1 ? 'sont' : 'est'
+					: '',
+				'fraicheur'             => true,
+				'journal'               => '',
 			),
-			'titre_url'             => '',
-			'titre_lien'            => '',
-			'titre_fin'             => '',
-			// `sans_donnee` est LU, jamais recomposé en « total - disponibles » :
-			// le thème ne calcule jamais un décompte ni un dénominateur.
-			// `journal` reste vide — une publication incomplète est un état
-			// d'exploitation normal, pas une rupture de contrat.
-			'publication_partielle' => true === $massifs_synthese['partiel']
-				? sprintf(
-					'%1$s %2$s %3$s sans information du jour.',
-					$massifs_synthese['sans_donnee'],
-					$massifs_synthese['sans_donnee'] > 1 ? 'massifs' : 'massif',
-					$massifs_synthese['sans_donnee'] > 1 ? 'restent' : 'reste'
-				)
-				: '',
-			'fraicheur'             => true,
-			'journal'               => '',
-		),
-		// Le mot « INDISPONIBLE » de MASTER.md §8.2 n'est pas rendu : il serait
-		// un second bloc --fs-700 adjacent au h1, qui dit déjà exactement cela.
-		// Les trois fragments ci-dessous, concaténés, sont la chaîne §11.3 mot
-		// pour mot ; ils ne sont séparés que pour porter le lien.
-		'indisponible'          => array(
-			'chiffre'               => '',
-			'chiffre_total'         => '',
-			'titre_debut'           => 'Information du jour non disponible. Consultez',
-			'titre_url'             => massifs_attribution_statuts()['carte_officielle_url'],
-			'titre_lien'            => 'la carte officielle de la préfecture',
-			'titre_fin'             => '.',
-			'publication_partielle' => '',
-			'fraicheur'             => false,
-			'journal'               => '',
-		),
-		// Phrase §11.3 tronquée à sa première proposition : « Reprise le {date}. »
-		// exigerait de formater une date nue, ce que massifs_horodatage() refuse.
-		// La proposition est omise et journalisée, jamais inventée (demande B-1).
-		'hors_saison'           => array(
-			'chiffre'               => '',
-			'chiffre_total'         => '',
-			'titre_debut'           => 'Dispositif estival inactif.',
-			'titre_url'             => '',
-			'titre_lien'            => '',
-			'titre_fin'             => '',
-			'publication_partielle' => '',
-			'fraicheur'             => false,
-			'journal'               => 'massifs: état hors_saison — proposition « Reprise le {date}. » omise, faute de massifs_horodatage_jour() (demande B-1).',
-		),
-		'non_encore_publie'     => array(
-			'chiffre'               => '',
-			'chiffre_total'         => '',
-			'titre_debut'           => 'Les statuts de demain ne sont pas encore publiés. La préfecture publie vers 17 h.',
-			'titre_url'             => '',
-			'titre_lien'            => '',
-			'titre_fin'             => '',
-			'publication_partielle' => '',
-			'fraicheur'             => false,
-			'journal'               => '',
-		),
-	};
+			// Le mot « INDISPONIBLE » de MASTER.md §8.2 n'est pas rendu : il serait
+			// un second bloc --fs-700 adjacent au h1, qui dit déjà exactement cela.
+			// Les trois fragments du tableau d'absence hissé plus haut, concaténés, sont
+			// la chaîne §11.3 mot pour mot ; ils ne sont séparés que pour porter le lien.
+			'indisponible'          => $massifs_ardoise_absente,
+			// Phrase §11.3 tronquée à sa première proposition : « Reprise le {date}. »
+			// exigerait de formater une date nue, ce que massifs_horodatage() refuse.
+			// La proposition est omise et journalisée, jamais inventée (demande B-1).
+			'hors_saison'           => array(
+				'chiffre'               => '',
+				'chiffre_total'         => '',
+				'titre_debut'           => 'Dispositif estival inactif.',
+				'titre_url'             => '',
+				'titre_lien'            => '',
+				'titre_fin'             => '',
+				'publication_partielle' => '',
+				'fraicheur'             => false,
+				'journal'               => 'massifs: état hors_saison — proposition « Reprise le {date}. » omise, faute de massifs_horodatage_jour() (demande B-1).',
+			),
+			'non_encore_publie'     => array(
+				'chiffre'               => '',
+				'chiffre_total'         => '',
+				'titre_debut'           => 'Les statuts de demain ne sont pas encore publiés. La préfecture publie vers 17 h.',
+				'titre_url'             => '',
+				'titre_lien'            => '',
+				'titre_fin'             => '',
+				'publication_partielle' => '',
+				'fraicheur'             => false,
+				'journal'               => '',
+			),
+		};
+	} catch ( \UnhandledMatchError $massifs_erreur ) {
+		// Repli sur l'absence AVEC le lien : l'URL vient du serveur et le serveur
+		// répond ici, puisque $massifs_api est vrai. Le repli SANS lien est réservé
+		// à la branche `else`, où l'URL est inobtenable. parts/liste-statuts.php
+		// (l. 157-161) et parts/etats-vides.php (l. 86-90) retiennent le même
+		// repli : les trois rendus de la page convergent sur le même état et le
+		// même lien.
+		//
+		// Le message de PHP nomme la valeur inattendue — c'est PHP qui la met en
+		// forme, le thème n'en compose rien — et il distingue les deux causes : une
+		// valeur entre guillemets désigne un cinquième état, `null` désigne une clé
+		// disparue du contrat. Deux causes racines, dans deux fichiers différents.
+		//
+		// Pas de _doing_it_wrong() ici : son trigger_error( E_USER_WARNING ) reste
+		// dans error_reporting() hors WP_DEBUG et s'imprimerait dans la page du
+		// visiteur si display_errors était actif. Le thème n'expose aucun texte de
+		// repli au visiteur.
+		$massifs_ardoise            = $massifs_ardoise_absente;
+		$massifs_ardoise['journal'] = 'massifs: etat_global hors des quatre états du gabarit — ardoise rendue en état indisponible (' . $massifs_erreur->getMessage() . ').';
+	}
 } else {
 	// API absente : la branche indisponible, SANS le lien — l'adresse vient du
 	// serveur, qui est absent. Aucune copie inventée, le h1 unique est conservé,

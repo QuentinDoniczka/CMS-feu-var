@@ -2,6 +2,45 @@
 
 **Gelé le** 12 août 2026 par `lead-issue-cms` (chaîne #6) · **Statut** : contraignant.
 
+> **RÉVISION 1 — 13 août 2026, issue #27 « Réconcilier la garde du `match()` de `front-page.php` avec
+> l'arbitrage écran-blanc de la chaîne #6 ».**
+>
+> **Aucune ligne des quatre parties n'est modifiée par #27.** `templates/parts/**` est **hors de
+> l'empreinte** de cette issue : de ce côté, la réconciliation est **purement documentaire**. L'arbitrage
+> E n'est ni annulé, ni amendé dans sa décision — il est **confirmé et généralisé**.
+>
+> **Constat.** L'arbitrage E enveloppe les `match()` des parties « pour ne pas faire d'une évolution du
+> domaine une panne de site ». Cette mitigation était **inatteignable depuis l'accueil** : le `match()` de
+> `front-page.php` (chaîne #5) lisait `etat_global` **avant** `get_template_part()`, sans enveloppe, et
+> levait `\UnhandledMatchError` avant que la moindre partie ne soit incluse. La protection existait dans
+> les sept `match()` des parties, mais **aucun visiteur ne l'atteignait** : il recevait la page d'erreur du
+> cœur de WordPress. **Depuis #27, elle est atteignable.**
+>
+> **Deux corrections factuelles, la conclusion d'E restant inchangée :**
+>
+> 1. **« un écran blanc pour tous les visiteurs » est inexact.** Avec `WORDPRESS_DEBUG: 0` et sans
+>    `wp-content/php-error.php`, l'`E_ERROR` est capté par `WP_Fatal_Error_Handler` : le visiteur reçoit
+>    **HTTP 500 + la page « Erreur critique sur ce site. » du cœur de WordPress** — zéro statut, zéro lien
+>    officiel, aucun de nos jetons, hors de toute vérification d'accessibilité. **La conclusion d'E est
+>    confirmée** : sur ce chemin de rendu, l'échec bruyant doit passer par un **rendu dégradé visible**,
+>    jamais par une panne. Seul le fait invoqué est corrigé — un contrat qui invoque un fait faux se fait
+>    contredire en revue.
+> 2. **Le nombre de `match()` enveloppés est de sept, non de trois** (chiffre articulé par la revue du lot
+>    2 et repris par le corps de l'issue #27) : `etats-vides.php` l. 86 ; `legende.php` l. 112, 142, 177 ;
+>    `liste-statuts.php` l. 157, 267, 300, 318.
+>
+> **Divergence de canal d'erreur, enregistrée et signalée, non traitée.** Les parties emploient
+> `_doing_it_wrong()` ; l'appelant emploie `massifs_journaliser()` (contrat #5, arbitrage A-33). Motif :
+> `_doing_it_wrong()` déclenche `trigger_error( E_USER_WARNING )`, qui **reste dans `error_reporting()`
+> même avec `WP_DEBUG` à faux** — si `display_errors` était actif, l'avertissement s'imprimerait dans le
+> corps de la page. **L'exposition est plus grave côté parties** : leurs `trigger_error` s'exécutent
+> **après** le début de la sortie, donc l'avertissement s'imprimerait **au milieu de la page** du
+> visiteur, tandis que celui de l'ardoise le précéderait. #27 ne crée pas ce risque et n'a aucune raison de
+> l'aggraver. Alignement à ordonnancer par une chaîne ultérieure — voir O-27-2 de
+> `docs/contracts/issue-27.md`.
+>
+> Contrat complet de l'issue : `docs/contracts/issue-27.md`.
+
 Ce contrat n'est **pas** une frontière front↔back : l'issue #6 ne touche que le thème. C'est la frontière
 entre les **quatre parties de gabarit** que la chaîne #6 possède et **tout appelant** — aujourd'hui la
 chaîne #5 (`front-page.php`, `header.php`, `functions.php`), la chaîne #4 (`assets/css/`), demain la
@@ -129,6 +168,7 @@ d'écran (MASTER §10.6 règle 6).
 | `donnee_perimee` | **Pas un `etat`** : `massifs_fraicheur()['perimee']` | **Hors de la chaîne #6.** `perimee` n'est lu par aucune des quatre parties. La bannière §8.3 est page-level et appartient à la chaîne #5 ; elle **s'ajoute** aux statuts, ne les masque jamais |
 | `couche_effis_indisponible` | Hors périmètre | Aucune des quatre parties ne le connaît |
 | `referentiel_indisponible` (`massifs_referentiel()` = `array()`) | `issue-2.md` | Section + titre + `etats-vides` en `indisponible`. **Aucune chaîne nouvelle n'est créée** pour ce cas |
+| **`etat` / `etat_global` inconnu** (**révision 1, issue #27**) | Par **aucun** chemin de donnée : `etat_global` naît d'une chaîne `if/elseif` locale fermée (`api.php` l. 223-231) que **aucun `apply_filters`** ne traverse | **Inchangé pour les quatre parties** : `try/catch ( \UnhandledMatchError )` retenant `indisponible` (arbitrage E). **Note de convergence** : depuis #27, les **trois** rendus de l'accueil convergent sur `indisponible` **avec** le lien officiel — `etats-vides.php` (l. 86-90), `liste-statuts.php` (l. 157-161) et l'ardoise de `front-page.php`. **Aucune chaîne nouvelle n'est créée** pour ce cas |
 
 **Décision de niveau page**, lue dans `synthese['etat_global']`, **jamais recalculée** :
 
@@ -328,6 +368,7 @@ lues** par ces gabarits.
 | 5‑3 | chaîne #5 | N'émettre **aucun `h2`** pour la liste ni pour la légende. Le `h1` unique de la page lui appartient |
 | 5‑4 | chaîne #5 | Rendre la bannière de péremption §8.3 quand `massifs_fraicheur()['perimee'] === true`, et la phrase de fraîcheur complète §11.3 dans l'ardoise. Non couvert par `etats-vides` |
 | 5‑5 | chaîne #5 | Passer les `$args` pré-résolus pour éviter des appels domaine redondants ; passer un `ancre` distinct à toute seconde inclusion |
+| **5‑6** | **tout appelant des quatre parties** (issue #27) — chaîne #5, chaîne `carte`, pages éditoriales, sélecteur de date, et toute page future | **Un appelant qui lit `etat_global` AVANT d'inclure une partie DOIT envelopper son propre `match()` d'un `try/catch ( \UnhandledMatchError )`.** Sinon l'arbitrage E **ne protège rien** : la mitigation des parties n'est atteinte que si l'appelant a survécu jusqu'à l'inclusion. C'est le défaut exact qu'a corrigé #27 sur `front-page.php`, et il est **structurellement reproductible** par toute page future. **Opposable en revue.** Le repli attendu est l'état `indisponible` **avec** le lien `massifs_attribution_statuts()['carte_officielle_url']` dès que l'API de lecture répond, jamais un chiffre, jamais une donnée |
 | 4‑1 | chaîne #4 (`tokens.css`) | Les jetons de MASTER §12, **y compris** `--statut-hors-saison`, `--statut-non-publie` et leurs `-encre` |
 | 4‑2 | chaînes #4/#5 (`layout.css`) | Le contrat de classes ci-dessus : cartes empilées sous `--bp-s` via `display: block` + `content: attr(data-etiquette)` + masquage des cellules `:empty` ; `thead { display: table-header-group }` et `page-break-inside: avoid` à l'impression ; `bandeau-non-officialite` jamais masqué à l'impression ; capitales par `text-transform` uniquement ; jamais de troncature de `.statut__libelle` |
 | 3‑1 | chaîne #3 | Exposer `massifs_horodatage_jour( string $jour ): array` pour supprimer la couture de l'arbitrage B. Et arbitrer la double source de l'heure de publication : `publication_heure` (donnée de `legende.config.php`) vs le « 17 h » figé en dur dans MASTER §11.3 |
