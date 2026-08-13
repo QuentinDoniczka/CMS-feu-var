@@ -40,7 +40,7 @@ docker compose down        # ne rien laisser tourner
 | `tests/bootstrap.php` | assertions, purge d'état, fabriques de charges utiles, bouchons réseau |
 | `tests/scenarios/*.php` | un scénario par fichier, exécuté par `wp eval-file` dans le conteneur d'outillage |
 | `tests/outils/` | fichiers appelés par les scripts shell, hors de la boucle des scénarios |
-| `tests/rendu/etats.php` | fabrique d'états observables : place la base dans un état connu, puis rend la main |
+| `tests/rendu/etats.php` | fabrique d'états observables : place la base dans un état connu, puis rend la main. Modes : `absente`, `jour-nominal`, `veille-seule`, `jour-complet <autorises>`, `jour-partiel <renseignes> <autorises>`. Les deux derniers rapportent l'état **relu dans le domaine**, jamais celui que la fabrique a cru écrire |
 | `tests/rendu/recette-rendu.mjs` | recette de rendu — un vrai navigateur charge le site réel en HTTP |
 | `tests/run.sh`, `tests/verifier-http.sh`, `tests/module-absent.sh` | orchestration depuis l'hôte |
 
@@ -120,6 +120,7 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 | `impression` | aperçu d'impression à **A4 (703 px) ET A5 (469 px)** : colonnes restaurées sans requête de largeur, bandeau de non-officialité imprimé, liseré et hachure en charbon y compris sous `.sur-sombre`, et le `thead` en `display: table-header-group` / `position: static` / `clip-path: none` — **seule sonde capable de détecter le retrait de la garde `@media screen`** du déport (invariant I-5 rév. #28) | équivalent textuel imprimable |
 | `cartes` | mode cartes à 320 px, en-tête **déporté hors cadre et non retiré** (boîte de 2 px, aucun pixel de défilement, jamais focusable), étiquettes reprises de `data-etiquette`, et **le piège des cellules vides** : aucun champ étiqueté vide, aucun octet d'espace entre les balises | mobile réel |
 | `arbre` | l'arbre d'accessibilité réellement construit par le moteur (CDP), **aux deux largeurs** : comptes stricts par rôle, noms accessibles des quatre en-têtes, et le sous-ensemble tabulaire identique à 320 px et à 900 px — `cell` excepté (63 / 75) | accessibilité |
+| `partielle` | **journée de publication partielle (issue #26)** : huit journées posées par la fabrique — trois complètes (X = 0, 1, 20) et cinq partielles (X/Y/Z couvrant 0, 1 et pluriel sur les **trois** axes d'accord) — dont le dénominateur affiché, la phrase de synthèse mot pour mot, la présence *et l'absence* du `<p class="ardoise__publication-partielle">`, sa position entre le `h1` et la ligne de fraîcheur, la concordance de la liste textuelle avec les chiffres du domaine, axe-core et 360 px sur une journée partielle | statut périmé, utilisable sans JS, accessibilité, mobile |
 | `gravatar` | aucune empreinte d'e-mail composée ni servie — anonymement, sous `admin` et sous `gestionnaire-demo`, sur `/`, `/wp-admin/`, `profile.php`, `users.php` et les deux routes REST du cœur — où `avatar_urls` / `author_avatar_urls` ont disparu de la charge utile **et du schéma** (`OPTIONS`) ; la coupe tient **même sous `force_display`**, donc imprenable par une valeur en base | zéro requête tierce, donnée personnelle |
 
 ### `13-jours-consecutifs-identiques` — à ne jamais supprimer
@@ -185,3 +186,9 @@ déclarées couvertes nulle part.
 Enfin, l'horloge du domaine n'est pilotée par aucun filtre : « hors saison » et « demain non publié »
 sont donc éprouvés en demandant explicitement un jour aux gabarits (`21-rendu-etats-hors-saison`),
 jamais sur la page d'accueil servie, qui suit l'horloge réelle du conteneur.
+
+Conséquence directe et **non couverte** : `front-page.php` appelle le domaine avec `null` (« aujourd'hui »)
+et n'accepte aucun jour. Les bras `hors_saison` et `non_encore_publie` de son `match()` sont donc
+**inatteignables en HTTP** tant que l'horloge du conteneur est en saison — aucun scénario n'observe
+l'ardoise dans ces deux états. Les deux autres états sans chiffre le sont, eux : `indisponible` par les
+modes `absente` et `veille-seule`, la branche « API absente » par le scénario `extension`.

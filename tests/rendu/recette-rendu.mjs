@@ -119,10 +119,11 @@ const ORIGINE = new URL( BASE ).origin;
 /**
  * Place la base dans un état de départ connu, à l'intérieur de la stack.
  *
- * @param {string} mode absente | jour-nominal | veille-seule
+ * @param {string} mode absente | jour-nominal | veille-seule | jour-complet | jour-partiel
+ * @param {...(string|number)} parametres Arguments du mode (nombre de massifs renseignés, autorisés…).
  * @return {string} Ligne d'état rendue par la fabrique.
  */
-function poserEtat( mode ) {
+function poserEtat( mode, ...parametres ) {
 	const sortie = execFileSync(
 		'docker',
 		[
@@ -138,6 +139,7 @@ function poserEtat( mode ) {
 			'eval-file',
 			'/massifs-tests/rendu/etats.php',
 			mode,
+			...parametres.map( String ),
 		],
 		{ cwd: RACINE, encoding: 'utf8', env: { ...process.env, MSYS_NO_PATHCONV: '1' } }
 	);
@@ -950,6 +952,10 @@ async function s13_extensionDesactivee( navigateur ) {
 		);
 		egal( 0, await page.locator( 'h1 a' ).count(), 'aucun lien inventé : l’URL officielle vient du serveur, absent' );
 		egal( 1, await page.locator( '.bandeau-non-officialite' ).count(), 'le bandeau de non-officialité reste rendu' );
+		// Branche « API absente » de l'ardoise (issue #26) : aucun chiffre, donc
+		// aucune mention de publication partielle — il n'y a rien à qualifier.
+		egal( 0, await page.locator( '.ardoise__publication-partielle' ).count(), 'aucune mention de publication partielle sans domaine' );
+		egal( 0, await page.locator( '.ardoise__chiffre' ).count(), 'aucun chiffre du jour sans domaine' );
 
 		// Le point que le contrat #6 (dépendance 5-2) exige de garder : sans
 		// extension, la partie « liste » ne rend rien, donc l'ancre disparaît.
@@ -2206,6 +2212,281 @@ async function s21_aucuneFuiteGravatar( navigateur ) {
 	}
 }
 
+/**
+ * Les huit journées éprouvées par le scénario « partielle ».
+ *
+ * Chaque ligne porte la phrase ATTENDUE écrite en toutes lettres, jamais
+ * recomposée par une règle d'accord que le gabarit appliquerait aussi : une
+ * expectative qui reproduirait l'algorithme du code ne prouverait rien. Les
+ * chiffres sont ensuite confrontés à ceux que le DOMAINE rapporte, de sorte que
+ * la fixture ne puisse pas mentir sur l'état qu'elle a posé.
+ *
+ * Trois axes d'accord INDÉPENDANTS sont couverts à 0, 1 et plusieurs :
+ * X = massifs autorisés · Y = massifs renseignés · Z = massifs sans donnée.
+ * Y = 0 est impossible par construction — sans aucun massif renseigné l'état
+ * global n'est plus `disponible` mais `indisponible`, éprouvé par le scénario 04.
+ */
+const JOURNEES = [
+	{
+		mode: [ 'jour-complet', 20 ],
+		intitule: 'journée complète, 20 autorisés — le rendu d’avant #26, inchangé',
+		partiel: false,
+		titre: 'Aujourd’hui, 20 massifs sur 25 sont d’accès autorisé.',
+		chiffre: '20',
+		total: '/25',
+		manque: '',
+	},
+	{
+		mode: [ 'jour-complet', 1 ],
+		intitule: 'journée complète, X = 1 — singulier « massif … est »',
+		partiel: false,
+		titre: 'Aujourd’hui, 1 massif sur 25 est d’accès autorisé.',
+		chiffre: '1',
+		total: '/25',
+		manque: '',
+	},
+	{
+		mode: [ 'jour-complet', 0 ],
+		intitule: 'journée complète, X = 0 — les 25 massifs interdits du pic de canicule',
+		partiel: false,
+		titre: 'Aujourd’hui, 0 massif sur 25 est d’accès autorisé.',
+		chiffre: '0',
+		total: '/25',
+		manque: '',
+	},
+	{
+		mode: [ 'jour-partiel', 1, 1 ],
+		intitule: 'publication partielle, 1 seul massif renseigné — X = Y = 1, Z = 24',
+		partiel: true,
+		titre: 'Aujourd’hui, 1 massif sur 1 renseigné est d’accès autorisé.',
+		chiffre: '1',
+		total: '/1',
+		manque: '24 massifs restent sans information du jour.',
+	},
+	{
+		mode: [ 'jour-partiel', 2, 2 ],
+		intitule: 'publication partielle, X = Y = 2 — pluriel sur les deux axes',
+		partiel: true,
+		titre: 'Aujourd’hui, 2 massifs sur 2 renseignés sont d’accès autorisé.',
+		chiffre: '2',
+		total: '/2',
+		manque: '23 massifs restent sans information du jour.',
+	},
+	{
+		mode: [ 'jour-partiel', 5, 3 ],
+		intitule: 'publication partielle, X = 3 sur Y = 5 — le cas courant',
+		partiel: true,
+		titre: 'Aujourd’hui, 3 massifs sur 5 renseignés sont d’accès autorisé.',
+		chiffre: '3',
+		total: '/5',
+		manque: '20 massifs restent sans information du jour.',
+	},
+	{
+		mode: [ 'jour-partiel', 5, 0 ],
+		intitule: 'publication partielle, cas MIXTE X = 0 < Y = 5 — « 0 massif … renseignés … est »',
+		partiel: true,
+		titre: 'Aujourd’hui, 0 massif sur 5 renseignés est d’accès autorisé.',
+		chiffre: '0',
+		total: '/5',
+		manque: '20 massifs restent sans information du jour.',
+	},
+	{
+		mode: [ 'jour-partiel', 24, 20 ],
+		intitule: 'publication partielle, un seul massif manquant — Z = 1, « reste » au singulier',
+		partiel: true,
+		titre: 'Aujourd’hui, 20 massifs sur 24 renseignés sont d’accès autorisé.',
+		chiffre: '20',
+		total: '/24',
+		manque: '1 massif reste sans information du jour.',
+	},
+];
+
+async function s22_publicationPartielle( navigateur ) {
+	scenario( '22 — journée de publication partielle : dénominateur et mention du manque (§4.2, §5.1, issue #26)' );
+
+	const contexte = await navigateur.newContext( { javaScriptEnabled: false } );
+
+	for ( const journee of JOURNEES ) {
+		const etat = poserEtat( ...journee.mode );
+		const lu = Object.fromEntries(
+			[ ...etat.matchAll( /(\w+)=([\w-]+)/g ) ].map( ( m ) => [ m[ 1 ], m[ 2 ] ] )
+		);
+
+		// Contrôle préalable : l'état que le DOMAINE rapporte est bien celui que le
+		// scénario croit éprouver. Sans lui, une fixture muette rendrait tous les
+		// verts suivants sans valeur.
+		egal( 'disponible', lu.etat, `${ journee.intitule } : le domaine est en état « disponible »` );
+		egal( journee.partiel ? '1' : '0', lu.partiel, `${ journee.intitule } : le domaine signale partiel=${ journee.partiel ? 1 : 0 }` );
+		egal( journee.chiffre, lu.autorises, `${ journee.intitule } : le domaine compte ${ journee.chiffre } massif(s) autorisé(s)` );
+		egal( journee.total, `/${ lu.renseignes }`, `${ journee.intitule } : le domaine compte ${ journee.total.slice( 1 ) } massif(s) renseigné(s)` );
+
+		const page = await contexte.newPage();
+		await page.goto( BASE + '/', { waitUntil: 'load' } );
+		const html = await page.content();
+
+		assert(
+			! /Fatal error|Warning:|Notice:|UnhandledMatchError/.test( html ),
+			`${ journee.intitule } : aucune erreur PHP n’atteint le visiteur`,
+			'aucune',
+			( /(?:Fatal error|Warning:|Notice:)[^<\n]{0,120}/.exec( html ) ?? [ '' ] )[ 0 ]
+		);
+
+		// --- L'ardoise : la phrase, mot pour mot, telle que PHP l'a rendue.
+		egal( 1, await page.locator( 'h1' ).count(), `${ journee.intitule } : un seul h1` );
+		egal( journee.titre, await texteSource( page.locator( 'h1' ) ), `${ journee.intitule } : phrase de synthèse` );
+		egal( journee.chiffre, await texteSource( page.locator( '.ardoise__chiffre-valeur' ) ), `${ journee.intitule } : le chiffre de l’ardoise` );
+		egal( journee.total, await texteSource( page.locator( '.ardoise__chiffre-total' ) ), `${ journee.intitule } : le dénominateur de l’ardoise` );
+
+		// --- La mention du manque : présente si et seulement si la journée est
+		// partielle, et exacte.
+		const mention = page.locator( '.ardoise__publication-partielle' );
+		egal(
+			journee.manque === '' ? 0 : 1,
+			await mention.count(),
+			`${ journee.intitule } : ${ journee.manque === '' ? 'aucune' : 'une' } mention de publication partielle`
+		);
+		if ( journee.manque !== '' ) {
+			egal( journee.manque, await texteSource( mention ), `${ journee.intitule } : la mention annonce le bon nombre de massifs sans information` );
+			egal( journee.manque.split( ' ' )[ 0 ], lu.sans_donnee, `${ journee.intitule } : ce nombre est celui du domaine` );
+
+			// Emplacement contractuel : APRÈS le h1, AVANT la ligne de fraîcheur.
+			// La lire ailleurs changerait ce que le visiteur comprend en premier.
+			const ordre = await page.evaluate( () => {
+				const enfants = [ ...document.querySelector( '.ardoise__texte' ).children ];
+				return enfants.map( ( e ) => e.tagName.toLowerCase() + '.' + ( e.className || '' ) );
+			} );
+			const iTitre = ordre.findIndex( ( c ) => c.includes( 'ardoise__titre' ) );
+			const iManque = ordre.findIndex( ( c ) => c.includes( 'ardoise__publication-partielle' ) );
+			const iFraicheur = ordre.findIndex( ( c ) => c.includes( 'ardoise__fraicheur' ) );
+			assert(
+				iTitre >= 0 && iManque === iTitre + 1 && iFraicheur === iManque + 1,
+				`${ journee.intitule } : la mention est entre le h1 et la ligne de fraîcheur`,
+				'h1, mention, fraîcheur',
+				ordre.join( ' | ' )
+			);
+			assert(
+				( await page.locator( 'h1 .ardoise__publication-partielle' ).count() ) === 0,
+				`${ journee.intitule } : la mention n’est PAS logée dans le h1`,
+				0,
+				await page.locator( 'h1 .ardoise__publication-partielle' ).count()
+			);
+		}
+
+		// --- Le point de sécurité de l'issue : aucun chiffre de la page ne peut
+		// laisser croire que les massifs non renseignés sont autorisés.
+		if ( journee.partiel ) {
+			assert(
+				! journee.titre.includes( `sur ${ lu.total } ` ),
+				`${ journee.intitule } : le dénominateur n’est PAS le référentiel entier (${ lu.total })`,
+				`jamais « sur ${ lu.total } »`,
+				journee.titre
+			);
+			assert(
+				( await texteSource( page.locator( 'h1' ) ) ).includes( 'renseigné' ),
+				`${ journee.intitule } : le dénominateur est qualifié « renseigné(s) »`,
+				'le mot « renseigné »',
+				await texteSource( page.locator( 'h1' ) )
+			);
+		} else {
+			assert(
+				! ( await texteSource( page.locator( 'h1' ) ) ).includes( 'renseigné' ),
+				`${ journee.intitule } : le mot « renseigné » n’est jamais rendu en journée complète`,
+				'aucun « renseigné »',
+				await texteSource( page.locator( 'h1' ) )
+			);
+		}
+
+		// --- La liste textuelle (§5.3) dit la même chose que l'ardoise : elle rend
+		// les 25 massifs du référentiel, et ceux qui n'ont pas de statut du jour y
+		// portent « information non disponible », jamais un niveau.
+		egal( Number( lu.total ), await page.locator( '#liste tbody tr' ).count(), `${ journee.intitule } : la liste rend une ligne par massif du référentiel` );
+		// Deux cellules distinctes : une ligne renseignée porte un
+		// `--niveau`, une ligne sans statut du jour porte un `--hors-niveau` en
+		// `colspan=3` — donc ni niveau, ni ZAPEF, ni fraîcheur à copier de la veille.
+		const libelles = await page.locator( '#liste tbody .liste-statuts__cellule--niveau' ).allTextContents();
+		const horsNiveau = await page.locator( '#liste tbody .liste-statuts__cellule--hors-niveau' ).allTextContents();
+		const comptes = {
+			autorise: libelles.filter( ( l ) => l.includes( 'Accès au massif autorisé' ) ).length,
+			interdit: libelles.filter( ( l ) => l.includes( 'Accès au massif interdit' ) ).length,
+			indisponible: horsNiveau.filter( ( l ) => l.includes( 'information non disponible' ) ).length,
+		};
+		egal(
+			{
+				autorise: Number( lu.autorises ),
+				interdit: Number( lu.renseignes ) - Number( lu.autorises ),
+				indisponible: Number( lu.sans_donnee ),
+			},
+			comptes,
+			`${ journee.intitule } : la liste compte exactement autant d’autorisés, d’interdits et d’indisponibles que le domaine`
+		);
+
+		egal( 1, await page.locator( '.bandeau-non-officialite' ).count(), `${ journee.intitule } : le bandeau de non-officialité est présent` );
+
+		await page.close();
+	}
+
+	// --- Contrôle d'accessibilité sur une journée partielle : le `<p>` ajouté ne
+	// doit rien casser de ce que le scénario 08 vérifie sur une journée complète.
+	poserEtat( 'jour-partiel', 5, 3 );
+	const axe = resoudre( 'axe-core' );
+	const vue = await ( await navigateur.newContext() ).newPage();
+	await vue.goto( BASE + '/', { waitUntil: 'load' } );
+	await vue.addScriptTag( { path: axe } );
+	const resultat = await vue.evaluate( async () => {
+		// eslint-disable-next-line no-undef
+		return await axe.run( document, { resultTypes: [ 'violations' ] } );
+	} );
+	egal(
+		[],
+		resultat.violations
+			.filter( ( v ) => v.impact === 'critical' || v.impact === 'serious' )
+			.map( ( v ) => `${ v.id } (${ v.impact }) : ${ v.nodes[ 0 ]?.target?.join( ' ' ) }` ),
+		'journée partielle : aucune violation axe bloquante'
+	);
+	egal(
+		[],
+		resultat.violations.filter( ( v ) => v.id === 'page-has-heading-one' ).map( ( v ) => v.impact ),
+		'journée partielle : la règle axe « page-has-heading-one » passe'
+	);
+
+	// Débordement horizontal à 360 px : la phrase ajoutée est la plus longue de
+	// l'ardoise, c'est donc elle qui déborderait la première.
+	await vue.setViewportSize( { width: 360, height: 780 } );
+	await vue.goto( BASE + '/', { waitUntil: 'load' } );
+	const debordement = await vue.evaluate( () => ( {
+		documentWidth: document.documentElement.scrollWidth,
+		viewport: window.innerWidth,
+	} ) );
+	assert(
+		debordement.documentWidth <= debordement.viewport,
+		'journée partielle à 360 px : aucun défilement horizontal',
+		`≤ ${ debordement.viewport } px`,
+		`${ debordement.documentWidth } px`
+	);
+	await vue.context().close();
+
+	// --- Les états qui ne sont PAS `disponible` n'émettent jamais la mention.
+	const sansStatut = await navigateur.newContext( { javaScriptEnabled: false } );
+	for ( const mode of [ 'absente', 'veille-seule' ] ) {
+		poserEtat( mode );
+		const p = await sansStatut.newPage();
+		await p.goto( BASE + '/', { waitUntil: 'load' } );
+		egal( 0, await p.locator( '.ardoise__publication-partielle' ).count(), `${ mode } : aucune mention de publication partielle` );
+		egal( 0, await p.locator( '.ardoise__chiffre' ).count(), `${ mode } : aucun chiffre du jour` );
+		egal( 1, await p.locator( 'h1' ).count(), `${ mode } : un seul h1` );
+		assert(
+			( await texteSource( p.locator( 'h1' ) ) ).startsWith( 'Information du jour non disponible.' ),
+			`${ mode } : la page annonce l’indisponibilité`,
+			'Information du jour non disponible.…',
+			await texteSource( p.locator( 'h1' ) )
+		);
+		await p.close();
+	}
+	await sansStatut.close();
+
+	await contexte.close();
+}
+
 // ---------------------------------------------------------------- lancement
 
 const SCENARIOS = [
@@ -2230,6 +2511,7 @@ const SCENARIOS = [
 	[ 'cartes', s19_modeCartesEtCellulesVides ],
 	[ 'arbre', s20_arbreAccessibiliteEnCartes ],
 	[ 'gravatar', s21_aucuneFuiteGravatar ],
+	[ 'partielle', s22_publicationPartielle ],
 ];
 
 const filtre = ( process.argv.find( ( a ) => a.startsWith( '--filtre=' ) ) ?? '' ).slice( 9 );
