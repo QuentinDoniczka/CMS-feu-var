@@ -175,9 +175,9 @@ function massifs_configurer_theme(): void {
 add_action( 'after_setup_theme', 'massifs_configurer_theme' );
 
 /**
- * Enregistre et enfile les cinq feuilles du thème.
+ * Enregistre et enfile les six feuilles du thème.
  *
- * Les cinq poignées sont TOUJOURS enregistrées, y compris quand le fichier est
+ * Les six poignées sont TOUJOURS enregistrées, y compris quand le fichier est
  * absent du disque — avec `$src = false`, ce qui produit un handle-alias :
  * aucune balise imprimée, aucune 404, et la dépendance se résout quand même.
  * Sans cela, `WP_Dependencies::all_deps()` retirerait SILENCIEUSEMENT
@@ -190,7 +190,7 @@ add_action( 'after_setup_theme', 'massifs_configurer_theme' );
  * sa balise vienne après, donc que la feuille d'impression l'emporte dans les
  * égalités de spécificité.
  *
- * Clé `media` absente = `all` : la porter sur les quatre feuilles d'écran
+ * Clé `media` absente = `all` : la porter sur les cinq feuilles d'écran
  * n'apprendrait rien, seule l'exception mérite d'être écrite.
  *
  * `style.css` n'est pas enfilé : il ne porte aucune règle CSS.
@@ -216,6 +216,14 @@ function massifs_enfiler_styles(): void {
 		'massifs-composants' => array(
 			'chemin' => 'assets/css/composants.css',
 			'deps'   => array( 'massifs-tokens', 'massifs-layout' ),
+		),
+		// Réserve la HAUTEUR de la bande carte. Enfilée tardivement, elle
+		// imprimerait dans le pied et ferait grandir le héros après coup — un
+		// saut de mise en page massif. leaflet.css passe APRÈS elle : elle est
+		// enfilée depuis templates/parts/carte.php, sans dépendance.
+		'massifs-carte'      => array(
+			'chemin' => 'assets/css/carte.css',
+			'deps'   => array( 'massifs-tokens', 'massifs-layout', 'massifs-composants' ),
 		),
 		'massifs-print'      => array(
 			'chemin' => 'assets/css/print.css',

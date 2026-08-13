@@ -1,0 +1,109 @@
+# Provenance — Leaflet 1.9.4 vendorisé
+
+Contrainte non négociable n° 2 du projet : **zéro requête navigateur vers un domaine tiers**. La
+bibliothèque cartographique est donc servie depuis notre domaine, et ce fichier consigne d'où elle vient
+et en quoi ce qui est servi diffère de ce qui a été récupéré.
+
+- **Bibliothèque** : Leaflet
+- **Version** : 1.9.4
+- **Licence** : BSD 2-Clause — texte intégral dans `LICENSE`, à côté de ce fichier
+- **Date de récupération** : 13 août 2026
+- **Contrat d'interface** : `docs/contracts/issue-7.md` §10
+
+---
+
+## 1. Fichiers, amont et servi
+
+| Fichier | URL amont | sha256 **amont** | sha256 **servi** | Octets servis |
+|---|---|---|---|---|
+| `leaflet.js` | `https://unpkg.com/leaflet@1.9.4/dist/leaflet.js` | `db49d009c841f5ca34a888c96511ae936fd9f5533e90d8b2c4d57596f4e5641a` | `dc71f8a6880bc3ca1bd9fa8dc5f1af48c702dc510b0a78240a07c5feed7ce935` | 147 517 |
+| `leaflet.css` | `https://unpkg.com/leaflet@1.9.4/dist/leaflet.css` | `a7837102824184820dfa198d1ebcd109ff6d0ff9a2672a074b9a1b4d147d04c6` | **identique** | 14 806 |
+| `LICENSE` | `https://unpkg.com/leaflet@1.9.4/LICENSE` | `53e8dc25862014e4324741ca18fbe3611e11d42ef69f59f86ea8c5389647d4cb` | **identique** | 1 395 |
+
+**Deux empreintes et non une, pour `leaflet.js`.** Le fichier servi diffère de l'amont : une empreinte
+unique serait invérifiable, puisqu'elle ne correspondrait à aucun des deux états du fichier. Les deux sont
+donc écrites, et l'écart est décrit au §2.
+
+**Contre-vérification d'origine.** Les trois fichiers ont été récupérés sur `unpkg.com` puis re-téléchargés
+sur `cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/` : `leaflet.js` et `leaflet.css` y donnent **le même
+sha256**. Le sha512 de `leaflet.js` amont vaut
+`BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg==`, qui est
+l'empreinte d'intégrité (SRI) publiée pour cette version.
+
+---
+
+## 2. Écart entre l'amont et le servi — une seule ligne, et pourquoi
+
+`leaflet.js` amont se termine par :
+
+```
+…window.L=t});
+//# sourceMappingURL=leaflet.js.map
+```
+
+**La dernière ligne est retirée**, et rien d'autre. Le fichier servi se termine par `});` suivi d'un saut
+de ligne. Écart mesuré : **36 octets retirés, 1 octet ajouté** (le saut de ligne final), soit
+147 552 → 147 517 octets. **Aucun autre octet du fichier n'est touché** : ni minification, ni reformatage,
+ni correctif, ni ajout d'en-tête.
+
+**Motif.** Nous ne vendorisons **aucun `.map`**. Laissée en place, cette ligne fait partir une requête vers
+`leaflet.js.map`, fichier absent, dès qu'un visiteur ouvre les outils de développement : une 404 sur notre
+domaine, et une assertion de recette (« zéro requête inattendue ») rendue illisible par du bruit.
+
+**`leaflet.css` n'est jamais édité, octet pour octet.** Toute modification de ce fichier est un défaut.
+
+---
+
+## 3. Aucune image vendorisée — la preuve est par les API non appelées
+
+`leaflet.css` porte trois références d'image, laissées telles quelles :
+
+| Ligne | Référence | Règle qui la porte | Instanciée par le thème ? |
+|---|---|---|---|
+| `url(images/layers.png)` | icône du sélecteur de couches | `.leaflet-control-layers-toggle` | non |
+| `url(images/layers-2x.png)` | idem, écrans à haute densité | `.leaflet-retina .leaflet-control-layers-toggle` | non |
+| `url(images/marker-icon.png)` | icône de marqueur par défaut | `.leaflet-default-icon-path` | non |
+
+Une `url()` de feuille de style ne déclenche une requête que si un élément correspondant au sélecteur
+existe dans le document. **Aucun de ces trois sélecteurs ne peut apparaître** : `assets/js/carte/carte.js`
+n'instancie **ni `L.Control.Layers`, ni `L.Marker`, ni `L.Icon`, ni `L.Icon.Default`, ni `L.Marker.Default`**
+— les seules API Leaflet employées sont `L.map`, `L.svg`, `L.geoJSON`, `L.tileLayer` et
+`L.latLngBounds`. Le contrôle de couches n'est jamais construit, aucun marqueur n'est jamais posé, et
+`attributionControl: false` retire le seul contrôle qu'une carte Leaflet crée d'office.
+
+C'est la raison pour laquelle **le CSS n'est pas fourché pour trois règles inatteignables** : fourcher un
+CSS vendorisé crée une dette de maintenance permanente et une divergence à chaque montée de version, pour
+supprimer des règles que le navigateur n'atteint jamais. La preuve est structurelle (les API ne sont pas
+appelées) et elle est **vérifiée en recette** par l'assertion « zéro requête vers
+`/assets/vendor/leaflet/images/` » (`docs/contracts/issue-7.md` §12, assertion 1).
+
+`url(#default#VML)` — quatrième `url()` du fichier — est une référence de comportement Internet Explorer 8,
+interne au document. Elle ne déclenche aucune requête réseau, sur aucun navigateur.
+
+---
+
+## 4. Structure du répertoire — à plat, quatre fichiers
+
+```
+assets/vendor/leaflet/
+├── leaflet.js       — 1.9.4 dist minifié, ligne sourceMappingURL retirée
+├── leaflet.css      — 1.9.4 dist, octet pour octet
+├── LICENSE          — BSD 2-Clause, verbatim
+└── PROVENANCE.md    — ce fichier
+```
+
+**Aucun répertoire `dist/`, `build/`, `includes/` ou `node_modules/` sous `vendor/`**, et aucun `.map`
+(`docs/contracts/issue-30.md` §3.7, legué à cette chaîne). La protection est **structurelle** : elle ne
+dépend pas de `docker/plugins-guard.conf`, qui vit dans `docker/` et n'existe pas en production o2switch.
+
+---
+
+## 5. Mise à jour de version
+
+1. Récupérer `dist/leaflet.js`, `dist/leaflet.css` et `LICENSE` de la nouvelle version, depuis `unpkg.com`,
+   et contre-vérifier le sha256 sur une seconde origine.
+2. Retirer la dernière ligne `//# sourceMappingURL=` de `leaflet.js`, et **rien d'autre**.
+3. Réécrire le tableau du §1 avec les deux nouvelles empreintes et la nouvelle date.
+4. Revérifier le §3 : si la nouvelle version instancie une image par une API que nous appelons, la preuve
+   par les API non appelées tombe et il faut alors traiter le cas explicitement.
+5. Rejouer les assertions de recette 1, 2 et 6 du §12 de `docs/contracts/issue-7.md`.

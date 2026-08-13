@@ -1,0 +1,617 @@
+@charset "UTF-8";
+/*
+ * MASSIFS — carte.css
+ * Couche visuelle de la carte : réserve de hauteur, peinture des trois
+ * <pattern> de statut, polygones, repère de sélection, chrome (barre de jour,
+ * contrôles Leaflet), panneau massif, motifs en couleurs forcées.
+ *
+ * Dépend de tokens.css, layout.css, composants.css. Enfilée AVANT leaflet.css
+ * (contrat #7 §8.5) : toute surcharge du chrome Leaflet gagne par la
+ * SPÉCIFICITÉ, via le préfixe `.carte`, jamais par un !important.
+ *
+ * Règles de fabrication, vérifiables :
+ * - AUCUNE custom property définie ici (tokens.css est gelé, sha256 épinglé).
+ * - AUCUN littéral de couleur, d'espacement, de durée ni de corps. Les seules
+ *   valeurs nues sont les zéros, les mots-clés, les valeurs structurelles
+ *   (100 %, 56.25rem recopié de --bp-m — @media n'accepte pas var()) et CINQ
+ *   littéraux sans jeton reproduits de MASTER, signalés sur place dans le style
+ *   des L-1…L-8 de composants.css :
+ *     L-11  min(72vh, 640px)  hauteur réservée de la bande carte — §7.1
+ *     L-12  4px               liseré de survol et de sélection, épaisseur des
+ *                             deux contours du repère — §9.2, §3.2 empl. 5.
+ *                             Aucun jeton ne le porte : --bord-fort est
+ *                             l'abréviation « 4px solid … », inutilisable comme
+ *                             épaisseur, et --statut-lisere-epaisseur vaut 2px.
+ *     L-13  380px             largeur de la colonne du panneau — §7.1
+ *     L-14  66%               hauteur maximale de la feuille du bas — §7.1
+ *     L-15  400 / 410         z-index des deux panes, dans l'échelle INTERNE de
+ *                             Leaflet (§12 : « Leaflet occupe 200–1000 »)
+ * - AUCUN url() d'origine externe : les trois url() sont des références de
+ *   fragment vers les <pattern> du même document. AUCUN @import.
+ * - AUCUNE ombre floue, AUCUN dégradé, AUCUN prefers-color-scheme, AUCUN rayon
+ *   > 2 px, AUCUN --bord-fort (layout.css l. 198-201 dépense déjà l'unique 4 px
+ *   du chrome nominal sur .bande--carte — §16).
+ * - AUCUN sélecteur .statut*, .pastille*, .jalon*, .liste-statuts*, .legende*,
+ *   .bandeau-alerte* : invariant I-1 de composants.css. Le panneau réutilise ce
+ *   balisage tel quel et hérite de sa peinture.
+ * - @media print : RIEN. print.css l. 98-103 masque déjà .bande--carte (I-6).
+ *
+ * Licence : GPL v2 or later.
+ */
+
+
+/* ═══ 1. Racine et bascule de visibilité ═════════════════════════════════ */
+
+/* Exigence 1. Plein cadre, --r-0, fond --c-carte-fond : la surface contre
+   laquelle les ratios du §10.1 sont mesurés quand aucune tuile n'est servie.
+   LA HAUTEUR EST RÉSERVÉE ICI, sur la racine, et non sur la toile : carte.php
+   rend `.carte__toile` AVEC `hidden` (un conteneur en display:none mesure 0 et
+   Leaflet n'y rendrait rien), donc une hauteur posée sur la toile serait inerte
+   jusqu'au JS et la bande sauterait de 0 à ~700 px à l'exécution. Réservée sur
+   la racine, elle vaut dès la première peinture, JS ou non, et la toile ne fait
+   que remplir ce qui reste (§7 : `flex: 1 1 auto`). Le total ne change donc pas
+   quand carte.js démasque la barre et la toile : aucun saut de mise en page
+   (assertion de recette 3), et la surface d'attente est un aplat --c-carte-fond
+   nu — pas de squelette, pas de spinner, c'est déjà à quoi ressemble la carte
+   (contrat §9). L-11. */
+.carte {
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  min-block-size: min(72vh, 640px);
+  background-color: var(--c-carte-fond);
+  border-radius: var(--r-0);
+}
+
+/* Avertissement liant n° 1 (§8.3) : `hidden` est l'UNIQUE bascule de visibilité
+   et le PHP émet le panneau masqué ; ce fichier pose `display: flex` sur
+   .carte__panneau et .carte__barre. Sans cette règle, le panneau serait visible
+   en permanence. SEUL !important du fichier, et sa seule raison. */
+.carte [hidden] {
+  display: none !important;
+}
+
+
+/* ═══ 2. Puits de motifs et peinture des trois <pattern> ═════════════════ */
+
+/* Avertissement liant n° 2 : ce <svg> n'est JAMAIS masqué par `display: none` —
+   plusieurs moteurs invalident alors les paint servers qu'il contient. Quatre
+   déclarations, rien d'autre ; insets laissés `auto`, la boîte sort du flux sans
+   bouger (idiome de composants.css §7 bis). */
+.carte__defs {
+  position: absolute;
+  inline-size: 0;
+  block-size: 0;
+  overflow: hidden;
+}
+
+/* Exigence 4. Le PHP rend la géométrie et `patternUnits="userSpaceOnUse"`
+   (A-13) sans poser aucune couleur : les motifs sont peints ICI, par classe.
+   POURQUOI fill ET stroke sur le même trait : la primitive n'est pas figée par
+   le contrat (un trait peut être un <line> stroké, un point un <circle> plein).
+   `fill` est inerte sur un <line> et sur un <path> ouvert (aire nulle), `stroke`
+   au pire épaissit une forme pleine ; les deux de la même encre sont corrects
+   dans les deux cas, là où `fill: none` ferait DISPARAÎTRE le motif sur une
+   forme pleine — la moitié de l'information (§10.3), sans que rien n'ait l'air
+   cassé. On choisit le défaut bruyant.
+   --statut-motif-trait n'est posé que sur les deux hachures (§8.1) : sur le
+   pointillé il grossirait un <circle> d'un demi-trait de chaque côté. */
+#carte-motif-interdit .carte__motif-aplat {
+  fill: var(--statut-interdit);
+}
+
+#carte-motif-interdit .carte__motif-trait {
+  fill: var(--statut-interdit-encre);
+  stroke: var(--statut-interdit-encre);
+  stroke-width: var(--statut-motif-trait);
+}
+
+#carte-motif-indisponible .carte__motif-aplat {
+  fill: var(--statut-indisponible);
+}
+
+#carte-motif-indisponible .carte__motif-trait {
+  fill: var(--statut-indisponible-encre);
+  stroke: var(--statut-indisponible-encre);
+  stroke-width: var(--statut-motif-trait);
+}
+
+#carte-motif-non-publie .carte__motif-aplat {
+  fill: var(--statut-non-publie);
+}
+
+#carte-motif-non-publie .carte__motif-trait {
+  fill: var(--statut-non-publie-encre);
+  stroke: var(--statut-non-publie-encre);
+}
+
+
+/* ═══ 3. Les polygones de massif ═════════════════════════════════════════ */
+
+/* Exigence 2, §4.1.d règles 1-2. `fill-opacity: 1` SANS EXCEPTION : les ratios
+   du §10 ne tiennent que sur aplat opaque. Le liseré n'est pas un ornement — un
+   massif vert et un massif rouge voisins ne contrastent qu'à 1,48:1, le liseré
+   charbon interpose 6,10:1 d'un côté et 4,11:1 de l'autre (§10.2) ; un polygone
+   sans liseré est un défaut bloquant. Jamais --bord-moyen (I-2) : ce jeton code
+   --c-charbon en dur et annulerait la bascule de .sur-sombre.
+   Ces déclarations écrasent les attributs de présentation de Leaflet (#3388ff,
+   fill-opacity 0.2, weight 3) : le CSS l'emporte toujours sur un attribut.
+   `fill: none` en base est un choix d'ÉCHEC : la table état → classe est fermée
+   (§8.2) ; une clé inconnue ne reçoit aucun aplat et laisse un contour vide,
+   visiblement anormal, plutôt qu'un bleu qui aurait l'air d'un état. Les cinq
+   états ci-dessous sont à spécificité ÉGALE : ils gagnent par l'ordre. */
+.carte__massif {
+  fill: none;
+  fill-opacity: 1;
+  stroke: var(--statut-lisere);
+  stroke-width: var(--statut-lisere-epaisseur);
+  stroke-opacity: 1;
+}
+
+/* Exigence 3, §4.1.a et §4.1.c : opposition BINAIRE nu / marqué, jamais une
+   échelle de densité — elle suggérerait des crans que le dispositif du 13 n'a
+   pas (§4.1.d règle 5). Les url() pointent le <svg class="carte__defs"> du même
+   document : aucune requête, aucune origine externe. */
+.carte__massif--autorise {
+  fill: var(--statut-autorise);
+}
+
+.carte__massif--interdit {
+  fill: url(#carte-motif-interdit);
+}
+
+.carte__massif--indisponible {
+  fill: url(#carte-motif-indisponible);
+}
+
+.carte__massif--hors-saison {
+  fill: var(--statut-hors-saison);
+}
+
+.carte__massif--non-publie {
+  fill: url(#carte-motif-non-publie);
+}
+
+/* Exigence 6, §9.2 : liseré porté de 2 à 4 px (L-12), JAMAIS un changement de
+   teinte, jamais d'opacité. `hover: hover` : au toucher, :hover reste collé
+   après une frappe (garde de composants.css §8). */
+@media (hover: hover) {
+  .carte__massif:hover {
+    stroke-width: 4px;
+  }
+}
+
+/* §9.2 « Sélectionné » : liseré 4 px (L-12) + repère à gauche, ce dernier rendu
+   par les contours du §4. Curseur roving, focus et sélection coïncident (A-9). */
+.carte__massif--courant {
+  stroke-width: 4px;
+}
+
+
+/* ═══ 4. Le repère sur la carte — §3.2, emplacement n° 5 ═════════════════ */
+
+/* Exigence 5 : le tracé courant est dupliqué, en calcaire dans le pane des
+   massifs et en charbon dans un pane décalé de (3 px, 4 px) — la peinture du
+   jour par-dessus celle de la veille. Ces règles viennent APRÈS le §3, à
+   spécificité égale : si le JS pose une classe d'état sur la duplication,
+   `fill: none` gagne par l'ordre et le contour ne repeint pas l'aplat.
+   A-9 : un seul contour rendu, à 4 px (L-12), et non l'anneau de 3 px du §9.1 —
+   sa conformité est satisfaite a fortiori (moitié charbon : 6,10:1 sur l'aplat
+   vert, 13,79:1 sur le fond de carte). */
+.carte__contour {
+  fill: none;
+  stroke: var(--c-calcaire);
+  stroke-width: 4px;
+}
+
+.carte__contour-trace {
+  fill: none;
+  stroke: var(--c-charbon);
+  stroke-width: 4px;
+}
+
+/* LE TRANSFORM VA SUR LE <g> INTERNE, JAMAIS SUR LE PANE : Leaflet repose ses
+   panes en translate3d() et écraserait un transform posé là. Sélecteur reproduit
+   verbatim de l'exigence 5. */
+.carte__pane--repere > svg > g {
+  transform: translate(var(--repere-decalage-x), var(--repere-decalage-y));
+}
+
+/* L-15 : l'ordre des panes est porteur — la trace SOUS le tracé — et le JS n'a
+   pas le droit d'écrire un style (§8.1). Échelle interne de Leaflet : au-dessus
+   des tuiles (200), sous les marqueurs (600) et les popups (700). */
+.carte .carte__pane--repere {
+  z-index: 400;
+}
+
+.carte .carte__pane--massifs {
+  z-index: 410;
+}
+
+
+/* ═══ 5. Chrome — la barre de jour ═══════════════════════════════════════ */
+
+/* A-10 : barre AU-DESSUS de la toile, jamais flottante — à 360 px un chrome
+   flottant recouvrirait le héros. Aplat OPAQUE --c-calcaire : §4.1.d règle 8
+   satisfaite a fortiori. `min-inline-size: 0` : cause n° 1 de défilement
+   horizontal (garde de layout.css l. 353-355). */
+.carte__barre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--esp-l);
+  row-gap: var(--esp-s);
+  padding-block: var(--esp-s);
+  padding-inline: var(--gouttiere);
+  background-color: var(--c-calcaire);
+}
+
+.carte__barre > * {
+  min-inline-size: 0;
+}
+
+/* A-1, verrou n° 1 contre « un statut périmé présenté comme courant » : le jour
+   est écrit en toutes lettres, en permanence, jamais porté par le seul état
+   actif d'un bouton — d'où le poids fort, renforcement non chromatique. Famille
+   de TEXTE : la barre est du chrome, hors des zones en portée (§5.1). */
+.carte__jour {
+  font-weight: var(--poids-texte-fort);
+}
+
+/* `<div role="group">` et non une liste : ni marge, ni retrait, ni puce à
+   annuler — l'UA n'en pose aucun sur un div. */
+.carte__jours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-xs);
+}
+
+/* Exigence 7 : cible ≥ --cible-min, aplat opaque --c-calcaire, encre charbon
+   (14,74:1), --r-0. La cible vient d'un plancher et de remplissage, jamais d'une
+   hauteur fixe. `font-family: inherit` : sinon le bouton retombe sur la police
+   système de l'UA. */
+.carte__jour-bouton,
+.carte__panneau-fermer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--cible-min);
+  min-block-size: var(--cible-min);
+  padding-inline: var(--esp-m);
+  border: var(--bord-moyen);
+  border-radius: var(--r-0);
+  background-color: var(--c-calcaire);
+  color: var(--c-charbon);
+  font-family: inherit;
+  font-size: var(--fs-200);
+}
+
+/* §9.2, survol : fond --c-calcaire-ombre, encre charbon maintenue (12,79:1). */
+@media (hover: hover) {
+  .carte__jour-bouton:hover,
+  .carte__panneau-fermer:hover {
+    background-color: var(--c-calcaire-ombre);
+  }
+}
+
+/* §9.2 « Sélectionné » : liseré 4 px (L-12), jamais un simple changement de
+   fond. Les deux attributs sont couverts, la table de classes étant fermée et
+   n'en portant aucune pour cet état. box-sizing global (layout.css l. 31-35) :
+   la cible reste à 44 px.
+   AUCUN traitement de « désactivé » : §9.2, cet état n'existe pas — le bouton
+   « Demain » non publié reste focusable et garde son contraste. */
+.carte__jour-bouton[aria-pressed="true"],
+.carte__jour-bouton[aria-current]:not([aria-current="false"]) {
+  border-width: 4px;
+}
+
+/* Phrase §11.3 du sélecteur — SŒUR de la barre, pas fille : elle porte donc sa
+   propre gouttière, sans quoi elle toucherait le bord à 360 px.
+   --c-charbon-doux sur --c-carte-fond : 6,82:1, conforme AA. AUCUN `display`
+   ici : l'élément porte `hidden`. */
+.carte__message {
+  padding-inline: var(--gouttiere);
+  font-size: var(--fs-200);
+  color: var(--c-charbon-doux);
+}
+
+/* Attribution : --fs-100 (§5.1), sur aplat opaque comme tout chrome de carte
+   (§4.1.d règle 8). Porte `hidden` tant qu'aucune tuile n'est servie (§6) : on
+   n'attribue pas une ressource absente. */
+.carte__attribution {
+  padding-block: var(--esp-xs);
+  padding-inline: var(--gouttiere);
+  background-color: var(--c-calcaire);
+  color: var(--c-charbon-doux);
+  font-size: var(--fs-100);
+}
+
+
+/* ═══ 6. Chrome — la toile et les contrôles Leaflet ══════════════════════ */
+
+/* Exigence 8 : sans ce contexte d'empilement, un contrôle Leaflet (z-index
+   interne jusqu'à 700) passerait au-dessus du panneau ; posé sur un élément
+   positionné, --z-carte enferme toute l'échelle interne de Leaflet.
+   `flex: 1 1 auto` et AUCUNE hauteur propre : la toile occupe ce que la racine a
+   réservé, moins la barre et les attributions. C'est ce qui rend le démasquage
+   par carte.js invisible en mise en page (voir §1). */
+.carte__toile {
+  position: relative;
+  z-index: var(--z-carte);
+  flex: 1 1 auto;
+  border-radius: var(--r-0);
+}
+
+/* leaflet.css passe APRÈS : `.leaflet-container` (0,1,0) repeindrait la toile en
+   #ddd. Le préfixe porte la règle à (0,2,0) — spécificité, pas !important. */
+.carte .carte__toile {
+  background-color: var(--c-carte-fond);
+}
+
+/* Exigence 7 et §9.3 : les contrôles font 30 px par défaut, ils sont
+   REDIMENSIONNÉS. Spécificité calculée, non devinée : leaflet.css porte
+   `.leaflet-touch .leaflet-bar a` et `.leaflet-bar a:hover` en (0,2,1) et passe
+   après nous ; le compound `.leaflet-bar.leaflet-control` (deux classes du même
+   élément) nous met à (0,3,1), et à (0,4,1) sur les états. L'ombre floue et le
+   rayon 4 px de `.leaflet-bar` sont annulés (§16). */
+.carte .leaflet-bar.leaflet-control {
+  border: var(--bord-moyen);
+  border-radius: var(--r-0);
+  box-shadow: var(--ombre-0);
+}
+
+.carte .leaflet-bar.leaflet-control a {
+  inline-size: var(--cible-min);
+  block-size: var(--cible-min);
+  border-block-end: var(--bord-fin);
+  border-radius: var(--r-0);
+  background-color: var(--c-calcaire);
+  color: var(--c-charbon);
+  font-family: var(--police-texte);
+  font-size: var(--fs-300);
+  line-height: var(--cible-min);
+}
+
+.carte .leaflet-bar.leaflet-control a:last-child {
+  border-block-end: 0;
+}
+
+.carte .leaflet-bar.leaflet-control a:hover,
+.carte .leaflet-bar.leaflet-control a:focus {
+  background-color: var(--c-calcaire-ombre);
+}
+
+/* Leaflet pose lui-même `.leaflet-disabled` aux bornes de zoom, en #bbb sur
+   #f4f4f4 (1,9:1). §9.2 : l'état désactivé n'existe pas — l'encre charbon reste
+   (12,79:1 sur calcaire-ombre) et la distinction passe par le fond, jamais par
+   un affaiblissement du contraste. */
+.carte .leaflet-bar.leaflet-control a.leaflet-disabled {
+  background-color: var(--c-calcaire-ombre);
+  color: var(--c-charbon);
+}
+
+
+/* ═══ 7. Panneau massif — feuille du bas (base, mobile-first) ════════════ */
+
+/* Exigence 9 et §7.1 : sous 900 px, feuille du bas, 66 % de hauteur au maximum
+   (L-14), défilement interne, --z-panneau, COINS NON ARRONDIS et AUCUNE poignée
+   en pilule (§16 sanctionne les deux) ; la fermeture est un BOUTON ≥ 44 px,
+   jamais un glissement seul. `position: fixed` est autorisé ici et seulement ici
+   (§7.1). --ombre-decalee n'est pas consommée : le filet 2 px et l'aplat opaque
+   détachent la feuille, comme composants.css l'a tranché pour la légende.
+   --bord-fort n'est pas posé bien que §6.3 le nomme pour ce panneau : §16
+   n'en autorise qu'une occurrence dans le chrome nominal, dépensée par
+   layout.css sur l'entrée de la bande carte. Divergence signalée au rapport.
+   `display: flex` EXIGE la règle du §1. Pile en `gap: var(--esp-l)` (§8.4) : un
+   bloc absent ne laisse aucun trou. */
+.carte__panneau {
+  position: fixed;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: var(--z-panneau);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-l);
+  max-block-size: 66%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--esp-l);
+  border: var(--bord-moyen);
+  border-radius: var(--r-0);
+  background-color: var(--c-calcaire);
+}
+
+/* Exigence 11 : translation + opacité, jetons de durée existants. §9.4 chiffre
+   la translation à 12 px, soit exactement --esp-s. `prefers-reduced-motion`
+   n'est PAS réécrit : tokens.css l. 172-174 ramène déjà les trois durées à
+   0,01 ms. Une animation et non une transition : le panneau passe de
+   `display: none` à `display: flex` dans la même image. */
+.carte--panneau-ouvert .carte__panneau {
+  animation: carte-panneau-entree var(--duree-long) var(--ease-net);
+}
+
+@keyframes carte-panneau-entree {
+  from {
+    transform: translateY(var(--esp-s));
+    opacity: 0;
+  }
+}
+
+/* Deuxième de la pile, juste après le titre : le bouton reste en haut de la
+   feuille, à portée du pouce, aligné en fin de ligne — jamais en recouvrement
+   du titre, jamais étiré sur toute la largeur par le `stretch` du flex. */
+.carte__panneau-fermer {
+  align-self: flex-end;
+}
+
+/* §5.1 : « libellé d'état dans le panneau » en --fs-400. Le libellé officiel
+   lui-même reste en --fs-250 : il vient de composants.css, gelé, que ce fichier
+   n'a pas le droit de cibler (I-1). */
+.carte__panneau-etat,
+.carte__panneau-zapef,
+.carte__panneau-hors-niveau {
+  font-size: var(--fs-400);
+}
+
+/* Note ZAPEF officielle, apostrophe U+2019 comprise : --fs-100 (§8.4 bloc 3). */
+.carte__panneau-note-zapef {
+  font-size: var(--fs-100);
+}
+
+/* §8.4 : la phrase de l'emplacement de consigne est en --fs-200 /
+   --c-charbon-doux, sans intitulé. Même traitement pour la fraîcheur du statut
+   (A-4) et la source : ce sont des méta (§5.1). 7,29:1 sur --c-calcaire. */
+.carte__panneau-consigne,
+.carte__panneau-fraicheur,
+.carte__panneau-source {
+  font-size: var(--fs-200);
+  color: var(--c-charbon-doux);
+}
+
+/* §9.1, exception NOMMÉE par MASTER : « :focus-visible uniquement, SAUF sur la
+   feuille du bas et le panneau massif, où le focus programmatique doit rester
+   visible ». D'où `:focus` ici, et ici seulement. L'anneau est celui du §9.1,
+   reproduit avec les jetons du §12 : layout.css l. 462-466 le pose en :where()
+   (spécificité nulle) et sur `:focus-visible`, qui peut ne pas s'armer quand le
+   JS déplace le focus à l'ouverture. Rien n'est retiré, une exception est
+   ajoutée. Mesuré : --c-mistral-nuit sur --c-calcaire, 12,66:1. */
+.carte__panneau:focus,
+.carte__panneau :focus {
+  outline: var(--focus-epaisseur) solid var(--focus-trait);
+  outline-offset: var(--focus-ecart);
+  box-shadow: 0 0 0 var(--focus-halo-epaisseur) var(--focus-halo);
+}
+
+/* Cible ≥ 44 px par remplissage (idiome de layout.css l. 378-385). Le
+   soulignement permanent et --c-mistral (6,81:1) viennent de layout.css. */
+.carte__panneau-lien {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-block-size: var(--cible-min);
+  padding-block: var(--esp-s);
+}
+
+
+/* ═══ 8. Textes déportés — aide clavier et région live ═══════════════════ */
+
+/* Exigence 10 : masqués VISUELLEMENT, jamais par `display: none` — une région
+   live en `display: none` n'annonce rien. Idiome de composants.css §7 bis :
+   absolu SANS AUCUN inset (position statique conservée, rien ne se décale),
+   dimensions --esp-3xs (2 px, jamais zéro : une boîte nulle est sujette à
+   l'élagage de l'arbre), `overflow` contre le défilement horizontal,
+   `clip-path` contre la peinture. */
+.carte__aide,
+.carte__annonce {
+  position: absolute;
+  inline-size: var(--esp-3xs);
+  block-size: var(--esp-3xs);
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+
+/* ═══ 9. À partir de --bp-m : colonne collante ═══════════════════════════ */
+
+/* 56.25rem est --bp-m recopié : @media n'accepte pas var(). Le point de rupture
+   est en REM, donc il bascule aussi au zoom — à 200 %, une fenêtre de 1440 px
+   repasse en feuille du bas sans perte de contenu (WCAG 1.4.4).
+   CONDITIONNÉE À `.carte--prete` (sortie n° 2 de l'avertissement 1) : sans JS,
+   la barre, la toile et le panneau restent `hidden` et la bande ne contient que
+   l'image de repli du <noscript> — une colonne de 380 px réservée y serait un
+   vide de mise en page. La colonne, elle, est réservée EN PERMANENCE dès que la
+   carte est vivante, panneau ouvert ou non : la largeur de la toile ne change
+   jamais à l'ouverture, donc aucun `invalidateSize()` n'est requis du JS.
+   Toutes les colonnes sauf le panneau vont en colonne 1 et s'empilent par
+   placement automatique ; seules la toile et le panneau sont épinglés à la
+   ligne 2, ce qui les met côte à côte quel que soit le nombre d'attributions
+   rendues (une, deux, ou aucune). Les trois enfants hors flux (.carte__defs,
+   .carte__aide, .carte__annonce) ne sont pas des éléments de grille. */
+@media (min-width: 56.25rem) {
+  .carte--prete {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;   /* L-13 */
+    grid-template-rows: auto 1fr;
+  }
+
+  .carte--prete > * {
+    grid-column: 1;
+  }
+
+  /* Étirée par défaut dans une ligne en `1fr` : la toile occupe la hauteur
+     réservée par la racine, moins la barre — exactement comme en flux. */
+  .carte--prete .carte__toile {
+    grid-row: 2;
+  }
+
+  /* Colonne de droite collée (§7.1). `sticky` remplace le `fixed` de la
+     feuille ; ses insets sont remis à `auto` avant de poser le seul qui compte.
+     `align-self: start` + `max-block-size: 100%` : la colonne ne fait jamais
+     grandir la ligne de la carte et garde son défilement interne — nécessaire à
+     200 % de zoom sur grand écran, où le panneau dépasse la carte. */
+  .carte--prete .carte__panneau {
+    position: sticky;
+    inset: auto;
+    inset-block-start: var(--esp-m);
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+    max-block-size: 100%;
+  }
+
+  /* §9.4 : --duree-moyen pour le panneau ; --duree-long est la durée de la
+     feuille du bas et de sa translation verticale. */
+  .carte--panneau-ouvert .carte__panneau {
+    animation-duration: var(--duree-moyen);
+  }
+}
+
+
+/* ═══ 10. Couleurs forcées ═══════════════════════════════════════════════ */
+
+/* Exigence 12, §10.8 et §16. L'UA force `fill` : les trois `fill: url(#…)` sont
+   écartés et les cinq états deviennent le même aplat, alors que le motif porte
+   la moitié de l'information (§10.3). `forced-color-adjust: none` est le
+   « forced-color-adjust maîtrisé » que le §10.8 autorise nommément, et le seul
+   mécanisme qui garde vivant un paint server ; il est posé sur les trois
+   polygones PORTEURS D'UN MOTIF et sur eux seuls, les deux autres restant
+   ajustés par l'UA. Contrepartie assumée : --autorise et --hors-saison
+   deviennent indiscernables — même constat qu'au §12 de composants.css, couvert
+   par §10.8, le libellé officiel restant le porteur de sens (aria-label, panneau
+   et liste). Le liseré est REPOSÉ en CanvasText : le polygone n'étant plus
+   ajusté, --c-charbon serait sombre sur sombre dans un thème inversé. */
+@media (forced-colors: active) {
+  .carte__massif--interdit,
+  .carte__massif--indisponible,
+  .carte__massif--non-publie {
+    forced-color-adjust: none;
+    stroke: CanvasText;
+  }
+
+  /* Les trois identifiants sont REPRIS ici, et ce n'est pas une redondance : le
+     §2 peint par `#id .classe` (1,1,0), qu'un sélecteur de classe seul ne peut
+     pas surcharger — un identifiant l'emporte toujours. Sans eux, ce bloc serait
+     inerte et les motifs disparaîtraient en couleurs forcées. */
+  #carte-motif-interdit .carte__motif-aplat,
+  #carte-motif-indisponible .carte__motif-aplat,
+  #carte-motif-non-publie .carte__motif-aplat {
+    fill: Canvas;
+  }
+
+  #carte-motif-interdit .carte__motif-trait,
+  #carte-motif-indisponible .carte__motif-trait,
+  #carte-motif-non-publie .carte__motif-trait {
+    fill: CanvasText;
+    stroke: CanvasText;
+  }
+
+  /* Le partage suit la SÉMANTIQUE du §3.4, pas la clarté des teintes :
+     CanvasText pour la peinture du jour, GrayText pour la trace décalée. */
+  .carte__contour {
+    stroke: CanvasText;
+  }
+
+  .carte__contour-trace {
+    stroke: GrayText;
+  }
+}

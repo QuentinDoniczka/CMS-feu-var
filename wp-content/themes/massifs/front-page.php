@@ -382,7 +382,7 @@ get_template_part( 'templates/header' );
 		// La carte elle-même, sa hauteur et son repli statique appartiennent à la
 		// chaîne « carte ».
 		?>
-		<section id="carte" class="bande bande--carte"></section>
+		<section id="carte" class="bande bande--carte"><?php massifs_partie( 'carte' ); ?></section>
 
 		<?php
 		// Arbitrage A-23 : les deux bandes ci-dessous n'ont DÉLIBÉRÉMENT ni `id`,
