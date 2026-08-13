@@ -122,6 +122,23 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 | `arbre` | l'arbre d'accessibilité réellement construit par le moteur (CDP), **aux deux largeurs** : comptes stricts par rôle, noms accessibles des quatre en-têtes, et le sous-ensemble tabulaire identique à 320 px et à 900 px — `cell` excepté (63 / 75) | accessibilité |
 | `partielle` | **journée de publication partielle (issue #26)** : huit journées posées par la fabrique — trois complètes (X = 0, 1, 20) et cinq partielles (X/Y/Z couvrant 0, 1 et pluriel sur les **trois** axes d'accord) — dont le dénominateur affiché, la phrase de synthèse mot pour mot, la présence *et l'absence* du `<p class="ardoise__publication-partielle">`, sa position entre le `h1` et la ligne de fraîcheur, la concordance de la liste textuelle avec les chiffres du domaine, axe-core et 360 px sur une journée partielle | statut périmé, utilisable sans JS, accessibilité, mobile |
 | `gravatar` | aucune empreinte d'e-mail composée ni servie — anonymement, sous `admin` et sous `gestionnaire-demo`, sur `/`, `/wp-admin/`, `profile.php`, `users.php` et les deux routes REST du cœur — où `avatar_urls` / `author_avatar_urls` ont disparu de la charge utile **et du schéma** (`OPTIONS`) ; la coupe tient **même sous `force_display`**, donc imprenable par une valeur en base | zéro requête tierce, donnée personnelle |
+| `etat-inconnu` | **recette R-27 (issue #27)** : un `etat_global` hors des quatre bras du `match()` de l'ardoise, par ses **deux** déclencheurs — cinquième état, et clé retirée du tableau de synthèse. Page servie en 200, `h1` unique portant la phrase §11.3 mot pour mot avec son lien officiel **du même hôte que le bandeau**, aucun chiffre présenté, ancre `#liste` résolue, document fermé, aucune trace PHP dans le corps, et l'`Undefined array key` **au journal seulement** | statut périmé, utilisable sans JS, accessibilité |
+
+### `etat-inconnu` — la seule sonde de la garde du `match()`
+
+Aucun chemin de **donnée** ne peut produire un cinquième `etat_global` : il naît d'une chaîne `if/elseif`
+locale et fermée de l'extension, qu'aucun `apply_filters` ne traverse. Ce scénario est donc le seul qui
+exerce la garde, et il le fait par une **injection locale et temporaire** dans `front-page.php`, retirée
+dans un `finally` avec assertion de remise en état à l'octet — même protocole que `ancre` et `extension`.
+
+Mesuré des deux côtés le 13 août 2026 : sans la garde, la même injection rend **HTTP 500 et la page
+« Il y a eu une erreur critique sur ce site. » du cœur de WordPress** — zéro statut, zéro lien officiel,
+aucun `h1`, 2 697 octets. C'est ce que le scénario empêche de revenir : retirer le `try/catch` le rend
+rouge immédiatement.
+
+L'attente `attendreRechargement()` n'est pas du confort : `opcache.revalidate_freq` vaut **2** sur cette
+pile. Sans elle, le scénario mesure la page d'**avant** son injection et se croit vert sans rien avoir
+exercé — c'est le défaut qu'il a réellement eu à sa première exécution.
 
 ### `13-jours-consecutifs-identiques` — à ne jamais supprimer
 

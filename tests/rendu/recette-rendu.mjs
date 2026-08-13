@@ -22,7 +22,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, renameSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -2487,6 +2487,195 @@ async function s22_publicationPartielle( navigateur ) {
 	await contexte.close();
 }
 
+/**
+ * Journal du conteneur wordpress depuis un instant donné.
+ *
+ * `display_errors` est à Off et `error_log` pointe sur `/dev/stderr` : un
+ * avertissement PHP n'atteint jamais le visiteur, il n'est lisible que là.
+ *
+ * @param {string} depuis Horodatage UTC accepté par `docker compose logs --since`.
+ * @return {string} Lignes du journal.
+ */
+function journalConteneur( depuis ) {
+	return execFileSync(
+		'docker',
+		[ 'compose', 'logs', '--since', depuis, 'wordpress' ],
+		{ cwd: RACINE, encoding: 'utf8', env: { ...process.env, MSYS_NO_PATHCONV: '1' } }
+	);
+}
+
+/**
+ * Attend que le serveur ait réellement rechargé un gabarit qu'on vient d'écrire.
+ *
+ * `opcache.validate_timestamps` est à On mais `opcache.revalidate_freq` vaut 2
+ * sur cette pile : jusqu'à deux secondes après l'écriture, Apache sert encore le
+ * gabarit précédent. Sans cette attente, le scénario mesurerait la page d'AVANT
+ * son injection et se croirait vert alors qu'il n'a rien exercé.
+ *
+ * L'attente ne se cale sur AUCUNE assertion : elle guette la seule disparition
+ * du chiffre nominal. Si la garde `try/catch` venait à manquer, le serveur
+ * répondrait 500 — qui ne porte pas non plus ce marqueur —, la boucle rendrait
+ * la main immédiatement et l'assertion 1 rapporterait honnêtement le 500.
+ *
+ * @param {boolean} attenduChiffre Attend-on le chiffre présent, ou absent ?
+ * @return {Promise<boolean>} Vrai si l'état visé a été atteint avant la limite.
+ */
+async function attendreRechargement( attenduChiffre ) {
+	for ( let essai = 0; essai < 20; essai += 1 ) {
+		const reponse = await fetch( BASE + '/' );
+		const html = await reponse.text();
+		if ( html.includes( 'ardoise__chiffre' ) === attenduChiffre ) {
+			return true;
+		}
+		await new Promise( ( r ) => setTimeout( r, 300 ) );
+	}
+	return false;
+}
+
+/**
+ * Recette R-27 — un `etat_global` hors des quatre bras du `match()` de l'ardoise.
+ *
+ * Le contrat #27 gèle cette recette et la lègue à ce fichier. Aucun chemin de
+ * DONNÉE ne peut produire un cinquième état : `etat_global` naît d'une chaîne
+ * `if/elseif` locale et fermée de l'extension, qu'aucun `apply_filters` ne
+ * traverse. Le seul geste qui l'observe est donc une injection LOCALE et
+ * TEMPORAIRE dans `front-page.php`, retirée dans le `finally`, avec assertion de
+ * remise en état — même protocole que les scénarios `ancre` et `extension`.
+ *
+ * Ce que le scénario garde, concrètement : si quelqu'un retire le `try/catch`,
+ * les cas 1 et 2 repassent en HTTP 500 + page « erreur critique » du cœur de
+ * WordPress — mesuré, pas supposé — et ce scénario devient rouge.
+ *
+ * @param {import('playwright-core').Browser} navigateur Navigateur.
+ */
+async function s23_ardoiseEtatInconnu( navigateur ) {
+	scenario( '23 — ardoise : etat_global hors des quatre états du gabarit (recette R-27)' );
+
+	const gabarit = path.join( RACINE, 'wp-content/themes/massifs/front-page.php' );
+	const ANCRE = "$massifs_peremption = true === $massifs_fraicheur['perimee'];";
+	const origine = readFileSync( gabarit );
+
+	// Cas 0 — non-régression : sans injection, le jour nominal reste chiffré. Le
+	// hissage de `$massifs_ardoise_absente` ne doit RIEN changer ici.
+	poserEtat( 'jour-nominal' );
+	const nominal = await navigateur.newContext( { javaScriptEnabled: false } );
+	const pageNominale = await nominal.newPage();
+	await pageNominale.goto( BASE + '/', { waitUntil: 'load' } );
+	egal( 1, await pageNominale.locator( '#ardoise .ardoise__chiffre' ).count(), 'cas 0 — sans injection : l’ardoise porte son chiffre' );
+	assert( 0 < await pageNominale.locator( '#ardoise time' ).count(), 'cas 0 — sans injection : la ligne de fraîcheur est rendue', 'au moins un <time>', 0 );
+
+	// L'hôte du lien officiel vient du serveur, jamais d'une URL codée en dur
+	// ici : l'assertion 3 compare deux rendus d'une même source.
+	const hoteAttendu = new URL(
+		await pageNominale.locator( '.bandeau-non-officialite__lien' ).getAttribute( 'href' )
+	).host;
+	note( `hôte du lien officiel, relevé sur le bandeau : ${ hoteAttendu }` );
+	await nominal.close();
+
+	const CAS = [
+		[ 'cas 1 — cinquième état', "$massifs_synthese['etat_global'] = 'etat_de_recette_27';" ],
+		[ 'cas 2 — clé retirée', "unset( $massifs_synthese['etat_global'] );" ],
+	];
+
+	try {
+		for ( const [ nom, injection ] of CAS ) {
+			const texte = origine.toString( 'utf8' );
+			if ( ! texte.includes( ANCRE ) ) {
+				ko( `${ nom } : point d’injection introuvable`, ANCRE, 'absent de front-page.php' );
+				return;
+			}
+			const depuis = new Date().toISOString().slice( 0, 19 );
+			writeFileSync( gabarit, texte.replace( ANCRE, `${ ANCRE }\n\t${ injection }` ) );
+			assert( await attendreRechargement( false ), `${ nom } : l’injection est prise en compte par le serveur`, 'gabarit rechargé', 'le chiffre nominal est encore servi après 6 s' );
+
+			const contexte = await navigateur.newContext( { javaScriptEnabled: false } );
+			const page = await contexte.newPage();
+			const reponse = await page.goto( BASE + '/', { waitUntil: 'load' } );
+			const html = await page.content();
+
+			// 1 — la page est servie. Avant le correctif : 500.
+			egal( 200, reponse.status(), `${ nom } : la page est servie` );
+
+			// 2 — un seul h1, et c'est celui du jour.
+			egal( 1, await page.locator( 'h1' ).count(), `${ nom } : exactement un h1` );
+			egal( 1, await page.locator( 'h1#titre-du-jour' ).count(), `${ nom } : le h1 est bien #titre-du-jour` );
+
+			// 3 — la phrase §11.3 mot pour mot, et son lien officiel.
+			egal(
+				'Information du jour non disponible. Consultez la carte officielle de la préfecture.',
+				await texteSource( page.locator( 'h1#titre-du-jour' ) ),
+				`${ nom } : phrase §11.3 verbatim`
+			);
+			const lien = await page.locator( 'h1#titre-du-jour a' ).getAttribute( 'href' );
+			assert( !! lien, `${ nom } : le lien officiel a un href non vide`, 'une URL', lien );
+			egal(
+				'la carte officielle de la préfecture',
+				await texteSource( page.locator( 'h1#titre-du-jour a' ) ),
+				`${ nom } : le lien porte le fragment central de la phrase`
+			);
+			egal( hoteAttendu, new URL( lien ).host, `${ nom } : même hôte que le bandeau — même source serveur` );
+
+			// 4 — aucun chiffre PRÉSENTÉ. L'assertion porte sur le texte visible et
+			// sur les trois porteurs de chiffre, jamais sur les octets bruts de la
+			// section : l'`href` officiel contient « /13 » (le département), et
+			// l'assertion 3 l'exige — voir le rapport de recette.
+			const texteArdoise = await texteSource( page.locator( '#ardoise' ) );
+			assert(
+				! /[0-9]/.test( texteArdoise ),
+				`${ nom } : aucun chiffre dans le texte visible de l’ardoise`,
+				'aucun [0-9]',
+				texteArdoise
+			);
+			egal( 0, await page.locator( '#ardoise .ardoise__chiffre' ).count(), `${ nom } : aucun .ardoise__chiffre` );
+			egal( 0, await page.locator( '#ardoise time' ).count(), `${ nom } : aucun <time> (fraicheur => false)` );
+			egal( 0, await page.locator( '#ardoise .ardoise__publication-partielle' ).count(), `${ nom } : aucune mention de publication partielle` );
+
+			// 5 — l'ancre d'évitement résout.
+			egal( 1, await page.locator( 'a[href="#liste"]' ).count(), `${ nom } : le lien d’évitement #liste est présent` );
+			egal( 1, await page.locator( '[id="liste"]' ).count(), `${ nom } : l’ancre #liste existe exactement une fois` );
+
+			// 6 — rien de la tuyauterie n'atteint le visiteur.
+			const fuite = /Warning:|Notice:|Deprecated:|Fatal error|<b>Warning<\/b>|UnhandledMatchError|_doing_it_wrong|rreur critique sur ce site/.exec( html );
+			assert( ! fuite, `${ nom } : aucune trace d’erreur PHP dans le corps`, 'aucune', fuite ? fuite[ 0 ] : '' );
+
+			// 7 — document complet.
+			egal( 1, await page.locator( 'main' ).count(), `${ nom } : un <main>` );
+			assert( html.includes( '</main>' ) && html.includes( '</html>' ), `${ nom } : document fermé (</main> et </html>)`, 'les deux', html.slice( -60 ) );
+
+			// 8 — cas 2 seulement : l'avertissement est VOULU, et il reste au journal.
+			if ( injection.startsWith( 'unset' ) ) {
+				const journal = journalConteneur( depuis );
+				assert(
+					journal.includes( 'Undefined array key "etat_global"' ),
+					`${ nom } : l’avertissement PHP attendu est au journal`,
+					'Undefined array key "etat_global"',
+					journal.split( '\n' ).filter( ( l ) => l.includes( 'PHP' ) ).slice( -2 ).join( ' | ' ) || '(rien)'
+				);
+			}
+
+			await contexte.close();
+		}
+	} finally {
+		writeFileSync( gabarit, origine );
+	}
+
+	// Post-condition obligatoire de R-27 : l'arbre est rendu à l'octet, et la
+	// valeur d'injection n'a survécu nulle part.
+	egal( origine.toString( 'utf8' ), readFileSync( gabarit, 'utf8' ), 'remise en état : front-page.php est restauré à l’octet' );
+	assert( await attendreRechargement( true ), 'remise en état : le serveur a rechargé le gabarit d’origine', 'gabarit rechargé', 'le repli est encore servi après 6 s' );
+	const verif = await navigateur.newContext();
+	const p = await verif.newPage();
+	await p.goto( BASE + '/', { waitUntil: 'load' } );
+	egal( 1, await p.locator( '#ardoise .ardoise__chiffre' ).count(), 'remise en état : le jour nominal est de nouveau chiffré' );
+	assert(
+		! ( await p.content() ).includes( 'etat_de_recette_27' ),
+		'remise en état : aucune trace de la valeur d’injection',
+		'aucune',
+		'etat_de_recette_27 encore présent'
+	);
+	await verif.close();
+}
+
 // ---------------------------------------------------------------- lancement
 
 const SCENARIOS = [
@@ -2512,6 +2701,7 @@ const SCENARIOS = [
 	[ 'arbre', s20_arbreAccessibiliteEnCartes ],
 	[ 'gravatar', s21_aucuneFuiteGravatar ],
 	[ 'partielle', s22_publicationPartielle ],
+	[ 'etat-inconnu', s23_ardoiseEtatInconnu ],
 ];
 
 const filtre = ( process.argv.find( ( a ) => a.startsWith( '--filtre=' ) ) ?? '' ).slice( 9 );

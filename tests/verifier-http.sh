@@ -81,9 +81,27 @@ verifier '/wp-content/plugins/massifs-core/includes/ingest/prefecture/class-conn
 verifier '/wp-content/plugins/massifs-core/massifs-core.php' 403
 verifier '/wp-content/plugins/massifs-core/data/massifs-13.php' 403
 verifier '/wp-content/themes/massifs/index.php' 403
+# Issue #20 — l'artefact de recette de la géométrie et son empreinte de référence
+# ne sont PAS des fichiers destinés au navigateur. Ils ont quitté `data/` pour
+# `build/` : la relocation est ce qui rend l'interdit vrai par construction, le
+# garde-fou Apache ne fait que la doubler. L'invariant « data/ = servi,
+# build/ = jamais servi » est opposable aux chaînes suivantes.
+verifier '/wp-content/plugins/massifs-core/includes/domain/massifs/build/massifs-13.fidelite.json' 403
+verifier '/wp-content/plugins/massifs-core/includes/domain/massifs/build/reference.json' 403
+verifier '/wp-content/plugins/massifs-core/includes/domain/massifs/build/package-lock.json' 403
+# L'ancien emplacement public ne doit plus rien servir du tout.
+verifier '/wp-content/plugins/massifs-core/data/massifs-13.fidelite.json' 404
+# Le garde-fou de sous-arbres couvre aussi ce qui n'est pas .php sous includes/.
+verifier '/wp-content/plugins/massifs-core/includes/ingest/prefecture/README.md' 403
 # Doivent rester servis : rien de fonctionnel ne doit être cassé par les gardes.
 verifier '/wp-content/plugins/massifs-core/data/massifs-13.geometrie.json' 200
 verifier '/wp-content/themes/massifs/style.css' 200
+# `themes/massifs/assets/` est DÉLIBÉRÉMENT épargné par le garde-fou de
+# sous-arbres : refuser ces fichiers casserait la contrainte #2 au lieu de la
+# tenir — les polices et le CSS doivent être servis depuis NOTRE origine.
+verifier '/wp-content/themes/massifs/assets/css/tokens.css' 200
+verifier '/wp-content/themes/massifs/assets/fonts/atkinson-hyperlegible-next-var.woff2' 200
+verifier '/wp-content/themes/massifs/assets/fonts/big-shoulders-display-var.woff2' 200
 verifier '/' 200
 verifier '/wp-login.php' 200
 verifier '/wp-json/' 200
