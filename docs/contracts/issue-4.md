@@ -37,7 +37,7 @@ consommer sans risque, et ce qu'elles doivent faire pour que ces artefacts serve
 
 | Fichier | Rôle |
 |---|---|
-| `assets/css/tokens.css` | **111 propriétés personnalisées** sur `:root`, 5 redéclarées sous `.sur-sombre`, 1 sous `@media (min-width: 37.5rem)`, 3 sous `@media (prefers-reduced-motion: reduce)`. Transcription **verbatim** du bloc normatif de `MASTER.md` §12. |
+| `assets/css/tokens.css` | **116 propriétés personnalisées** sur `:root`, 5 redéclarées sous `.sur-sombre`, **4 sous `.carte--echelle-departement`**, **4 sous `.carte--echelle-abords`**, 1 sous `@media (min-width: 37.5rem)`, 3 sous `@media (prefers-reduced-motion: reduce)` — **133 dans le fichier entier**. Transcription **verbatim** du bloc normatif de `MASTER.md` §12. **Invariant amendé le 15 août 2026 (chaîne #50)** : il valait 111 / 120 ; voir le §« Amendement v2.4 » en fin de document. |
 | `assets/fonts/fonts.css` | Les deux `@font-face`, et **rien d'autre** (aucun sélecteur, aucun `:root`). |
 | `assets/fonts/big-shoulders-display-var.woff2` | Titrage, variable `wght`, 35 436 o. |
 | `assets/fonts/atkinson-hyperlegible-next-var.woff2` | Labeur, variable `wght`, 33 996 o. |
@@ -83,6 +83,28 @@ Aucun jeton de cette table n'est renommé par l'issue #4.
 
 > `--statut-lisere` n'est émis par **personne** côté extension : il est purement thème.
 > C'est lui qui **porte la conformité AA**, pas la teinte.
+
+> **[15 août 2026, chaîne #50] `--statut-lisere-epaisseur` est l'épaisseur HORS CARTE** — pastille,
+> jalon, légende, liste, panneau, portail, impression : des objets de taille fixe à l'écran. Elle reste
+> à **2 px** et **ne devient jamais variable**. Sur la carte, l'épaisseur suit le palier de zoom (groupe
+> suivant). La consommer sur un `stroke` de carte est un défaut.
+
+### Épaisseurs de trait de la carte (4) — **[v2.4, ajoutées le 15 août 2026]**
+`--carte-lisere` · `--carte-survol` · `--carte-cerne` · `--carte-cerne-clair`
+
+> Variables **par palier de zoom** (MASTER §9.2.a). Les valeurs de `:root` sont celles du palier
+> **`massif`** (z10), délibérément le **milieu** de l'échelle : une carte à laquelle aucune classe de
+> palier n'a été posée se rend donc dans un état **conforme**, jamais sans trait. Un trait SVG est
+> **centré** — ces valeurs sont des `stroke-width`, **jamais des largeurs vues**.
+> **Plancher mesuré, jamais franchi : 1,5 px** (§10.2.a).
+
+### Liseré de sélection hors carte (1) — **[v2.4, ajouté le 15 août 2026]**
+`--bord-selection`
+
+> Le liseré de l'état « sélectionné » dans le **chrome** — bouton de jour de la carte, paire segmentée
+> du portail. Sans rapport avec la carte : ces objets ne changent pas d'échelle. **Ce n'est pas
+> `--bord-fort`**, qui est l'abréviation « 4px solid … », plafonnée à une occurrence par page et
+> inutilisable comme simple épaisseur.
 
 ### Typographie — familles (2)
 `--police-titre` · `--police-texte`
@@ -135,14 +157,75 @@ Aucun jeton de cette table n'est renommé par l'issue #4.
 ### Plans d'empilement (5)
 `--z-carte` · `--z-panneau` · `--z-barre-action` · `--z-bandeau` · `--z-evitement`
 
-**Total : 111 propriétés sur `:root`.**
+**Total : 116 propriétés sur `:root`** — 111 à l'origine, **+ 5 par la révision v2.4** de `MASTER.md`
+(les quatre épaisseurs de carte et `--bord-selection`).
 
-### Les deux seules redéfinitions locales autorisées
+### Les **trois** seules redéfinitions locales autorisées
 
 1. `--repere-couleur` — posée par un composant quand le repère précède une information de statut.
 2. Le groupe `--statut-lisere` / `--statut-*-encre` sous `.sur-sombre`.
+3. **[v2.4, 15 août 2026]** Les quatre épaisseurs de trait de la carte sous les **classes de palier de
+   zoom**, en fin de fichier : `.carte--echelle-departement` (4 déclarations, dont
+   `--carte-cerne-clair: 0`) et `.carte--echelle-abords` (4 déclarations). **Il n'existe aucun bloc
+   `.carte--echelle-massif`, et il ne faut pas en écrire un vide** : le palier médian est celui de
+   `:root`, et l'absence *est* la décision (§9.2.a, règle de tenue 3).
 
 Toute autre redéfinition d'un jeton hors `:root` est un défaut.
+
+---
+
+## Amendement v2.4 — l'invariant de comptage et l'empreinte — **15 août 2026, chaîne #50**
+
+Le §12 de `MASTER.md` n'avait **pas été rouvert** depuis la v2.0 ; trois révisions s'en étaient
+abstenues, et elles avaient raison. La **v2.4** le rouvre, et le motif est d'une autre nature qu'une
+préférence de composition : sans épaisseur de trait variable par palier de zoom, **un aplat de statut est
+recouvert à l'écran et un massif devient illisible** (défaut constaté en Chrome, issue #50). Il
+n'existait aucune autre voie — le JS de la carte n'a pas le droit d'écrire un style, la valeur doit donc
+vivre en CSS et varier par classe.
+
+| | Avant (v2.0 → v2.3) | Après (v2.4) |
+|---|---|---|
+| `:root` | 111 | **116** |
+| `.sur-sombre` | 5 | 5 |
+| `.carte--echelle-departement` | — | **4** |
+| `.carte--echelle-abords` | — | **4** |
+| Les deux `@media` | 4 | 4 |
+| **Fichier entier** | **120** | **133** |
+
+**Le sha256 épinglé tombe avec le compte.** C'est la conséquence mécanique et **acceptée** de la
+révision, annoncée au §12 de `MASTER.md` et au §17.1, pas un effet de bord découvert après coup.
+
+- Ancienne empreinte, **caduque** : `5ad802a3708fe1734845e7a76b46de5382f2421268542584cafa270d29aa3835`
+- Nouvelle empreinte : `104efb21fefa0e42b55ba0707ead5755e940b2cd87e4b1cff4c70148aeec112f`
+  (**vérifiée par le lead après écriture**, et non recopiée : le fichier porte bien cette empreinte, et
+  les comptes 116 / 133 ont été mesurés, pas repris de la révision)
+
+**Méthode de comptage opposable.** Plusieurs jetons partagent une même ligne ; une ancre `^` fausserait
+le compte. La commande fait foi, et un compte mesuré prime toujours sur un compte recopié :
+
+```
+grep -oE '(^|[[:space:]{;])--[a-z0-9-]+[[:space:]]*:' tokens.css | wc -l
+```
+
+**Aucune valeur de couleur n'est touchée. Aucun jeton n'est supprimé ni renommé.** Les cinq déclarations
+et les deux classes de palier sont des **ajouts**, insérés à leur rubrique.
+
+### Ce que cet amendement laisse ouvert, hors empreinte de la chaîne #50
+
+Le compte `111` et l'ancienne empreinte sont épinglés **ailleurs que dans ce contrat**, dans des fichiers
+que la chaîne #50 n'a pas le droit d'écrire. **À reprendre par leurs propriétaires** :
+
+| Fichier | Ligne | Ce qui doit changer |
+|---|---|---|
+| `tests/rendu/recette-rendu.mjs` | 1415 | sha256 épinglé → la nouvelle empreinte |
+| `tests/rendu/recette-rendu.mjs` | 1424 | `egal( 111, … )` → **116** |
+| `docs/contracts/issue-11.md` | 57, 679 | « gelé, sha256 épinglé, 111 propriétés » |
+| `docs/contracts/issue-21.md` | 70, 288 | empreinte recopiée, « inchangé » |
+| `docs/contracts/issue-23.md` | 29, 411 | « gelé, sha256 épinglé, 111 propriétés » |
+
+> L'assertion « `tokens.css` est la transcription exacte du bloc normatif de MASTER §12 »
+> (`recette-rendu.mjs` l. 1434) **reste vraie et doit le rester** : le fichier est transcrit, jamais
+> édité à la main.
 
 ---
 

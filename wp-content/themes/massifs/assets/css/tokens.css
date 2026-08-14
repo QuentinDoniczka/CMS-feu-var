@@ -1,7 +1,9 @@
-/* MASSIFS — jetons du design system. Voir design-system/MASTER.md (v2.0).
+/* MASSIFS — jetons du design system. Voir design-system/MASTER.md (v2.4).
    Ne pas ajouter de valeur hors échelle. Ne pas redéfinir hors :root, sauf
-   les deux exceptions documentées : --repere-couleur (§3.1) et le groupe
-   liseré/encre sous .sur-sombre (fin de ce fichier). */
+   les TROIS exceptions documentées : --repere-couleur (§3.1), le groupe
+   liseré/encre sous .sur-sombre, et les épaisseurs de trait de la carte sous
+   les classes de palier de zoom (§9.2.a) — les deux dernières en fin de
+   fichier. */
 
 :root {
   /* ── Surfaces et encres ─────────────────────────────────── */
@@ -56,11 +58,37 @@
   --statut-non-publie-encre:    var(--c-charbon-doux);
 
   /* Le liseré porte la conformité AA, pas la teinte (§10.2).
-     Minimum mesuré sur tout le système : 4,11:1 (charbon sur #E63A3C). */
+     Minimum mesuré sur tout le système : 4,11:1 (charbon sur #E63A3C).
+     [v2.4] --statut-lisere-epaisseur est l'épaisseur HORS CARTE : pastille,
+     jalon, légende, liste, panneau, portail, impression. Ces objets ont une
+     taille fixe à l'écran. Sur la carte, l'épaisseur suit le palier de zoom :
+     voir le bloc « Épaisseurs de trait de la carte » ci-dessous. */
   --statut-lisere:            var(--c-charbon);
   --statut-lisere-epaisseur:  2px;
   --statut-motif-trait:       2.5px;
   --statut-motif-pas:         10px;
+
+  /* ══ ÉPAISSEURS DE TRAIT DE LA CARTE — variables par palier de zoom ═══════
+     §9.2.a. Un trait SVG est CENTRÉ : la moitié de son épaisseur tombe dans
+     l'aplat. Une épaisseur constante ne peut donc pas servir à la fois le
+     département vu en entier (z9) et un massif vu de près (z11).
+     Les valeurs ci-dessous sont celles du palier « massif » (z10) : c'est le
+     MILIEU de l'échelle, et c'est délibérément le défaut — une carte sans
+     classe de palier se rend dans un état conforme, jamais sans trait.
+     Les deux paliers extrêmes sont en fin de fichier (exception n° 3).
+     PLANCHER MESURÉ, ne jamais descendre en dessous : 1.5px (§10.2.a).       */
+
+  --carte-lisere:       2px;   /* liseré de statut du polygone, centré        */
+  --carte-survol:       3px;   /* survol : 1,5 × le liseré du même palier     */
+  --carte-cerne:        9px;   /* cerne charbon, SOUS le polygone (§9.2.a)    */
+  --carte-cerne-clair:  5px;   /* séparateur calcaire, SOUS le polygone       */
+
+  /* Liseré de l'état « sélectionné » dans le CHROME — bouton de jour de la
+     carte, paire segmentée du portail (§7.2, §9.2). Sans rapport avec la
+     carte : ces objets ne changent pas d'échelle. Ce n'est pas --bord-fort,
+     qui est une abréviation « 4px solid … » plafonnée à une occurrence par
+     page (§6.3, §16) et inutilisable comme simple épaisseur. */
+  --bord-selection: 4px;
 
   /* ── Typographie ────────────────────────────────────────── */
   --police-titre: "Big Shoulders Display", "Arial Narrow", sans-serif;
@@ -165,6 +193,29 @@
   --statut-interdit-encre:        var(--c-calcaire);
   --statut-zapef-autorise-encre:  var(--c-calcaire);
   --statut-zapef-interdit-encre:  var(--c-calcaire);
+}
+
+/* [v2.4] Exception documentée n° 3 : les épaisseurs de trait de la carte
+   suivent le PALIER DE ZOOM (§9.2.a). Le JS de la carte n'a pas le droit
+   d'écrire un style — seulement classList — donc une épaisseur fonction du
+   zoom se pose forcément par une classe de palier sur la racine et par des
+   règles CSS. Le JS lit carte.getZoom() et pose l'une de ces classes ; toutes
+   les valeurs sont ICI, aucune en JS, aucune en littéral dans carte.css.
+   Le palier « massif » (z10) ne porte AUCUNE règle : ses valeurs sont celles
+   de :root. Ne pas en écrire une vide — l'absence est la décision. */
+
+.carte--echelle-departement {   /* z ≤ 9 — le département entier */
+  --carte-lisere:       1.5px;  /* PLANCHER MESURÉ : 3,18:1 sur #E63A3C */
+  --carte-survol:       2.5px;
+  --carte-cerne:        4.5px;
+  --carte-cerne-clair:  0;      /* aucune peinture claire à ce palier */
+}
+
+.carte--echelle-abords {        /* z ≥ 11 — plafond de la carte */
+  --carte-lisere:       3px;
+  --carte-survol:       4.5px;
+  --carte-cerne:        13px;
+  --carte-cerne-clair:  7px;
 }
 
 @media (min-width: 37.5rem) { :root { --gouttiere: var(--esp-l); } }

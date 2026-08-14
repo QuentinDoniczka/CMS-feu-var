@@ -90,9 +90,18 @@
 	var CLASSES_PASTILLE = { autorise: 'pastille--autorise', interdit: 'pastille--interdit' };
 	var CLASSES_JALON = { autorise: 'jalon--autorise', interdit: 'jalon--interdit' };
 
-	var TOUTES_CLASSES_MASSIF = Object.keys(CLASSES_MASSIF).map(function (cle) {
-		return CLASSES_MASSIF[cle];
-	});
+	// Table palier de zoom → classe de racine, FERMÉE elle aussi (MASTER §9.2.a). Le JS
+	// n'y connaît que des noms : les épaisseurs vivent dans tokens.css, nulle part ailleurs.
+	var CLASSES_ECHELLE = {
+		departement: 'carte--echelle-departement',
+		massif: 'carte--echelle-massif',
+		abords: 'carte--echelle-abords'
+	};
+
+	function valeursDe(table) { return Object.keys(table).map(function (cle) { return table[cle]; }); }
+
+	var TOUTES_CLASSES_MASSIF = valeursDe(CLASSES_MASSIF);
+	var TOUTES_CLASSES_ECHELLE = valeursDe(CLASSES_ECHELLE);
 
 	function chacun(liste, action) { Array.prototype.forEach.call(liste, action); }
 
@@ -153,8 +162,8 @@
 	// Le montage synchrone est enveloppé : une exception de Leaflet laisserait
 	// sinon la barre de jour, le message et une toile vide DÉMASQUÉS au-dessus
 	// de l'image statique du repli — un chrome de carte orphelin, sans carte.
-	// Le `var` reste porté par la fonction, les blocs §6 et suivants voient donc
-	// `carte`, `bbox`, `svgMassifs` et `motifs` comme avant.
+	// Le `var` reste porté par la fonction : les blocs §6 et suivants voient
+	// `carte`, `bbox`, `svgMassifs`, `motifs` et les deux renderers de ce §4.
 	var carte;
 	var bbox;
 	var svgMassifs;
@@ -169,6 +178,13 @@
 			// Sans cela Leaflet lierait les flèches au panoramique et volerait la
 			// navigation entre massifs. Le zoom clavier est réimplémenté §9.
 			keyboard: false,
+			// F-11 du contrat #9 nomme le `zoomSnap` fractionnaire comme raison d'être du
+			// douzième niveau de pyramide ; au pas entier, `fitBounds` laissait ~184 px de
+			// vide de chaque côté. Le fond est monochrome et SANS TOPONYME : l'échelle
+			// fractionnaire n'y floute aucun texte. Options de COMPORTEMENT, jamais de
+			// présentation — ni couleur, ni style, ni jeton, interdit 24 intact.
+			zoomSnap: 0.25,
+			zoomDelta: 0.5,
 			// Seule phase où Leaflet applique une échelle : elle étirerait les motifs.
 			zoomAnimation: false,
 			fadeAnimation: false,
@@ -193,17 +209,26 @@
 		bbox = donnees.emprise.bbox;
 		carte.fitBounds(L.latLngBounds([[bbox.sud, bbox.ouest], [bbox.nord, bbox.est]]), { animate: false });
 
+		// Palier posé ICI et pas seulement sur `zoomend` : fitBounds → setView →
+		// _resetView émet `zoomend` AVANT que cabler() n'enregistre l'écouteur, le zoom
+		// initial ne serait jamais vu. Corps au §11, remonté par hoisting dans l'IIFE :
+		// l'appel qui le précède est légal.
+		poserPalier();
+
 		// Deux panes, créés DANS CET ORDRE : à z-index égal (leaflet.css donne 400 à
-		// tout .leaflet-pane) le DOM décide, et le repère reste SOUS les tracés
-		// (MASTER §3.2, emplacement 5). Tuiles à 200.
-		var paneRepere = carte.createPane('carte-repere');
+		// tout .leaflet-pane) le DOM décide, et le cerne reste SOUS les tracés — c'est ce
+		// qui rend sa moitié intérieure invisible PAR CONSTRUCTION, l'aplat de statut
+		// étant opaque (§9.2.a). Secours si le z-index du CSS n'arrive pas. Tuiles à 200.
+		var paneCerne = carte.createPane('carte-cerne');
 		var paneMassifs = carte.createPane('carte-massifs');
-		paneRepere.classList.add('carte__pane--repere');
+		paneCerne.classList.add('carte__pane--cerne');
 		paneMassifs.classList.add('carte__pane--massifs');
 
-		var rendererRepere = L.svg({ pane: 'carte-repere' });
+		// UN SEUL renderer pour les deux couches du cerne : un seul <svg> dans le pane,
+		// donc un empilement décidé par le seul ordre d'insertion des <path> (I-50.2).
+		var rendererCerne = L.svg({ pane: 'carte-cerne' });
 		var rendererMassifs = L.svg({ pane: 'carte-massifs' });
-		rendererRepere.addTo(carte);
+		rendererCerne.addTo(carte);
 		rendererMassifs.addTo(carte);
 
 		svgMassifs = paneMassifs.querySelector('svg');
@@ -283,8 +308,13 @@
 	var indexCourant = -1;
 	var codeSelectionne = '';
 
-	var contourMassifs = L.geoJSON(null, { renderer: rendererMassifs, className: 'carte__contour', interactive: false });
-	var contourRepere = L.geoJSON(null, { renderer: rendererRepere, className: 'carte__contour-trace', interactive: false });
+	// Les deux couches existent EN PERMANENCE (D5) : au palier département le CSS met le
+	// séparateur à zéro et il ne peint rien, par spécification — jamais de création
+	// conditionnelle, qui mettrait une notion d'épaisseur en JS. `interactive: false` est
+	// structurel : sans lui, un trait large posé sous les polygones deviendrait une cible
+	// de clic en anneau, à cheval sur les voisins.
+	var cerne = L.geoJSON(null, { renderer: rendererCerne, className: 'carte__cerne', interactive: false });
+	var cerneSeparateur = L.geoJSON(null, { renderer: rendererCerne, className: 'carte__cerne-separateur', interactive: false });
 
 	var blocsHorsNiveau = {};
 	chacun(racine.querySelectorAll('.carte__panneau-hors-niveau'), function (bloc) {
@@ -332,8 +362,8 @@
 		});
 		if (0 === ordre.length) { echecFatal(); return; }
 
-		contourRepere.addTo(carte);
-		contourMassifs.addTo(carte);
+		cerne.addTo(carte);
+		cerneSeparateur.addTo(carte);
 
 		peindre();
 		cabler();
@@ -473,16 +503,22 @@
 			chemins[autre].classList.remove('carte__massif--courant');
 			chemins[autre].setAttribute('tabindex', autre === code ? '0' : '-1');
 		});
+		// D10 : curseur roving du contrat #7 §8.2. Privée de sa règle CSS en v2.4, elle
+		// reste POSÉE — ce n'est pas du code mort.
 		chemins[code].classList.add('carte__massif--courant');
 
-		// Duplication du tracé courant : contour dans le pane des massifs, contour
-		// décalé dans le pane du repère (MASTER §3.2, emplacement 5). Le décalage
-		// est une règle CSS sur le <g> du renderer, jamais sur le pane — Leaflet
-		// y repose ses panes en transform et l'écraserait.
-		contourMassifs.clearLayers();
-		contourRepere.clearLayers();
-		contourMassifs.addData(traces[code]);
-		contourRepere.addData(traces[code]);
+		// Duplication du tracé courant dans le pane du cerne, sous les massifs : la moitié
+		// intérieure des deux traits tombe sous l'aplat opaque du statut (fill-opacity: 1),
+		// seule la moitié extérieure paraît (MASTER §9.2.a).
+		// I-50.2 — l'ordre des quatre lignes qui suivent PORTE la conformité : le renderer
+		// étant partagé, l'ordre DOM n'est pas fixé par `addTo` mais par les `addData`,
+		// clearLayers() retirant les <path> du <g> à chaque sélection. Inverser les deux
+		// dernières remettrait le calcaire SOUS le charbon — anneau invisible sur le fond
+		// (1,07:1, §10.2.b), le défaut de la v2.3 à l'identique.
+		cerne.clearLayers();
+		cerneSeparateur.clearLayers();
+		cerne.addData(traces[code]);
+		cerneSeparateur.addData(traces[code]);
 
 		remplirPanneau(code);
 
@@ -517,14 +553,6 @@
 
 		selectionner(code, false);
 		chemins[code].focus();
-	}
-
-	// Zoom clavier réimplémenté, `keyboard: false` ayant retiré celui de Leaflet.
-	function zoomer(pas) {
-		var cible = carte.getZoom() + pas;
-		if (cible < carte.getMinZoom() || cible > carte.getMaxZoom()) { return; }
-
-		carte.setZoom(cible, { animate: false });
 	}
 
 	function cabler() {
@@ -563,9 +591,12 @@
 			} else if ('Escape' === touche) {
 				fermerPanneau(false);
 			} else if ('+' === touche || '=' === touche) {
-				zoomer(1);
+				// D6 : sans argument, Leaflet applique `zoomDelta` et borne par _limitZoom.
+				// Clavier et boutons avancent donc du MÊME pas ; un `±1` écrit ici les
+				// désaccorderait dès que `zoomDelta` vaut 0,5.
+				carte.zoomIn();
 			} else if ('-' === touche || '_' === touche) {
-				zoomer(-1);
+				carte.zoomOut();
 			} else {
 				return;
 			}
@@ -585,7 +616,7 @@
 		}
 
 		cablerJours();
-		carte.on('zoomend', corrigerDensite);
+		carte.on('zoomend', auZoom);
 	}
 
 	/* ═══ 10. Barre de jour ═══ */
@@ -631,7 +662,38 @@
 		});
 	}
 
-	/* ═══ 11. Garde auto-corrective de densité de motif ═══ */
+	/* ═══ 11. Réactions au zoom ═══ */
+
+	// MASTER §9.2.a interdit tout écouteur nouveau : l'unique `zoomend` fait les deux, le
+	// palier d'abord — un classList coûte moins qu'une lecture de viewBox.
+	function auZoom() {
+		poserPalier();
+		corrigerDensite();
+	}
+
+	// Lit `carte.getZoom()` et RIEN d'autre, puis deux comparaisons : partition totale et
+	// sans trou sur les réels, équivalente au tableau de MASTER §9.2.a sur les entiers. Un
+	// palier est toujours posé, jamais « aucun ».
+	//
+	// `floor`, jamais `round` : à z 9,5 — l'atterrissage le plus probable en desktop —
+	// `round` basculerait au palier massif et poserait de la peinture claire à une échelle
+	// à peine supérieure à z9, exactement le défaut que la v2.4 existe pour empêcher. Avec
+	// `floor`, l'encre suit une échelle toujours inférieure ou égale à l'échelle réelle :
+	// l'erreur est systématiquement du côté sûr.
+	//
+	// 10 et 11 sont des littéraux entiers (contrat #50 D3) : une borne de palier de
+	// PRÉSENTATION ne relève pas de l'interdit 7, qui vise le cadrage. Les dériver de
+	// `donnees.emprise.zoom_max` coupleraient une frontière de design mesurée en échelle-sol
+	// au plafond de simplification géométrique, qui ne coïncident que par accident.
+	function poserPalier() {
+		var niveau = Math.floor(carte.getZoom());
+		var classe = niveau < 10 ? CLASSES_ECHELLE.departement
+			: niveau < 11 ? CLASSES_ECHELLE.massif
+			: CLASSES_ECHELLE.abords;
+
+		TOUTES_CLASSES_ECHELLE.forEach(function (nom) { racine.classList.remove(nom); });
+		racine.classList.add(classe);
+	}
 
 	// patternUnits="userSpaceOnUse" est écrit par le serveur : le chemin nominal
 	// de cette garde est un NO-OP. Elle existe pour survivre à une évolution de

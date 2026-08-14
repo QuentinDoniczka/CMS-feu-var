@@ -2,7 +2,7 @@
 /*
  * MASSIFS — carte.css
  * Couche visuelle de la carte : réserve de hauteur, peinture des trois
- * <pattern> de statut, polygones, repère de sélection, chrome (barre de jour,
+ * <pattern> de statut, polygones, cerne de sélection, chrome (barre de jour,
  * contrôles Leaflet), panneau massif, motifs en couleurs forcées.
  *
  * Dépend de tokens.css, layout.css, composants.css. Enfilée AVANT leaflet.css
@@ -10,22 +10,26 @@
  * SPÉCIFICITÉ, via le préfixe `.carte`, jamais par un !important.
  *
  * Règles de fabrication, vérifiables :
- * - AUCUNE custom property définie ici (tokens.css est gelé, sha256 épinglé).
- * - AUCUN littéral de couleur, d'espacement, de durée ni de corps. Les seules
- *   valeurs nues sont les zéros, les mots-clés, les valeurs structurelles
- *   (100 %, 56.25rem recopié de --bp-m — @media n'accepte pas var()) et CINQ
- *   littéraux sans jeton reproduits de MASTER, signalés sur place dans le style
- *   des L-1…L-8 de composants.css :
+ * - AUCUNE custom property définie ici. tokens.css est la transcription verbatim
+ *   du bloc normatif de MASTER §12 et n'est pas éditable à la main : depuis la
+ *   v2.4 il porte 116 jetons sur :root et 133 sur le fichier entier (invariant
+ *   du contrat #50 §4, qui amende le compte gelé par le contrat #4).
+ * - AUCUN littéral de couleur, d'espacement, de durée, de corps NI D'ÉPAISSEUR
+ *   DE TRAIT DE CARTE. Les seules valeurs nues sont les zéros, les mots-clés,
+ *   les valeurs structurelles (100 %, 56.25rem recopié de --bp-m — @media
+ *   n'accepte pas var()) et QUATRE littéraux sans jeton reproduits de MASTER,
+ *   signalés sur place dans le style des L-1…L-8 de composants.css :
  *     L-11  min(72vh, 640px)  hauteur réservée de la bande carte — §7.1
- *     L-12  4px               liseré de survol et de sélection, épaisseur des
- *                             deux contours du repère — §9.2, §3.2 empl. 5.
- *                             Aucun jeton ne le porte : --bord-fort est
- *                             l'abréviation « 4px solid … », inutilisable comme
- *                             épaisseur, et --statut-lisere-epaisseur vaut 2px.
  *     L-13  380px             largeur de la colonne du panneau — §7.1
  *     L-14  66%               hauteur maximale de la feuille du bas — §7.1
  *     L-15  400 / 410         z-index des deux panes, dans l'échelle INTERNE de
  *                             Leaflet (§12 : « Leaflet occupe 200–1000 »)
+ *   L-12 (4px) EST RETIRÉ en v2.4. Les épaisseurs de trait de la carte sont
+ *   désormais quatre jetons variables par palier de zoom — --carte-lisere,
+ *   --carte-survol, --carte-cerne, --carte-cerne-clair (§9.2.a) — et le liseré
+ *   « sélectionné » du chrome passe par --bord-selection (§12). Les numéros
+ *   L-11 / L-13 / L-14 / L-15 NE SONT PAS RENUMÉROTÉS : ce sont des
+ *   identifiants cités ailleurs dans ce fichier.
  * - AUCUN url() d'origine externe : les trois url() sont des références de
  *   fragment vers les <pattern> du même document. AUCUN @import.
  * - AUCUNE ombre floue, AUCUN dégradé, AUCUN prefers-color-scheme, AUCUN rayon
@@ -139,12 +143,23 @@
    `fill: none` en base est un choix d'ÉCHEC : la table état → classe est fermée
    (§8.2) ; une clé inconnue ne reçoit aucun aplat et laisse un contour vide,
    visiblement anormal, plutôt qu'un bleu qui aurait l'air d'un état. Les cinq
-   états ci-dessous sont à spécificité ÉGALE : ils gagnent par l'ordre. */
+   états ci-dessous sont à spécificité ÉGALE : ils gagnent par l'ordre.
+   [v2.4] L'ÉPAISSEUR DU LISERÉ SUIT LE PALIER DE ZOOM : --carte-lisere vaut
+   1,5 px au palier département, 2 px au palier massif (la valeur de :root, donc
+   le défaut du système), 3 px au palier abords (§9.2.a). Ce n'est PAS
+   --statut-lisere-epaisseur, qui est désormais l'épaisseur HORS CARTE — pastille,
+   jalon, légende, liste, panneau, portail, impression, tous des objets dont la
+   taille à l'écran ne dépend d'aucun zoom cartographique. L'employer sur un
+   `stroke` de carte est un défaut (contrat #50, I-50.4).
+   Le plancher de 1,5 px est MESURÉ, pas conventionnel : à 75 % de couverture de
+   rangée au pire alignement sous-pixel, le charbon mélangé fait encore 3,18:1
+   sur #E63A3C et 4,07:1 sur #22B14C (§10.2.a) — le pire cas du §10.1 reste donc
+   résolu au palier le plus mince, avec 6 % de marge. */
 .carte__massif {
   fill: none;
   fill-opacity: 1;
   stroke: var(--statut-lisere);
-  stroke-width: var(--statut-lisere-epaisseur);
+  stroke-width: var(--carte-lisere);
   stroke-opacity: 1;
 }
 
@@ -172,55 +187,118 @@
   fill: url(#carte-motif-non-publie);
 }
 
-/* Exigence 6, §9.2 : liseré porté de 2 à 4 px (L-12), JAMAIS un changement de
-   teinte, jamais d'opacité. `hover: hover` : au toucher, :hover reste collé
-   après une frappe (garde de composants.css §8). */
+/* Exigence 6 du contrat #7 §8.4, AMENDÉE le 15 août 2026 par la chaîne #50 : le
+   survol ne vaut plus 4 px mais UNE FOIS ET DEMIE le liseré du même palier,
+   arrondi au demi-pixel supérieur —
+   1,5 → 2,5 · 2 → 3 · 3 → 4,5 (§9.2.a, règle de tenue 1). C'est un RAPPORT porté
+   par --carte-survol, pas trois nombres choisis : il se recalcule. La v2.3 le
+   portait au DOUBLE du liseré ; une fois et demie suffit à le percevoir.
+   JAMAIS un changement de teinte, jamais d'opacité.
+   Conséquence assumée, écrite (I-50.5) : le survol est CENTRÉ sur le tracé — il
+   est donc le SEUL trait du dispositif qui consomme de l'aplat. La règle de
+   tenue 1 l'autorise nommément parce qu'il est transitoire, qu'il ne concerne
+   que le pointeur et qu'il NE PORTE AUCUNE INFORMATION (§9.2).
+   `hover: hover` : au toucher, :hover reste collé après une frappe (garde de
+   composants.css §8). */
 @media (hover: hover) {
   .carte__massif:hover {
-    stroke-width: 4px;
+    stroke-width: var(--carte-survol);
   }
 }
 
-/* §9.2 « Sélectionné » : liseré 4 px (L-12) + repère à gauche, ce dernier rendu
-   par les contours du §4. Curseur roving, focus et sélection coïncident (A-9). */
-.carte__massif--courant {
-  stroke-width: 4px;
-}
+/* §9.2.a : AUCUNE ÉPAISSEUR N'EST PLUS AJOUTÉE au liseré du massif sélectionné,
+   et c'est le cœur du correctif. Un trait centré épaissi mange l'aplat du statut,
+   ce qu'interdit « aucun état d'interaction ne recouvre un aplat de statut ». La
+   sélection est portée par le CERNE du §4, dessiné SOUS le polygone.
+   `.carte__massif--courant` reste posée par carte.js — c'est le curseur roving du
+   contrat #7 §8.2 — et DEMEURE VOLONTAIREMENT SANS DÉCLARATION ICI : contrat #50
+   D10. Ne pas la supprimer côté JS comme du code mort ; l'absence de règle est la
+   décision, pas un oubli. */
 
 
-/* ═══ 4. Le repère sur la carte — §3.2, emplacement n° 5 ═════════════════ */
+/* ═══ 4. Le cerne — le traitement « sélectionné » de la carte, §9.2.a ════ */
 
-/* Exigence 5 : le tracé courant est dupliqué, en calcaire dans le pane des
-   massifs et en charbon dans un pane décalé de (3 px, 4 px) — la peinture du
-   jour par-dessus celle de la veille. Ces règles viennent APRÈS le §3, à
-   spécificité égale : si le JS pose une classe d'état sur la duplication,
-   `fill: none` gagne par l'ordre et le contour ne repeint pas l'aplat.
-   A-9 : un seul contour rendu, à 4 px (L-12), et non l'anneau de 3 px du §9.1 —
-   sa conformité est satisfaite a fortiori (moitié charbon : 6,10:1 sur l'aplat
-   vert, 13,79:1 sur le fond de carte). */
-.carte__contour {
-  fill: none;
-  stroke: var(--c-calcaire);
-  stroke-width: 4px;
-}
+/* Le massif sélectionné est CERNÉ PAR L'EXTÉRIEUR. Le tracé courant est dupliqué
+   en deux couches non interactives, rendues dans un pane placé SOUS celui des
+   massifs. Un trait SVG est CENTRÉ et le polygone est peint en `fill-opacity: 1`
+   (§4.1.d règle 1) : la moitié intérieure de chaque trait tombe donc sous
+   l'aplat, elle est invisible PAR CONSTRUCTION et non par convention — il n'y a
+   aucun réglage à maintenir. De la forme vers l'extérieur :
+       aplat + motif → liseré charbon → séparateur calcaire → cerne charbon
+       → fond de carte.
+   LES stroke-width CI-DESSOUS SONT GRANDS, ET C'EST NORMAL : les trois quarts de
+   leur épaisseur sont recouverts. ON NE LES LIT JAMAIS COMME DES LARGEURS VUES.
+   Au palier massif, 9 px de cerne donnent 2 px vus — (9 − 5) ÷ 2 — et 5 px de
+   séparateur en donnent 1,5 — (5 − 2) ÷ 2. C'est la ligne de lecture que la v2.3
+   avait manquée en écrivant « liseré 4 px » pour un trait dont 2 px tombaient
+   dans l'aplat.
+   ORDRE SOURCE : charbon PUIS calcaire. Il fait écho à l'ordre d'insertion du JS
+   (I-50.2), qui seul fixe l'ordre DOM avec un renderer partagé. Inversé, le
+   calcaire repasserait SOUS le charbon et l'anneau extérieur deviendrait
+   invisible sur le fond de carte, à 1,07:1 — le défaut de la v2.3 à l'identique.
 
-.carte__contour-trace {
+   CONFORMITÉ. Le cerne est du --c-charbon posé à 4,5 px au plus mince : toujours
+   au-dessus du seuil de couverture pleine de 2 px (§10.2.a), il reprend donc
+   INTÉGRALEMENT les ratios du §10.2 — minimum 4,11:1 contre le rouge officiel,
+   6,10:1 sur le vert, 13,79:1 sur le fond de carte — et aucun palier ne le met en
+   dessous. C'est lui qui porte. Le séparateur calcaire, LUI, NE PORTE RIEN :
+   encadré de charbon des deux côtés à 14,74:1 (§10.2.b), il ne fait que décoller
+   deux encres identiques qui, sans lui, fusionneraient en une bavure noire. Il ne
+   borde jamais le fond de carte (1,07:1) ni un aplat voisin (2,42:1 sur le vert) :
+   c'est la raison pour laquelle il n'est jamais le trait EXTÉRIEUR.
+
+   AU PALIER DÉPARTEMENT, --carte-cerne-clair vaut 0 : AUCUNE PEINTURE CLAIRE
+   N'EST POSÉE SUR LA CARTE. `stroke-width: 0` ne peint rien par spécification —
+   ni demi-pixel, ni résidu d'anticrénelage —, la couche reste donc en place, sans
+   condition en JS ni `display: none` (contrat #50, D5). C'est la règle qui
+   interdit le retour du pâté blanc : au zoom 9, un massif filamenteux n'a pas
+   d'espace entre ses languettes, et chaque pixel clair posé à l'extérieur d'un
+   filament est un pixel posé dans le vide entre deux filaments. Elle se vérifie
+   sur une capture d'écran, ce qui est tout son intérêt.
+
+   I-50.1 — `fill: none` SUR LES DEUX COUCHES, et ce n'est pas décoratif. Leaflet
+   écrit `fill="#3388ff"` en attribut de présentation sur ces <path> : c'est ce
+   `fill: none` qui le neutralise. Un `fill` remplirait l'ANNEAU, donc recouvrirait
+   l'aplat du massif — violation directe de « aucun état d'interaction ne recouvre
+   un aplat de statut » — et rouvrirait une référence `url(#…)` INTER-RACINES SVG,
+   alors que carte.js a déplacé le <defs> des trois <pattern> dans le <svg> des
+   massifs précisément pour que toute référence de motif reste intra-<svg>.
+   L'argument de la v2.3 — spécificité égale, l'ordre tranche — est remplacé par un
+   argument STRUCTUREL : `.carte__cerne*` est disjoint de `.carte__massif*`, aucune
+   règle d'état ne peut l'atteindre.
+
+   I-50.3 — `stroke-linejoin: round` DÉCLARÉ, défense en profondeur. Leaflet pose
+   déjà l'attribut de présentation, mais le défaut SVG est `miter` avec
+   `stroke-miterlimit: 4` : une règle écrite ailleurs, ou un `lineJoin` retiré des
+   options par un refacto, produirait sur les angles aigus des massifs filamenteux
+   des pointes allant jusqu'à 4 × 13 = 52 px au palier abords. Mot-clé seul, aucun
+   littéral numérique, coût nul. */
+.carte__cerne {
   fill: none;
   stroke: var(--c-charbon);
-  stroke-width: 4px;
+  stroke-width: var(--carte-cerne);
+  stroke-linejoin: round;
 }
 
-/* LE TRANSFORM VA SUR LE <g> INTERNE, JAMAIS SUR LE PANE : Leaflet repose ses
-   panes en translate3d() et écraserait un transform posé là. Sélecteur reproduit
-   verbatim de l'exigence 5. */
-.carte__pane--repere > svg > g {
-  transform: translate(var(--repere-decalage-x), var(--repere-decalage-y));
+.carte__cerne-separateur {
+  fill: none;
+  stroke: var(--c-calcaire);
+  stroke-width: var(--carte-cerne-clair);
+  stroke-linejoin: round;
 }
 
-/* L-15 : l'ordre des panes est porteur — la trace SOUS le tracé — et le JS n'a
-   pas le droit d'écrire un style (§8.1). Échelle interne de Leaflet : au-dessus
-   des tuiles (200), sous les marqueurs (600) et les popups (700). */
-.carte .carte__pane--repere {
+/* L-15 : l'ordre des panes est PORTEUR — le cerne SOUS les massifs, c'est ce qui
+   recouvre la moitié intérieure des deux traits — et le JS n'a pas le droit
+   d'écrire un style (§8.1). leaflet.css donne 400 aux deux panes : sans ces deux
+   règles l'empilement dépendrait du hasard du DOM (contrat #7, A-19). Échelle
+   interne de Leaflet : au-dessus des tuiles (200), sous les marqueurs (600) et
+   les popups (700).
+   AUCUN `transform` sur le <g> de ce pane. La v2.3 y décalait la duplication de
+   (3 px, 4 px) pour rendre le repère SUR la carte : l'emplacement 5 du §3.2 est
+   RETIRÉ (D-28) et le §3.3 interdit désormais la signature sur toute géométrie de
+   carte. Laissée en place, cette translation décalerait le cerne ENTIER et
+   reproduirait le halo — ne pas la réintroduire. */
+.carte .carte__pane--cerne {
   z-index: 400;
 }
 
@@ -234,7 +312,7 @@
 /* A-10 : barre AU-DESSUS de la toile, jamais flottante — à 360 px un chrome
    flottant recouvrirait le héros. Aplat OPAQUE --c-calcaire : §4.1.d règle 8
    satisfaite a fortiori. `min-inline-size: 0` : cause n° 1 de défilement
-   horizontal (garde de layout.css l. 353-355). */
+   horizontal (garde de layout.css). */
 .carte__barre {
   display: flex;
   flex-wrap: wrap;
@@ -294,15 +372,18 @@
   }
 }
 
-/* §9.2 « Sélectionné » : liseré 4 px (L-12), jamais un simple changement de
-   fond. Les deux attributs sont couverts, la table de classes étant fermée et
-   n'en portant aucune pour cet état. box-sizing global (layout.css l. 31-35) :
-   la cible reste à 44 px.
+/* §9.2 « Sélectionné » : liseré --bord-selection, jamais un simple changement de
+   fond. Ce jeton est SANS RAPPORT avec les épaisseurs de carte — un bouton de
+   jour ne change pas d'échelle —, et ce n'est pas --bord-fort, qui est
+   l'abréviation « 4px solid … » plafonnée à une occurrence par page (§6.3, §16)
+   et inutilisable comme simple épaisseur. Les deux attributs sont couverts, la
+   table de classes étant fermée et n'en portant aucune pour cet état.
+   box-sizing global (layout.css l. 31-35) : la cible reste à 44 px.
    AUCUN traitement de « désactivé » : §9.2, cet état n'existe pas — le bouton
    « Demain » non publié reste focusable et garde son contraste. */
 .carte__jour-bouton[aria-pressed="true"],
 .carte__jour-bouton[aria-current]:not([aria-current="false"]) {
-  border-width: 4px;
+  border-width: var(--bord-selection);
 }
 
 /* Phrase §11.3 du sélecteur — SŒUR de la barre, pas fille : elle porte donc sa
@@ -355,14 +436,14 @@
 
    Leaflet connaît le piège et livre la parade en propre — mais scopée à
    `.leaflet-overlay-pane` (leaflet.css l. 48-51), son calque par défaut. Or
-   `carte.js` ne l'utilise pas : il crée `carte-repere` et `carte-massifs` sur
-   mesure pour que la trace passe SOUS le tracé (L-15, MASTER §3.2 emplacement
-   5), et `.leaflet-overlay-pane` reste vide. La parade ne s'applique jamais.
+   `carte.js` ne l'utilise pas : il crée `carte-cerne` et `carte-massifs` sur
+   mesure pour que le cerne passe SOUS les massifs (L-15, MASTER §9.2.a), et
+   `.leaflet-overlay-pane` reste vide. La parade ne s'applique jamais.
 
    Le sélecteur vise `.leaflet-pane` et non nos deux classes : un troisième pane
    ajouté demain retomberait autrement dans le même trou, en silence. Il ne peut
    pas atteindre `.carte__defs`, qui n'est jamais enfant d'un pane — et que
-   `carte.js` retire du DOM après avoir déplacé son <defs> (l. 210-218).
+   `carte.js` retire du DOM après avoir déplacé son <defs> (son §4).
    `max-block-size` n'est pas neutralisé : rien ne le contraint.
 
    Spécificité (0,2,1) contre (0,0,1) — préfixe `.carte`, pas !important (§8.3
@@ -452,7 +533,7 @@
 
 /* Exigence 11 : translation + opacité, jetons de durée existants. §9.4 chiffre
    la translation à 12 px, soit exactement --esp-s. `prefers-reduced-motion`
-   n'est PAS réécrit : tokens.css l. 172-174 ramène déjà les trois durées à
+   n'est PAS réécrit : tokens.css ramène déjà les trois durées à
    0,01 ms. Une animation et non une transition : le panneau passe de
    `display: none` à `display: flex` dans la même image. */
 .carte--panneau-ouvert .carte__panneau {
@@ -500,7 +581,7 @@
 /* §9.1, exception NOMMÉE par MASTER : « :focus-visible uniquement, SAUF sur la
    feuille du bas et le panneau massif, où le focus programmatique doit rester
    visible ». D'où `:focus` ici, et ici seulement. L'anneau est celui du §9.1,
-   reproduit avec les jetons du §12 : layout.css l. 462-466 le pose en :where()
+   reproduit avec les jetons du §12 : layout.css le pose en :where()
    (spécificité nulle) et sur `:focus-visible`, qui peut ne pas s'armer quand le
    JS déplace le focus à l'ouverture. Rien n'est retiré, une exception est
    ajoutée. Mesuré : --c-mistral-nuit sur --c-calcaire, 12,66:1. */
@@ -511,7 +592,7 @@
   box-shadow: 0 0 0 var(--focus-halo-epaisseur) var(--focus-halo);
 }
 
-/* Cible ≥ 44 px par remplissage (idiome de layout.css l. 378-385). Le
+/* Cible ≥ 44 px par remplissage (idiome de layout.css). Le
    soulignement permanent et --c-mistral (6,81:1) viennent de layout.css. */
 .carte__panneau-lien {
   display: inline-flex;
@@ -637,13 +718,17 @@
     stroke: CanvasText;
   }
 
-  /* Le partage suit la SÉMANTIQUE du §3.4, pas la clarté des teintes :
-     CanvasText pour la peinture du jour, GrayText pour la trace décalée. */
-  .carte__contour {
+  /* §9.2.a, Dégradation : le cerne passe en CanvasText, le séparateur en Canvas.
+     L'INTERVALLE RESTE UN INTERVALLE — c'est tout ce qu'on demande au séparateur,
+     ici comme en couleurs nominales, où il ne porte déjà rien (§10.2.b). La
+     sémantique est celle du §3.4 : la teinte n'y survit pas et n'a pas à y
+     survivre. GrayText DISPARAÎT — il servait la trace décalée du repère, que
+     D-28 a retirée, et il aurait affaibli sur le cerne le seul trait qui porte. */
+  .carte__cerne {
     stroke: CanvasText;
   }
 
-  .carte__contour-trace {
-    stroke: GrayText;
+  .carte__cerne-separateur {
+    stroke: Canvas;
   }
 }

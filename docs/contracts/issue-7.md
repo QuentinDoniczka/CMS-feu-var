@@ -231,6 +231,16 @@ Idiome déjà établi par `liste-statuts.php`, `legende.php` et `etats-vides.php
 5. Normaliser un `massif_code` (`sanitize_title`, `strtolower`, repli de diacritiques) avant appariement.
 6. Dépasser `zoom_max` = 11, ou instruire son relèvement.
 7. Coder une coordonnée, une bbox, un centre ou un zoom en dur — CSS, JS ou gabarit.
+   **Portée précisée le 15 août 2026 (chaîne #50).** Cet interdit protège le **cadrage** — c'est bien
+   pourquoi il est rangé ici, sous « Géométrie et jointure » : la vue, son centre, son emprise et son
+   plafond viennent de `massifs_emprise()`, jamais du code. Il **ne vise pas** les deux **bornes de
+   palier de présentation** du §9.2.a de MASTER (`10` et `11`), qui sont des seuils d'épaisseur de trait
+   exprimés en entiers de zoom et que MASTER impose d'écrire ainsi — « la borne du palier est un entier
+   de zoom, pas une épaisseur ». Elles **ne doivent pas** être dérivées de `donnees.emprise.zoom_max` :
+   cela coupleraient une frontière de design mesurée en échelle-sol au plafond de simplification
+   géométrique, deux choses qui ne coïncident aujourd'hui que par accident. **La précision restreint la
+   portée de l'interdit, elle ne l'affaiblit pas** : aucun cadrage n'est autorisé en dur, et l'interdit 6
+   (`zoom_max` = 11) reste entier. Voir `docs/contracts/issue-50.md`, D3 et A-50.3.
 
 **Données et règles métier**
 8. Appeler `massifs_statut_du_jour()` dans une boucle — N+1 garanti.
@@ -430,18 +440,37 @@ est un encodage redondant, et les mots sont présents.
 affiché. Il n'est **pas** corrigé par cette chaîne, et il est **remonté comme issue de suivi** (§9). Ce
 n'est pas le cas limite d'un jour de panne : c'est le cas **nominal** de toute consultation avant 17 h.
 
-### A-9 · Un seul contour rendu, à 4 px — divergence §9.1 / §3.2 emplacement 5
+### A-9 · Le traitement « sélectionné » de la carte — **amendée le 15 août 2026 (chaîne #50)**
 
-La sélection **suit le focus** : les deux états coïncident toujours. §9.1 prescrit un double contour de
-3 px pour le focus, §3.2 emplacement 5 un double contour de 4 px pour la sélection. **Seul le 4 px est
-rendu** ; l'argument de conformité de §9.1 (« au moins une des deux moitiés atteint 3:1 sur chaque
-surface ») est satisfait *a fortiori*.
+> **Amendement — lire ceci avant toute correction.** La moitié « un seul contour rendu, à 4 px (L-12) »
+> et le renvoi à **§3.2 emplacement 5** appliquaient le §9.2 de MASTER **v2.3**. Cet emplacement
+> **n'existe plus** : la décision **D-28** de la révision **v2.4** supprime le repère décalé de la carte
+> et ramène la liste fermée du §3.2 de sept à six. Le traitement « sélectionné » de la carte est
+> désormais **le cerne** (MASTER §9.2.a) : un anneau posé **entièrement hors du polygone**, rendu dans un
+> pane placé **sous** celui des massifs, d'épaisseur variable **par palier de zoom**. Le contrat
+> d'application est `docs/contracts/issue-50.md`.
+>
+> **Ce qui est retiré** : « un seul contour rendu, à 4 px », le jeton L-12, la duplication décalée de
+> (3 px, 4 px), et le renvoi à l'emplacement 5.
+>
+> **Ce qui survit à l'amendement, entier et opposable** : *le contour suit le **focus**, pas le panneau.*
 
-Le contour suit le **focus**, pas le panneau : après Échap, le panneau se ferme et le contour **reste** —
-sans quoi un élément aurait le focus DOM sans indicateur visible (échec WCAG 2.4.7).
+La sélection **suit le focus** : les deux états coïncident toujours.
 
-**À enregistrer au §17 de MASTER par `lead-design-cms`.** Ce n'est pas un défaut, mais sans enregistrement
-`review-cms` le comptera comme tel.
+Le cerne suit le **focus**, pas le panneau : après Échap, le panneau se ferme et le cerne **reste** —
+sans quoi un élément aurait le focus DOM sans indicateur visible (échec WCAG 2.4.7). **C'est la moitié
+opposable de la clause**, et la v2.4 la reprend mot pour mot (§9.2.a, « il survit à la fermeture du
+panneau »).
+
+**Pourquoi l'ancienne rédaction devait tomber.** Un trait SVG est **centré** : il consomme la moitié de
+son épaisseur **à l'intérieur** de la forme. À 4 px sur une languette de 3 px de large — le cas de
+Regagnas à z9 — la moitié intérieure suffisait à effacer l'aplat officiel entier. La règle du §9.2
+interdisait de *changer* le pigment ; elle n'interdisait pas de le *cacher*. La v2.4 ferme ce trou par
+une règle de même force : **aucun état d'interaction ne recouvre un aplat de statut.**
+
+**Enregistrement au §17 de MASTER : sans objet désormais.** La divergence §9.1 / §3.2 emplacement 5
+n'existe plus puisque l'emplacement 5 n'existe plus. Elle est remplacée par **§17.1 de MASTER**, qui
+liste ce que la v2.4 ouvre en aval — et dont cette clause est la ligne 1.
 
 ### A-10 · La barre de jour est **au-dessus de la toile**, pas flottante
 
@@ -515,15 +544,30 @@ excluant explicitement le panneau de carte. Enregistrement au §17 attendu.
 
 ### A-16 · L'anneau de focus générique est **conservé** sur les polygones — précision d'A-9
 
+> **Renvoi mis en cohérence le 15 août 2026 (chaîne #50).** A-9 est amendée ; **le fond de A-16 ne change
+> pas** et la révision v2.4 le confirme explicitement (§9.2.a, « ce que le cerne ne fait pas » : « il ne
+> remplace pas l'anneau de focus générique du §9.1, qui reste posé sur le polygone focusé — contrat #7,
+> A-16 »).
+
 A-9 disait « seul le 4 px est rendu ». **À lire comme : aucun traitement de focus séparé n'est *écrit* pour
 la carte** — et non comme une instruction de supprimer l'anneau que `layout.css` pose en `:where()`.
+Depuis l'amendement d'A-9, la même lecture vaut pour **le cerne** : il est le traitement de *sélection*,
+il n'est pas un traitement de *focus*, et il n'en tient pas lieu.
 
 L'anneau est **conservé**. Le supprimer exigerait un `outline: none` dont le seul remplaçant serait un
 tracé **créé par le JS** : si la duplication échoue, le focus devient invisible et WCAG 2.4.7 tombe. Un
-polygone focusé porte donc l'anneau générique **et** le double contour de sélection.
+polygone focusé porte donc l'anneau générique **et** le cerne de sélection.
 
 `review-cms` ne doit pas compter cela comme une divergence : c'est l'arbitrage, pas une variante choisie en
 silence.
+
+**Limite constatée, enregistrée en V-50.1 du contrat #50.** Sur un `<path>` SVG, Chrome dessine
+l'`outline` autour de la **boîte englobante**, et le `box-shadow` du halo ne se rend pas : sur un massif
+filamenteux comme Regagnas à z9, l'anneau paraît comme un rectangle de 94 × 55 px, visuellement plus fort
+que le cerne vu à 1,5 px à ce palier. **Ce n'est pas ce qui produisait le défaut de l'issue #50**
+(`:focus-visible` ne s'arme pas au clic souris ; le cadre observé était le contour charbon décalé). Un
+traitement de focus propre au SVG **n'existe pas dans MASTER** et la v2.4 ne l'a pas rouvert : question
+remontée à `lead-design-cms`, **hors de la chaîne #50**.
 
 ### A-17 · Le pointillé de `non_encore_publie` est un **point plein**, pas un anneau
 
@@ -550,8 +594,14 @@ deux termes.
 ### A-19 · Ajouts nécessaires relevés par `dev-ux-cms` — confirmés
 
 - **`z-index` explicite sur les deux panes** (littéral `L-15`) : `leaflet.css` donne 400 aux deux et le JS
-  n'a pas le droit d'écrire un style ; sans cette règle, l'ordre trace-sous-tracé dépendrait du hasard du
-  DOM et la signature du §3.2 emplacement 5 serait rendue à l'envers un jour sur deux. **Confirmé.**
+  n'a pas le droit d'écrire un style ; sans cette règle, l'ordre des deux panes dépendrait du hasard du
+  DOM. **Confirmé.** **[15 août 2026, chaîne #50]** La règle **devient plus critique encore**, et sa
+  justification change : ce n'est plus la signature du §3.2 emplacement 5 (supprimée par D-28) qui en
+  dépend, c'est **la conformité elle-même**. Le pane du cerne doit rester **sous** celui des massifs
+  (400 < 410) : c'est ce qui fait recouvrir la moitié intérieure du trait par l'aplat opaque, **par
+  construction**. Les deux panes inversés, le cerne se peindrait **par-dessus** l'aplat de statut —
+  exactement le défaut de l'issue #50, et une violation directe de « aucun état d'interaction ne recouvre
+  un aplat de statut » (MASTER §9.2.a).
 - **Anneau de focus sur `.carte__panneau:focus` et `.carte__panneau :focus`** (`:focus`, pas
   `:focus-visible`) : c'est l'exception que §9.1 nomme lui-même pour la feuille du bas et le panneau
   massif, où le focus **programmatique** doit rester visible. **Confirmé.**
@@ -611,11 +661,12 @@ Deux conséquences à ne pas défaire :
 | `.carte__barre`, `.carte__jour`, `.carte__jours`, `.carte__jour-bouton`, `.carte__message`, `.carte__attribution` | PHP | toujours (masqués par `hidden`) |
 | `.carte__toile`, `.carte__aide`, `.carte__annonce`, `.carte__defs` | PHP | toujours |
 | `.carte__panneau`, `.carte__panneau-{titre,fermer,etat,zapef,note-zapef,hors-niveau,consigne,fraicheur,source,lien}` | PHP | toujours (masqués par `hidden`) |
-| `.carte__pane--massifs`, `.carte__pane--repere` | JS | sur les deux panes Leaflet |
+| `.carte__pane--massifs`, `.carte__pane--cerne` | JS | sur les deux panes Leaflet — **`--repere` renommé `--cerne` le 15 août 2026 (chaîne #50, D-28)** : le pane ne porte plus une trace décalée mais les deux couches du cerne |
+| `.carte--echelle-departement` · `.carte--echelle-massif` · `.carte--echelle-abords` | JS | **[15 août 2026, chaîne #50]** sur la **racine**, **exactement une** à la fois, posée au montage puis remplacée à chaque `zoomend`. Table fermée, `Math.floor( getZoom() )`, deux comparaisons (`< 10`, `< 11`). Elles ne portent qu'une **épaisseur de trait** (MASTER §9.2.a) |
 | `.carte__massif` | JS | sur les 25 `<path>`, via l'option `className` de `L.geoJSON` — donc **dès la création**, pas de flash du bleu Leaflet |
 | `.carte__massif--autorise` · `--interdit` · `--indisponible` · `--hors-saison` · `--non-publie` | JS | **table fermée**, jamais dérivée d'un `jeton_css`, jamais calculée |
 | `.carte__massif--courant` | JS | massif sous le curseur roving |
-| `.carte__contour` (pane massifs) · `.carte__contour-trace` (pane repère) | JS | duplication du tracé courant |
+| `.carte__cerne` · `.carte__cerne-separateur` (**tous deux** dans le pane du cerne) | JS | **[15 août 2026, chaîne #50]** duplication du tracé courant, **sous** les massifs. Remplacent `.carte__contour` / `.carte__contour-trace`, dont l'une vivait dans le pane des massifs — c'était le défaut de l'issue #50. Charbon **toujours inséré avant** calcaire ; les deux `interactive: false` et `fill: none` |
 | `[hidden]` | PHP + JS | **unique mécanisme de bascule de visibilité** |
 
 **Table état → classe, fermée** (recopiée du contrat #6) : `autorise` → `--autorise` · `interdit` →
@@ -640,11 +691,11 @@ aucun aplat : l'échec est bruyant et visible.
 | # | Exigence | Référence |
 |---|---|---|
 | 1 | `.carte` : hauteur réservée, pleine largeur, `--r-0`, fond `--c-carte-fond`, **aucun `--bord-fort`** — il est déjà porté par `layout.css` et §16 n'en autorise qu'une occurrence dans le chrome nominal | §7.1, §16 |
-| 2 | `.carte__massif` : `fill-opacity: 1` **sans exception**, liseré `--statut-lisere` 2 px | §4.1.d règles 1-2, §10.2 |
+| 2 | `.carte__massif` : `fill-opacity: 1` **sans exception**, liseré `--statut-lisere` d'épaisseur **`--carte-lisere`** — variable par palier de zoom (**amendé le 15 août 2026, chaîne #50** : c'était « 2 px », valeur devenue celle du seul palier `massif`). `--statut-lisere-epaisseur` est désormais l'épaisseur **hors carte** et ne doit plus être consommée ici | §4.1.d règles 1-2, §10.2, §9.2.a |
 | 3 | `--interdit` → hachure croisée · `--indisponible` → hachure descendante · `--non-publie` → pointillé · `--autorise` et `--hors-saison` → **aplat nu** | §4.1.a, §4.1.c |
 | 4 | Contenu des trois `<pattern>` peint **par classe** avec les jetons `--statut-*` / `--statut-*-encre` ; pas `--statut-motif-pas`, trait `--statut-motif-trait` | §8.1, §4.1.d règle 6 |
-| 5 | `.carte__contour` : `--c-calcaire` 4 px · `.carte__pane--repere > svg > g` : `transform: translate(var(--repere-decalage-x), var(--repere-decalage-y))` · `.carte__contour-trace` : `--c-charbon` 4 px | §3.2 emplacement 5 |
-| 6 | Survol : liseré porté de 2 à 4 px — **jamais** un changement de teinte, jamais d'opacité | §9.2 |
+| 5 | **Réécrite le 15 août 2026 (chaîne #50) — l'emplacement 5 n'existe plus (D-28).** Le cerne : `.carte__cerne` `--c-charbon` d'épaisseur `--carte-cerne` · `.carte__cerne-separateur` `--c-calcaire` d'épaisseur `--carte-cerne-clair` · les deux `fill: none` et `stroke-linejoin: round`, dans le pane `.carte__pane--cerne` (400), **sous** les massifs (410). **La règle `transform: translate(…)` sur `> svg > g` est SUPPRIMÉE** : laissée en place, elle décalerait tout le cerne et reproduirait le halo | §9.2.a |
+| 6 | Survol : liseré porté à **`--carte-survol`**, soit **1,5 × le liseré du palier courant** — un **rapport**, pas trois nombres (**amendé le 15 août 2026, chaîne #50** : c'était « de 2 à 4 px », soit le double). **Jamais** un changement de teinte, jamais d'opacité. Reste sous `@media (hover: hover)` | §9.2, §9.2.a règle de tenue 1 |
 | 7 | Chrome : contrôles de zoom Leaflet ≥ `--cible-min` (44 px, ils font 30 px par défaut), boutons de jour ≥ 44 px, fermeture ≥ 44 px ; aplat opaque `--c-calcaire`, `--r-0` | §9.3, §4.1.d règle 8 |
 | 8 | `.carte__toile` : `position: relative; z-index: var(--z-carte)` — crée le contexte d'empilement qui empêche un contrôle Leaflet (z-index interne jusqu'à 700) de passer au-dessus du panneau | §12 |
 | 9 | Panneau : ≥ 900 px colonne collante ; < 900 px feuille du bas, `--z-panneau`, défilement interne, **coins non arrondis**, **poignée non-pilule** | §7.1, §16 |
@@ -653,7 +704,7 @@ aucun aplat : l'échec est bruyant et visible.
 | 12 | `@media (forced-colors: active)` : les `fill: url(#…)` disparaissent — les motifs sont reconstruits en traits `CanvasText`, sur le modèle de `composants.css` §12 | §10.8, §16 |
 | 13 | `@media print` : **rien à écrire**, `print.css` masque déjà `.bande--carte` | §13 |
 | 14 | Aucun `prefers-color-scheme`, aucun `border-radius` > 2 px, aucune ombre floue, aucun jeton nouveau | §16, §12 |
-| 15 | Les littéraux hors jeton (hauteur de carte, largeur de colonne) sont **signalés sur place**, dans le style des `L-1…L-8` de `composants.css`. **`tokens.css` est gelé, sha256 épinglé — on ne l'ouvre pas** | §12, contrat #4 |
+| 15 | Les littéraux hors jeton (hauteur de carte, largeur de colonne) sont **signalés sur place**, dans le style des `L-1…L-8` de `composants.css`. **Amendé le 15 août 2026 (chaîne #50)** : `tokens.css` **a été rouvert par la révision v2.4 de MASTER**, qui y ajoute cinq jetons et deux classes de palier. Son invariant n'est plus « 111 propriétés, sha256 épinglé » mais **116 sur `:root` / 133 dans le fichier**, sha256 ré-épinglé (contrat #4 amendé). **`L-12 disparaît`** de la liste des littéraux, remplacé par les quatre jetons `--carte-*` et par `--bord-selection` ; L-11, L-13, L-14 et L-15 **ne sont pas renumérotés**, ce sont des identifiants cités ailleurs. Aucune épaisseur de trait de carte ne subsiste en littéral | §12, §9.2.a, contrat #4 |
 
 `carte.css` **ne déclare aucun** sélecteur `.statut*`, `.pastille*`, `.jalon*`, `.liste-statuts*`,
 `.legende*`, `.bandeau-alerte*` : l'invariant I-1 de `composants.css` réserve ces familles à ce fichier.
@@ -784,11 +835,19 @@ fichiers. Elles sont remplacées par les mesures. **Le seul budget normatif est 
 4. **Aucun statut d'un autre jour rendu comme courant** : basculer sur « Demain », puis vérifier que le
    libellé de jour, celui du panneau et l'état des polygones concordent.
 5. **Constance du pas de hachure à l'écran entre z8, z10 et z11** (A-13). Sans cette mesure, §16 n'est pas
-   prouvé.
+   prouvé. **Étendue le 15 août 2026 (chaîne #50) aux crans fractionnaires `9,5` et `10,5`** : depuis
+   `zoomSnap: 0.25`, les zooms atteignables ne sont plus des puissances de 2 et le chemin nominal de la
+   garde doit être prouvé, pas supposé. *(Vérifié en lecture dans Leaflet 1.9.4 : `SVG._update()` écrit
+   `width`/`height` et `viewBox` depuis la même valeur, sans facteur d'échelle — le rapport vaut 1 à tout
+   zoom. La mesure reste due.)*
 6. Assertion `200` sur un fichier de `assets/vendor/leaflet/` (legs déjà ouvert par le contrat #2,
    dépendance 7).
 7. Parcours clavier complet : un seul arrêt de tabulation sur la carte, flèches, Échap, retour du focus,
    aucun piège.
+8. **[chaîne #50] La sélection ne recouvre jamais un aplat de statut** — à vérifier **dans le navigateur**,
+   pas dans une suite de tests : c'est précisément ce qui a manqué à la v2.3. Les onze assertions sont au
+   §9 de `docs/contracts/issue-50.md`, la première étant Regagnas sélectionné au palier département, aplat
+   et motif entiers, **aucune peinture claire sur la carte**.
 
 ---
 
@@ -805,7 +864,12 @@ fichiers. Elles sont remplacées par les mesures. **Le seul budget normatif est 
 
 **Dettes de design system (`lead-design-cms`)**
 4. Les six chaînes de chrome du §5.3 (A-7).
-5. La divergence de contour §9.1 / §3.2 emplacement 5 (A-9), à enregistrer au §17.
+5. ~~La divergence de contour §9.1 / §3.2 emplacement 5 (A-9), à enregistrer au §17.~~
+   **Close le 15 août 2026.** `lead-design-cms` n'a pas enregistré la divergence : il a **révisé la règle**
+   (MASTER v2.4, D-28 — l'emplacement 5 est supprimé, la sélection devient le cerne du §9.2.a). A-9 et
+   A-16 sont amendées ci-dessus ; l'application est la chaîne **#50** (`docs/contracts/issue-50.md`).
+   **Dette ouverte à la place** : MASTER ne spécifie **aucun traitement de focus propre au SVG**, et
+   l'anneau générique se rend en rectangle de boîte englobante sur un `<path>` filamenteux (V-50.1).
 6. La composition de la barre de jour, absente du croquis §7.1 (A-10).
 
 **Demandes non bloquantes au back**
