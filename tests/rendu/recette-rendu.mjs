@@ -675,13 +675,37 @@ async function s03_structureEtAncres( navigateur ) {
 		assert( structure.lang.startsWith( 'fr' ), `${ cible.nom } : lang français`, 'fr…', structure.lang );
 
 		if ( cible.statuts ) {
-			// Trois h2 depuis la chaîne #7 : légende, liste, et le titre du panneau
-			// de massif de la carte. Le troisième est le nom accessible de
-			// l'`<aside aria-labelledby>` exigé par le contrat #7 §9 ; il est vide et
-			// masqué tant qu'aucun massif n'est sélectionné, et rempli par le JS.
+			// CINQ h2 depuis le lot de l'Épic 4. Trois viennent de la chaîne #7 :
+			// légende, liste, et le titre du panneau de massif de la carte — ce
+			// dernier est le nom accessible de l'`<aside aria-labelledby>` exigé par
+			// le contrat #7 §9 ; il est vide et masqué tant qu'aucun massif n'est
+			// sélectionné, et rempli par le JS. Les deux autres sont les titres des
+			// bandes neuves : « Danger météo du jour » (contrat #10) et « Zones
+			// parcourues par le feu » (contrat #11 §3, A-12), tous deux imposés par
+			// leur contrat et rendus en toutes circonstances, y compris quand la
+			// donnée manque.
+			//
 			// Le compte reste une ÉGALITÉ EXACTE, jamais un « au moins » : c'est ce
-			// qui détecte un titre dupliqué par une inclusion accidentelle.
-			egal( 3, structure.h2, 'accueil : trois h2 (légende, liste, panneau de carte) — aucun doublon de titre' );
+			// qui détecte un titre dupliqué par une inclusion accidentelle. Et les
+			// textes sont affirmés, sans quoi le seul compte laisserait passer une
+			// bande rendue à la place d'une autre.
+			egal( 5, structure.h2, 'accueil : cinq h2 (légende, liste, panneau de carte, météo, zones parcourues) — aucun doublon de titre' );
+			const textesH2 = await page.evaluate( () =>
+				[ ...document.querySelectorAll( 'h2' ) ].map( ( e ) => e.textContent.replace( /\s+/g, ' ' ).trim() )
+			);
+			note( `h2 servis sur l’accueil : ${ textesH2.map( ( t ) => `« ${ t } »` ).join( ' · ' ) }` );
+			assert(
+				textesH2.includes( 'Danger météo du jour' ),
+				'accueil : le h2 de la bande météo est rendu par PHP (contrat #10)',
+				'Danger météo du jour',
+				textesH2.join( ' · ' )
+			);
+			assert(
+				textesH2.includes( 'Zones parcourues par le feu' ),
+				'accueil : le h2 de la bande des zones parcourues est rendu par PHP (contrat #11)',
+				'Zones parcourues par le feu',
+				textesH2.join( ' · ' )
+			);
 			const cible2 = await page.evaluate( () => {
 				const e = document.getElementById( 'liste' );
 				return e ? { tag: e.tagName, tabindex: e.getAttribute( 'tabindex' ), nom: e.getAttribute( 'aria-labelledby' ) } : null;
@@ -1184,11 +1208,37 @@ async function s10_apiPublique( navigateur ) {
 	// affirmé ici, c'est ce qui n'a de sens que depuis un client web : la route
 	// est atteignable anonymement, elle est réutilisable cross-origin (c'est
 	// l'objet même du §5.4), et elle sert bien les 25 massifs.
+	// Depuis l'issue #11 (contrat §2, arbitrage A-5), l'espace porte une seconde
+	// route publique de LECTURE : la couche des zones parcourues par le feu.
+	// L'égalité reste EXACTE — c'est elle qui détecterait l'apparition d'une route
+	// d'écriture dans un espace qui n'en déclare aucune (§6 du brief, tenu par
+	// construction et non par une garde).
 	egal(
-		[ '/massifs/v1', '/massifs/v1/statuts' ],
+		[ '/massifs/v1', '/massifs/v1/statuts', '/massifs/v1/zones-parcourues-par-le-feu' ],
 		routesMassifs.sort(),
-		'l’espace « massifs » expose exactement son index et la route publique de lecture'
+		'l’espace « massifs » expose exactement son index et ses deux routes publiques de lecture'
 	);
+
+	// Et la route neuve est bien en lecture seule, anonymement : elle répond en
+	// `200` sans session, et aucune méthode d'écriture n'y est déclarée.
+	const zones = await api.get( `${ BASE }/wp-json/massifs/v1/zones-parcourues-par-le-feu`, { failOnStatusCode: false } );
+	egal( 200, zones.status(), 'contrat #11 §2 : la couche des zones est lisible en JSON, sans authentification' );
+	const chargeZones = await zones.json();
+	assert(
+		typeof chargeZones.etat === 'string' && [ 'zones_disponibles', 'aucune_zone', 'couche_effis_indisponible' ].includes( chargeZones.etat ),
+		'contrat #11 §3 : l’état servi appartient au vocabulaire fermé à trois valeurs',
+		'zones_disponibles | aucune_zone | couche_effis_indisponible',
+		chargeZones.etat
+	);
+	for ( const methode of [ 'post', 'put', 'patch', 'delete' ] ) {
+		const r = await api[ methode ]( `${ BASE }/wp-json/massifs/v1/zones-parcourues-par-le-feu`, { failOnStatusCode: false } );
+		assert(
+			r.status() === 404 || r.status() === 405,
+			`§6 : ${ methode.toUpperCase() } anonyme refusé sur la couche des zones`,
+			'404 (aucune route) ou 405',
+			`${ r.status() } — ${ ( await r.text() ).slice( 0, 120 ) }`
+		);
+	}
 	const statuts = await api.get( `${ BASE }/wp-json/massifs/v1/statuts`, { failOnStatusCode: false } );
 	egal( 200, statuts.status(), '§5.4 : les statuts du jour sont lisibles en JSON, sans authentification' );
 
@@ -3625,6 +3675,191 @@ async function s23_ardoiseEtatInconnu( navigateur ) {
 	await verif.close();
 }
 
+/**
+ * Les trois bandes du lot de l'Épic 4, mesurées dans un navigateur.
+ *
+ * Les scénarios PHP 30 à 54 éprouvent l'extension et rendent les parties de
+ * gabarit isolément, par `get_template_part()`. Aucun d'eux n'ouvre la page
+ * d'accueil : rien ne disait, avant celui-ci, que les trois bandes sont
+ * réellement CÂBLÉES dans `front-page.php`, ni qu'elles occupent la place que le
+ * §7.1 de `MASTER.md` leur assigne. Une partie oubliée à l'appel, ou appelée
+ * deux fois, ou rendue au mauvais rang, ne produit aucune erreur PHP : elle
+ * produit une page silencieusement fausse.
+ *
+ * Ce qui est affirmé ici n'est affirmé nulle part ailleurs :
+ *   — les huit bandes sont présentes UNE FOIS et dans l'ordre du document ;
+ *   — la bande de péremption est AU-DESSUS de la carte, et la mention y est
+ *     rendue une seule fois (la déduplication de la jonction de lot) ;
+ *   — le jour nominal, cette même bande n'occupe AUCUNE hauteur — c'est la
+ *     raison écrite l. 374-377 de `front-page.php` de son absence de
+ *     `.bande__contenu`, et elle n'avait jamais été mesurée ;
+ *   — la bande météo précède la bande des zones parcourues, les deux sont
+ *     visibles, sous la liste, et sans débordement à 360 px.
+ *
+ * @param {import('playwright-core').Browser} navigateur Navigateur.
+ */
+async function s27_bandesDeLEpic4( navigateur ) {
+	scenario( '27 — les trois bandes de l’Épic 4 à leur place dans la page servie (issues #10, #11, #12)' );
+
+	// L'ordre du §7.1 de MASTER.md, dans le sens du document. `carte-secours` est
+	// à l'intérieur de `.bande--carte` : il n'apparaît pas ici.
+	const ORDRE_ATTENDU = [
+		'bande--ardoise',
+		'bande--peremption',
+		'bande--non-officialite',
+		'bande--carte',
+		'bande--legende',
+		'bande--liste',
+		'bande--meteo',
+		'bande--zones-parcourues',
+	];
+
+	/**
+	 * Relève les bandes servies, dans l'ordre du document, avec leur géométrie.
+	 *
+	 * @param {import('playwright-core').Page} page Page chargée.
+	 * @return {Promise<object>} Relevé.
+	 */
+	const releverBandes = ( page ) =>
+		page.evaluate( () =>
+			[ ...document.querySelectorAll( '.bande' ) ].map( ( e ) => {
+				const r = e.getBoundingClientRect();
+				return {
+					classe: [ ...e.classList ].find( ( c ) => c.startsWith( 'bande--' ) ) ?? '(sans modificateur)',
+					haut: Math.round( r.top + window.scrollY ),
+					hauteur: Math.round( r.height ),
+					droite: Math.round( r.right ),
+				};
+			} )
+		);
+
+	// ------------------------------------------------------------------ (a)
+	// Donnée de la veille : la bande de péremption a quelque chose à dire.
+	// JavaScript coupé — les trois bandes sont rendues par PHP, ou elles ne sont
+	// pas rendues du tout.
+	poserEtat( 'veille-seule' );
+
+	const perime = await navigateur.newContext( { javaScriptEnabled: false, viewport: { width: 1280, height: 900 } } );
+	const pagePerime = await perime.newPage();
+	await pagePerime.goto( BASE + '/', { waitUntil: 'load' } );
+
+	const bandes = await releverBandes( pagePerime );
+	note( `bandes servies : ${ bandes.map( ( b ) => `${ b.classe } (h=${ b.hauteur })` ).join( ' · ' ) }` );
+	egal(
+		ORDRE_ATTENDU,
+		bandes.map( ( b ) => b.classe ),
+		'les huit bandes sont servies une fois chacune, dans l’ordre du §7.1'
+	);
+
+	// La bande de péremption, et la déduplication de la jonction de lot.
+	egal( 1, await pagePerime.locator( '.bande--peremption .bandeau-alerte--peremption' ).count(), 'la mention de péremption est rendue par la bande dédiée, et une seule fois' );
+	egal( 0, await pagePerime.locator( '.ardoise__peremption' ).count(), 'elle n’est plus rendue une seconde fois par l’ardoise' );
+
+	const bandePerime = bandes.find( ( b ) => b.classe === 'bande--peremption' );
+	const bandeCarte = bandes.find( ( b ) => b.classe === 'bande--carte' );
+	assert( bandePerime.hauteur > 0, 'donnée périmée : la bande occupe une hauteur réelle — elle est vue', '> 0 px', `${ bandePerime.hauteur } px` );
+	assert( bandePerime.haut < bandeCarte.haut, 'donnée périmée : l’alerte est AU-DESSUS de la carte, pas sous elle', 'péremption avant carte', `péremption à ${ bandePerime.haut } px, carte à ${ bandeCarte.haut } px` );
+
+	// Les deux bandes neuves : un landmark nommé chacune, une fois.
+	egal( 1, await pagePerime.locator( '[id="meteo"]' ).count(), 'contrat #10 : la section « météo » existe une fois et une seule' );
+	egal( 1, await pagePerime.locator( '[id="zones-parcourues"]' ).count(), 'contrat #11 : la section « zones parcourues » existe une fois et une seule' );
+	egal( 1, await pagePerime.locator( '#meteo > h2#meteo-titre' ).count(), 'contrat #10 : le h2 de la bande météo nomme sa section' );
+	egal( 1, await pagePerime.locator( '#zones-parcourues > h2#zones-parcourues-titre' ).count(), 'contrat #11 : le h2 de la bande des zones nomme sa section' );
+
+	for ( const [ ancre, libelle ] of [ [ '#meteo', 'météo' ], [ '#zones-parcourues', 'zones parcourues' ] ] ) {
+		const boite = await pagePerime.locator( ancre ).boundingBox();
+		assert(
+			boite !== null && boite.height > 0 && boite.width > 0,
+			`la bande ${ libelle } est réellement peinte (boîte non nulle)`,
+			'une boîte de largeur et de hauteur non nulles',
+			JSON.stringify( boite )
+		);
+	}
+
+	const bandeMeteo = bandes.find( ( b ) => b.classe === 'bande--meteo' );
+	const bandeZones = bandes.find( ( b ) => b.classe === 'bande--zones-parcourues' );
+	const bandeListe = bandes.find( ( b ) => b.classe === 'bande--liste' );
+	assert( bandeMeteo.haut > bandeListe.haut, '§7.1 : les deux bandes neuves viennent APRÈS la liste textuelle', 'météo après liste', `liste à ${ bandeListe.haut } px, météo à ${ bandeMeteo.haut } px` );
+	assert( bandeMeteo.haut < bandeZones.haut, '§7.1 : DANGER MÉTÉO avant ZONES PARCOURUES', 'météo avant zones', `météo à ${ bandeMeteo.haut } px, zones à ${ bandeZones.haut } px` );
+
+	// Les deux bandes ne parlent JAMAIS de statut d'accès : I-11.5 pour les
+	// zones, et la phrase de distinction du contrat #10 pour la météo. Le jour où
+	// la donnée du jour manque, aucune des deux ne doit combler le silence.
+	const texteMeteo = await texteSource( pagePerime.locator( '#meteo' ) );
+	const texteZones = await texteSource( pagePerime.locator( '#zones-parcourues' ) );
+	note( `bande météo (donnée du jour absente) : « ${ texteMeteo } »` );
+	note( `bande zones (donnée du jour absente) : « ${ texteZones } »` );
+	for ( const [ texte, libelle ] of [ [ texteMeteo, 'météo' ], [ texteZones, 'zones parcourues' ] ] ) {
+		assert(
+			! /Acc(è|e)s au massif|Acc(è|e)s à la ZAPEF/.test( texte ),
+			`§4.2 : la bande ${ libelle } ne porte aucun libellé de niveau d’accès`,
+			'aucun libellé de niveau',
+			texte
+		);
+	}
+
+	await perime.close();
+
+	// ------------------------------------------------------------------ (b)
+	// Jour nominal : la bande de péremption n'a rien à dire. Elle doit alors
+	// coûter ZÉRO pixel — c'est la raison écrite de sa forme, jamais mesurée.
+	poserEtat( 'jour-nominal' );
+
+	const nominal = await navigateur.newContext( { javaScriptEnabled: false, viewport: { width: 1280, height: 900 } } );
+	const pageNominal = await nominal.newPage();
+	await pageNominal.goto( BASE + '/', { waitUntil: 'load' } );
+
+	const bandesNominal = await releverBandes( pageNominal );
+	egal(
+		ORDRE_ATTENDU,
+		bandesNominal.map( ( b ) => b.classe ),
+		'jour nominal : les huit bandes sont servies, dans le même ordre'
+	);
+	egal( 0, await pageNominal.locator( '.bandeau-alerte--peremption' ).count(), 'jour nominal : aucune mention de péremption — la donnée est fraîche' );
+	const videNominal = bandesNominal.find( ( b ) => b.classe === 'bande--peremption' );
+	egal( 0, videNominal.hauteur, 'jour nominal : la bande de péremption n’injecte AUCUN vide au-dessus de la carte (front-page.php l. 374-377)' );
+
+	egal( 1, await pageNominal.locator( '[id="meteo"]' ).count(), 'jour nominal : la bande météo est là aussi' );
+	egal( 1, await pageNominal.locator( '[id="zones-parcourues"]' ).count(), 'jour nominal : la bande des zones est là aussi' );
+
+	await pageNominal.close();
+
+	// ------------------------------------------------------------------ (c)
+	// 360 px : les deux bandes neuves ne débordent pas. Le scénario `mobile`
+	// mesure le document entier ; celui-ci mesure les DEUX BANDES, qui n'y
+	// existaient pas quand il a été écrit.
+	const petit = await nominal.newPage();
+	await petit.setViewportSize( { width: 360, height: 800 } );
+	await petit.goto( BASE + '/', { waitUntil: 'load' } );
+
+	const debordement = await petit.evaluate( () =>
+		[ '#meteo', '#zones-parcourues' ].map( ( s ) => {
+			const e = document.querySelector( s );
+			if ( ! e ) {
+				return { sel: s, absent: true };
+			}
+			const r = e.getBoundingClientRect();
+			return {
+				sel: s,
+				droite: Math.round( r.right ),
+				debordeX: e.scrollWidth > e.clientWidth + 1,
+				fenetre: document.documentElement.clientWidth,
+			};
+		} )
+	);
+	note( `à 360 px : ${ JSON.stringify( debordement ) }` );
+	for ( const m of debordement ) {
+		assert(
+			! m.absent && m.droite <= m.fenetre + 1 && ! m.debordeX,
+			`360 px : ${ m.sel } tient dans la fenêtre, sans défilement horizontal`,
+			`droite <= ${ m.fenetre } px et aucun débordement interne`,
+			JSON.stringify( m )
+		);
+	}
+
+	await nominal.close();
+}
+
 // ---------------------------------------------------------------- lancement
 
 const SCENARIOS = [
@@ -3654,6 +3889,7 @@ const SCENARIOS = [
 	[ 'carte', s24_carteInteractive ],
 	[ 'carte-degradee', s25_carteEnEchecEtSansTuiles ],
 	[ 'carte-garde', s26_gardeCartePhpNEmportePasLeRepli ],
+	[ 'bandes', s27_bandesDeLEpic4 ],
 ];
 
 const filtre = ( process.argv.find( ( a ) => a.startsWith( '--filtre=' ) ) ?? '' ).slice( 9 );

@@ -96,6 +96,9 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 | `20-cron-complet.arme` | enregistrement, planification horaire, filtre d'URL de bout en bout, hors-saison sans octet réseau, retrait à la désactivation | chaîne des données |
 | `21-rendu-etats-hors-saison` | les gabarits réels rendus hors saison, sur un jour futur, et avec une donnée de la veille en base | statut périmé, hors-saison |
 | **`22-api-publique-statuts`** | **issue #8** — le point d'accès `/wp-json/massifs/v1/statuts` interrogé **en HTTP réel et sans cookie** depuis le réseau de la stack : les douze clés de l'enveloppe présentes dans l'état le plus pauvre, les 25 massifs dans tous les états, `niveau`/`zapef` en `null` littéral, `par_niveau` encodé en **objet** et non en tableau, le bornage du paramètre `jour` (absent, vide, passé, au-delà de demain, malformé), `POST`/`PUT`/`PATCH`/`DELETE` et les deux contournements de méthode, l'ETag et son `304`, l'absence d'ETag sous `_fields`, l'invariance par cookie, et la veille en base qui ne remplit jamais la journée courante | API publique, statut périmé, chaîne des données |
+| `30` à `39` — **météo** | **issue #10** — la garde de vocabulaire qui tient « indisponible » tant que les libellés officiels des crans ne sont pas sourcés, un aller-retour HTTP **réel** intra-stack sans `pre_http_request`, les cinq couches de validation et ce qui n'est *pas* une aberration, la panne et son alerte unique sans chiffre dans le courriel, le coupe-circuit et la porte saisonnière (zéro octet sortant), le §4.2 appliqué au danger météo, l'état peuplé par la clé d'injection du gabarit, et l'indicateur **jamais fusionné** avec le statut réglementaire | chaîne des données, zéro requête tierce |
+| `40` à `47` — **zones parcourues** | **issue #11** — l'ingestion nominale où la charge simulée est une **origine** et non une branche, le lot vide qui est le cas nominal, **`42` et `47` C : `aucune_zone` contre `couche_effis_indisponible`**, tous deux `nombre === 0` et jamais le même rendu, la péremption dure appliquée à la **lecture** (les polygones restent en base), les charges aberrantes qui n'écrasent rien, les gardes de cadence, la route publique `/massifs/v1/zones-parcourues-par-le-feu`, et **`47` la jonction extension ↔ `panneau-feu.php`** | chaîne des données, couche EFFIS |
+| `50` à `54` — **veille de fraîcheur** | **issue #12** — la veille planifiée **même quand le connecteur d'ingestion est désarmé** (le trou de la stack de développement), l'alerte de péremption émise **une fois par source et par jour de validité**, le silence total hors saison, la veille désarmée par constante puis par filtre, et le retrait du crochet `massifs_veille_fraicheur` à la désactivation de l'extension | fraîcheur, chaîne des données |
 
 ### Les scénarios de rendu (`tests/rendu/recette-rendu.mjs`)
 
@@ -125,6 +128,7 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 | `gravatar` | aucune empreinte d'e-mail composée ni servie — anonymement, sous `admin` et sous `gestionnaire-demo`, sur `/`, `/wp-admin/`, `profile.php`, `users.php` et les deux routes REST du cœur — où `avatar_urls` / `author_avatar_urls` ont disparu de la charge utile **et du schéma** (`OPTIONS`) ; la coupe tient **même sous `force_display`**, donc imprenable par une valeur en base | zéro requête tierce, donnée personnelle |
 | **`carte`** | **issues #7 et #9** — la carte réellement montée dans un navigateur : `.carte--prete`, 25 tracés, repli statique retiré **après** montage et attribution OSM conservée, `attributionControl: false`, tuiles servies depuis notre origine et vérifiées **sur leur signature de fichier**, plafond de zoom 11 contre pyramide 12, bascule de jour (phrase de jour affichée, ensemble des polygones repeint, panneau daté du jour affiché, aucune persistance au rechargement), roving tabindex à **un seul** arrêt, `aria-label` composé de deux chaînes serveur, Entrée / Échap / retour du focus, et **le pas de hachure à l'écran mesuré à trois niveaux de zoom** (A-13) | zéro requête tierce, statut périmé, accessibilité |
 | **`carte-degradee`** | **issues #7 et #9, chemins d'échec** — Leaflet empêché de se charger : le repli statique **reste**, avec son image, son lien vers la liste et son attribution, la liste garde ses 25 statuts, et **aucune origine tierce n'est contactée sur le chemin dégradé** (le vrai piège de I-9.2). Puis tuiles renvoyées en 404 : la carte se monte quand même, les 25 massifs restent tracés, aucune erreur JavaScript | utilisable sans JS, zéro requête tierce |
+| **`bandes`** | **lot de l'Épic 4** — les trois bandes neuves mesurées **dans la page d'accueil servie**, JavaScript coupé : les huit `.bande--*` présentes une fois chacune et dans l'ordre du §7.1, la bande de péremption **au-dessus** de la carte et sa mention rendue **une seule fois** (`1 × .bandeau-alerte--peremption`, `0 × .ardoise__peremption`), la même bande à **hauteur zéro** le jour nominal, les deux `<section>` nommées `#meteo` et `#zones-parcourues` réellement peintes, météo **avant** zones et toutes deux après la liste, aucun libellé de niveau d'accès dans l'une ou l'autre, et aucun débordement à 360 px. Les scénarios PHP 30 à 54 rendent ces parties **isolément** ; c'est le seul contrôle qui prouve qu'elles sont **câblées** dans `front-page.php` | chaîne des données, utilisable sans JS, mobile réel |
 | `etat-inconnu` | **recette R-27 (issue #27)** : un `etat_global` hors des quatre bras du `match()` de l'ardoise, par ses **deux** déclencheurs — cinquième état, et clé retirée du tableau de synthèse. Page servie en 200, `h1` unique portant la phrase §11.3 mot pour mot avec son lien officiel **du même hôte que le bandeau**, aucun chiffre présenté, ancre `#liste` résolue, document fermé, aucune trace PHP dans le corps, et l'`Undefined array key` **au journal seulement** | statut périmé, utilisable sans JS, accessibilité |
 
 ### `etat-inconnu` — la seule sonde de la garde du `match()`
@@ -197,10 +201,28 @@ explicitement dans sa première jambe. Il **ne couvre pas** l'énumération d'ut
 `GET /wp-json/wp/v2/users`, qui reste ouverte : il asserte même que la route continue de lister les
 mêmes comptes, pour prouver qu'elle n'a pas été touchée. C'est une exigence distincte, du §9 du brief.
 
-Ne sont pas couverts non plus, faute d'exister : la couche EFFIS, l'indicateur Météo-France, les
-pages « La démarche », « Accessibilité » et « Mentions légales », et **tout le portail** — écran de
-mise à jour, journal d'audit, limitation des tentatives de connexion, double authentification. Ces
-lignes du §12 ne sont déclarées couvertes nulle part.
+Ne sont pas couverts non plus, faute d'exister : les pages « La démarche », « Accessibilité » et
+« Mentions légales », et **tout le portail** — écran de mise à jour, journal d'audit, limitation des
+tentatives de connexion, double authentification. Ces lignes du §12 ne sont déclarées couvertes nulle
+part.
+
+La couche EFFIS, l'indicateur Météo-France et la veille de fraîcheur sont couverts depuis le lot de
+l'Épic 4 (scénarios `30` à `54`, et `bandes` pour le câblage dans la page servie). Deux limites y sont
+**structurelles**, et aucune recette ne les lèvera :
+
+- **Le connecteur météo ne rend jamais « disponible » par la donnée.** La garde de vocabulaire du
+  contrat #10 reste fermée tant que les libellés officiels des crans ne sont pas sourcés. L'état
+  peuplé n'est donc éprouvé que par la clé d'injection du gabarit (`37`), jamais par un aller-retour
+  d'ingestion complet.
+- **Aucun polygone de zone brûlée non vide n'existe hors des fixtures des scénarios `4x`**
+  (invariant I-11.3). Le nominal simulé est un `FeatureCollection` **valide et vide** : sur la page
+  servie, la bande des zones n'est donc jamais observée dans son état `zones_disponibles`. Ce que le
+  navigateur voit d'elle est `couche_effis_indisponible`, et rien d'autre.
+
+Conséquence directe : la fabrique `tests/rendu/etats.php` ne pose **aucun** état météo ni EFFIS. Les
+deux bandes neuves sont observées par la recette de rendu dans leur état d'absence — ce qui prouve
+leur câblage, leur place, leur accessibilité et leur innocuité réseau, mais **pas** le rendu de leurs
+états peuplés dans un navigateur.
 
 La carte, son fond auto-hébergé, son repli statique et le point d'accès JSON public sont, eux,
 couverts depuis le lot des issues #7, #8 et #9 — `carte`, `carte-degradee`, `sans-js` et
