@@ -503,3 +503,137 @@ if ( ! function_exists( 'massifs_enregistrer_statuts' ) ) {
 		);
 	}
 }
+
+if ( ! function_exists( 'massifs_journal_usage_reserve' ) ) {
+	/**
+	 * Signale un appel du journal hors administration et hors REST, en debug seulement.
+	 *
+	 * @internal Détail d'implémentation des trois lectures de journal ci-dessous.
+	 *
+	 * @param string $fonction Fonction appelée.
+	 */
+	function massifs_journal_usage_reserve( string $fonction ): void {
+		if ( ! defined( 'WP_DEBUG' ) || ! WP_DEBUG ) {
+			return;
+		}
+
+		if ( is_admin() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+			return;
+		}
+
+		_doing_it_wrong(
+			$fonction,
+			'Le journal des statuts est réservé au portail. Le statut public se lit exclusivement par massifs_statuts_du_jour().',
+			MASSIFS_CORE_VERSION
+		);
+	}
+}
+
+if ( ! function_exists( 'massifs_journal_statuts' ) ) {
+	/**
+	 * Journal des écritures de statut, de la plus récente à la plus ancienne.
+	 *
+	 * ┌──────────────────────────────────────────────────────────────────────────┐
+	 * │  USAGE RÉSERVÉ AU PORTAIL. N'ALIMENTE JAMAIS UN AFFICHAGE PUBLIC.        │
+	 * └──────────────────────────────────────────────────────────────────────────┘
+	 *
+	 * Le journal est un relevé d'écritures PASSÉES : chaque entrée porte SON jour
+	 * de validité et ne dit rien du jour courant. Dériver un « statut actuel »
+	 * d'une entrée de journal — par exemple en prenant la première ligne d'un
+	 * `limite: 1` — serait exactement la faute que le §4.2 du brief interdit. Le
+	 * statut public se lit EXCLUSIVEMENT par `massifs_statuts_du_jour()`, indexée
+	 * par date. La clause absolue de ce fichier reste entière : aucune des
+	 * fonctions ci-dessous ne répond à « quel est le statut maintenant ».
+	 *
+	 * La valeur précédente de chaque entrée est établie EN SQL sur la partition
+	 * NON FILTRÉE du couple (massif, jour) : elle reste juste sous n'importe quel
+	 * filtre et à n'importe quelle page.
+	 *
+	 * Critères reconnus, liste FERMÉE : `massif_code`, `jour_debut`, `jour_fin`,
+	 * `auteur_id`, `source`, `enregistre_debut`, `enregistre_fin`, `id_max`,
+	 * `limite` (défaut 500, plafond 5000), `decalage`. Toute autre clé est
+	 * ignorée en silence.
+	 *
+	 * @param array<string, mixed> $criteres Critères de filtrage.
+	 *
+	 * @return list<array<string, mixed>>
+	 */
+	function massifs_journal_statuts( array $criteres = array() ): array {
+		massifs_journal_usage_reserve( __FUNCTION__ );
+
+		return Statuts::service()->journal_resolu( $criteres );
+	}
+}
+
+if ( ! function_exists( 'massifs_journal_statuts_total' ) ) {
+	/**
+	 * Nombre d'écritures répondant à ces critères.
+	 *
+	 * ┌──────────────────────────────────────────────────────────────────────────┐
+	 * │  USAGE RÉSERVÉ AU PORTAIL. N'ALIMENTE JAMAIS UN AFFICHAGE PUBLIC.        │
+	 * └──────────────────────────────────────────────────────────────────────────┘
+	 *
+	 * Même normalisation de critères que `massifs_journal_statuts()` : le compte
+	 * et la liste ne peuvent pas diverger, sans quoi la pagination serait fausse.
+	 *
+	 * @param array<string, mixed> $criteres Critères de filtrage.
+	 */
+	function massifs_journal_statuts_total( array $criteres = array() ): int {
+		massifs_journal_usage_reserve( __FUNCTION__ );
+
+		return Statuts::service()->compter_journal( $criteres );
+	}
+}
+
+if ( ! function_exists( 'massifs_journal_statuts_borne' ) ) {
+	/**
+	 * Plus grand identifiant de l'ensemble filtré, `0` s'il est vide.
+	 *
+	 * ┌──────────────────────────────────────────────────────────────────────────┐
+	 * │  USAGE RÉSERVÉ AU PORTAIL. N'ALIMENTE JAMAIS UN AFFICHAGE PUBLIC.        │
+	 * └──────────────────────────────────────────────────────────────────────────┘
+	 *
+	 * Sert à FIGER la fenêtre d'un export : la table étant en insertion pure,
+	 * repasser cette borne en critère `id_max` rend l'ensemble résultat immuable
+	 * pendant toute la diffusion.
+	 *
+	 * @param array<string, mixed> $criteres Critères de filtrage.
+	 */
+	function massifs_journal_statuts_borne( array $criteres = array() ): int {
+		massifs_journal_usage_reserve( __FUNCTION__ );
+
+		return Statuts::service()->borne_journal( $criteres );
+	}
+}
+
+if ( ! function_exists( 'massifs_journal_auteurs' ) ) {
+	/**
+	 * Identifiants des auteurs PRÉSENTS dans le journal.
+	 *
+	 * Jamais la liste des comptes de l'installation : lister tous les comptes
+	 * WordPress dans un écran ouvert au gestionnaire serait une énumération
+	 * d'utilisateurs, que le §9 du brief exige de bloquer.
+	 *
+	 * @return list<int>
+	 */
+	function massifs_journal_auteurs(): array {
+		return Statuts::service()->auteurs_journal();
+	}
+}
+
+if ( ! function_exists( 'massifs_sources_statut' ) ) {
+	/**
+	 * Vocabulaire fermé des provenances d'un statut.
+	 *
+	 * @return list<string>
+	 */
+	function massifs_sources_statut(): array {
+		$sources = array();
+
+		foreach ( \Massifs\Domain\Statuts\SourceStatut::cases() as $source ) {
+			$sources[] = $source->value;
+		}
+
+		return $sources;
+	}
+}

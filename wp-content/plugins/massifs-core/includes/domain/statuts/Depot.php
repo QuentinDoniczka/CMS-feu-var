@@ -43,6 +43,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  * ils existent pour rendre possible une re-projection si la granularité
  * d'affichage change un jour, pas pour être présentés. Ne pas les lire est la
  * façon la plus simple de garantir qu'ils n'atteindront aucune sortie publique.
+ *
+ * AJOUT DU JOURNAL (issue #15) — quatre lectures supplémentaires,
+ * `selectionner_journal()`, `compter_journal()`, `id_max_journal()` et
+ * `auteurs_journal()`, s'ajoutent au vocabulaire de données décrit ci-dessus.
+ * Elles n'emploient que `prepare`, `get_row` et `get_results` : aucune écriture,
+ * aucun ordre de modification, le verrou d'insertion pure est intact. Elles
+ * partagent toutes la MÊME clause `WHERE`, construite par `clause_journal()` :
+ * une liste et un compte qui divergeraient afficheraient une pagination fausse.
  */
 final class Depot {
 
@@ -320,5 +328,227 @@ final class Depot {
 		$resultats = $wpdb->get_results( $requete, ARRAY_A );
 
 		return is_array( $resultats ) ? array_values( $resultats ) : array();
+	}
+
+	/**
+	 * Clause `WHERE` PARTAGÉE du journal, et ses arguments liés.
+	 *
+	 * UNE SEULE construction pour la liste, le compte et la borne. Deux clauses
+	 * séparées finiraient par diverger, et une liste qui ne dit pas la même chose
+	 * que son compte produit une pagination fausse — des pages vides, ou des
+	 * lignes inatteignables.
+	 *
+	 * Toutes les colonnes sont préfixées `s.` : la clause doit rester
+	 * interchangeable entre une requête à une seule table et l'auto-jointure de
+	 * `selectionner_journal()`, où `s` et `p` portent les mêmes noms de colonnes.
+	 *
+	 * La liste des critères reconnus est FERMÉE : une clé inconnue est ignorée en
+	 * silence, jamais interpolée. Les valeurs partent toutes en emplacements liés.
+	 *
+	 * `enregistre_le_max` est une borne HAUTE EXCLUSIVE : elle vaut le début du
+	 * jour suivant, jamais `23:59:59`, qui perdrait toute écriture de la dernière
+	 * seconde d'un `datetime`.
+	 *
+	 * @param array<string, mixed> $criteres Critères déjà normalisés par le domaine.
+	 *
+	 * @return array{clause: string, arguments: list<int|string>}
+	 */
+	private function clause_journal( array $criteres ): array {
+		$conditions = array();
+		$arguments  = array();
+
+		if ( isset( $criteres['massif_code'] ) && '' !== $criteres['massif_code'] ) {
+			$conditions[] = 's.massif_code = %s';
+			$arguments[]  = (string) $criteres['massif_code'];
+		}
+
+		if ( isset( $criteres['jour_debut'] ) && '' !== $criteres['jour_debut'] ) {
+			$conditions[] = 's.jour_validite >= %s';
+			$arguments[]  = (string) $criteres['jour_debut'];
+		}
+
+		if ( isset( $criteres['jour_fin'] ) && '' !== $criteres['jour_fin'] ) {
+			$conditions[] = 's.jour_validite <= %s';
+			$arguments[]  = (string) $criteres['jour_fin'];
+		}
+
+		if ( isset( $criteres['auteur_id'] ) && (int) $criteres['auteur_id'] > 0 ) {
+			$conditions[] = 's.auteur_id = %d';
+			$arguments[]  = (int) $criteres['auteur_id'];
+		}
+
+		if ( isset( $criteres['source'] ) && '' !== $criteres['source'] ) {
+			$conditions[] = 's.source = %s';
+			$arguments[]  = (string) $criteres['source'];
+		}
+
+		if ( isset( $criteres['enregistre_le_min'] ) && '' !== $criteres['enregistre_le_min'] ) {
+			$conditions[] = 's.enregistre_le >= %s';
+			$arguments[]  = (string) $criteres['enregistre_le_min'];
+		}
+
+		if ( isset( $criteres['enregistre_le_max'] ) && '' !== $criteres['enregistre_le_max'] ) {
+			$conditions[] = 's.enregistre_le < %s';
+			$arguments[]  = (string) $criteres['enregistre_le_max'];
+		}
+
+		if ( isset( $criteres['id_max'] ) && (int) $criteres['id_max'] > 0 ) {
+			$conditions[] = 's.id <= %d';
+			$arguments[]  = (int) $criteres['id_max'];
+		}
+
+		return array(
+			'clause'    => array() === $conditions ? '' : ' WHERE ' . implode( ' AND ', $conditions ),
+			'arguments' => $arguments,
+		);
+	}
+
+	/**
+	 * Lignes du journal, la valeur précédente ÉTABLIE EN SQL.
+	 *
+	 * LE POINT CENTRAL DE CETTE MÉTHODE, ET LA RAISON DE SON EXISTENCE : la ligne
+	 * précédente est cherchée sur la partition NON FILTRÉE du couple
+	 * (`massif_code`, `jour_validite`). La sous-requête corrélée ne porte AUCUN
+	 * des filtres de l'appelant. Filtrer par auteur, par source, ou paginer, ne
+	 * peut donc plus transformer une correction en « première écriture », ni —
+	 * en ordre décroissant — présenter une valeur FUTURE comme l'ancienne.
+	 *
+	 * Auto-jointure corrélée et JAMAIS `LAG()` : MySQL 5.7 est encore supporté par
+	 * WordPress et ne connaît pas les fonctions fenêtre — l'historique serait
+	 * vide, en silence. L'index `massif_jour (massif_code,jour_validite,id)` sert
+	 * la sous-requête directement.
+	 *
+	 * `p.id` est sélectionné exprès : c'est le SEUL discriminant entre « aucune
+	 * ligne antérieure n'existe » (`precedent_id` nul) et « la ligne antérieure ne
+	 * portait aucun niveau » (`precedent_id` non nul, `precedent_niveau_cle` nul).
+	 *
+	 * `ORDER BY s.enregistre_le DESC, s.id DESC` : `enregistre_le` est à la
+	 * seconde, et sans `s.id` en départage la pagination sauterait ou dupliquerait
+	 * des lignes. Le tri est en SQL, jamais rejoué en PHP après pagination.
+	 *
+	 * `niveau_source_brut` et `procedure_source` ne sont sélectionnés NI sur `s`
+	 * NI sur `p`.
+	 *
+	 * @param array<string, mixed> $criteres Critères déjà normalisés par le domaine.
+	 *
+	 * @return list<array<string, mixed>>
+	 */
+	public function selectionner_journal( array $criteres ): array {
+		global $wpdb;
+
+		$table  = self::nom_table();
+		$filtre = $this->clause_journal( $criteres );
+
+		$limite   = isset( $criteres['limite'] ) ? max( 1, min( 5000, (int) $criteres['limite'] ) ) : 500;
+		$decalage = isset( $criteres['decalage'] ) ? max( 0, (int) $criteres['decalage'] ) : 0;
+
+		$arguments = array_merge(
+			array( $table, $table, $table ),
+			$filtre['arguments'],
+			array( $limite, $decalage )
+		);
+
+		$requete = $wpdb->prepare(
+			'SELECT s.id, s.massif_code, s.jour_validite, s.niveau_cle, s.zapef_cle, s.source, s.auteur_id,'
+				. ' s.publie_prefecture_le, s.enregistre_le,'
+				. ' p.id AS precedent_id, p.niveau_cle AS precedent_niveau_cle, p.zapef_cle AS precedent_zapef_cle'
+				. ' FROM %i AS s'
+				. ' LEFT JOIN %i AS p ON p.id = ('
+				. ' SELECT MAX(t.id) FROM %i AS t'
+				. ' WHERE t.massif_code = s.massif_code AND t.jour_validite = s.jour_validite AND t.id < s.id'
+				. ' )'
+				. $filtre['clause']
+				. ' ORDER BY s.enregistre_le DESC, s.id DESC'
+				. ' LIMIT %d OFFSET %d',
+			$arguments
+		);
+
+		$resultats = $wpdb->get_results( $requete, ARRAY_A );
+
+		return is_array( $resultats ) ? array_values( $resultats ) : array();
+	}
+
+	/**
+	 * Nombre de lignes du journal pour ces critères.
+	 *
+	 * Même clause que `selectionner_journal()`, sans jointure : le précédent
+	 * n'entre dans aucune condition, il ne peut donc pas changer le compte.
+	 *
+	 * @param array<string, mixed> $criteres Critères déjà normalisés par le domaine.
+	 */
+	public function compter_journal( array $criteres ): int {
+		global $wpdb;
+
+		$filtre = $this->clause_journal( $criteres );
+
+		$requete = $wpdb->prepare(
+			'SELECT COUNT(*) AS total FROM %i AS s' . $filtre['clause'],
+			array_merge( array( self::nom_table() ), $filtre['arguments'] )
+		);
+
+		$ligne = $wpdb->get_row( $requete, ARRAY_A );
+
+		return is_array( $ligne ) && isset( $ligne['total'] ) ? (int) $ligne['total'] : 0;
+	}
+
+	/**
+	 * Plus grand identifiant de l'ensemble filtré, `0` s'il est vide.
+	 *
+	 * Fige la fenêtre d'un export : la table étant en insertion pure, `id <= borne`
+	 * rend l'ensemble résultat IMMUABLE pendant toute la diffusion, et `OFFSET`
+	 * redevient stable — aucune ligne dupliquée, aucune sautée, même si le cron
+	 * écrit pendant l'export.
+	 *
+	 * @param array<string, mixed> $criteres Critères déjà normalisés par le domaine.
+	 */
+	public function id_max_journal( array $criteres ): int {
+		global $wpdb;
+
+		$filtre = $this->clause_journal( $criteres );
+
+		$requete = $wpdb->prepare(
+			'SELECT MAX(s.id) AS borne FROM %i AS s' . $filtre['clause'],
+			array_merge( array( self::nom_table() ), $filtre['arguments'] )
+		);
+
+		$ligne = $wpdb->get_row( $requete, ARRAY_A );
+
+		return is_array( $ligne ) && null !== ( $ligne['borne'] ?? null ) ? (int) $ligne['borne'] : 0;
+	}
+
+	/**
+	 * Identifiants des auteurs PRÉSENTS dans le journal.
+	 *
+	 * Jamais la liste des comptes de l'installation : un écran ouvert au
+	 * gestionnaire qui listerait tous les comptes WordPress serait une énumération
+	 * d'utilisateurs, que le §9 du brief exige de bloquer.
+	 *
+	 * @return list<int>
+	 */
+	public function auteurs_journal(): array {
+		global $wpdb;
+
+		$requete = $wpdb->prepare(
+			'SELECT DISTINCT s.auteur_id FROM %i AS s WHERE s.auteur_id IS NOT NULL ORDER BY s.auteur_id ASC',
+			self::nom_table()
+		);
+
+		$resultats = $wpdb->get_results( $requete, ARRAY_A );
+
+		if ( ! is_array( $resultats ) ) {
+			return array();
+		}
+
+		$auteurs = array();
+
+		foreach ( $resultats as $ligne ) {
+			$auteur = isset( $ligne['auteur_id'] ) ? (int) $ligne['auteur_id'] : 0;
+
+			if ( $auteur > 0 ) {
+				$auteurs[] = $auteur;
+			}
+		}
+
+		return $auteurs;
 	}
 }

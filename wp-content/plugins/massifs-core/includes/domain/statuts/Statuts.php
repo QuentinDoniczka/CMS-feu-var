@@ -518,4 +518,211 @@ final class Statuts {
 	private function chaine( array $donnees, string $cle ): string {
 		return isset( $donnees[ $cle ] ) && is_scalar( $donnees[ $cle ] ) ? (string) $donnees[ $cle ] : '';
 	}
+
+	/**
+	 * Critères de journal normalisés, UNE SEULE FOIS pour les cinq lectures.
+	 *
+	 * TOUTES les lectures de journal passent par ici : sans cela, la liste, le
+	 * compte et la borne pourraient interpréter différemment le même filtre, et
+	 * une pagination bâtie sur deux lectures divergentes est fausse par
+	 * construction.
+	 *
+	 * LISTE FERMÉE de critères. Toute autre clé est ignorée en silence.
+	 *
+	 * CONVERSION DE FUSEAU — elle appartient à ce domaine et à personne d'autre.
+	 * `enregistre_le` est stocké en UTC, le gestionnaire saisit un jour civil de
+	 * Paris. Sans conversion, une écriture du 13 août à 23 h 30 (21 h 30 UTC)
+	 * tomberait dans le bon jour par hasard, et une du 14 août à 01 h 00 (13 août
+	 * 23 h 00 UTC) dans le mauvais. La borne haute est EXCLUSIVE et calculée sur
+	 * le DÉBUT DU JOUR SUIVANT : un `<= 23:59:59` sur une colonne `datetime`
+	 * perdrait toute écriture de la dernière seconde.
+	 *
+	 * Une valeur inexploitable est ÉCARTÉE, jamais corrigée : un filtre silencieux
+	 * qui ne filtre pas ce qu'on lui a demandé ment sur le contenu de l'écran.
+	 *
+	 * @param array<string, mixed> $criteres Critères bruts.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function normaliser_criteres_journal( array $criteres ): array {
+		$normalises = array();
+
+		$code = self::normaliser_code( $this->chaine( $criteres, 'massif_code' ) );
+
+		if ( '' !== $code && self::code_est_valide( $code ) ) {
+			$normalises['massif_code'] = $code;
+		}
+
+		foreach ( array( 'jour_debut', 'jour_fin' ) as $borne ) {
+			$jour = trim( $this->chaine( $criteres, $borne ) );
+
+			if ( '' !== $jour && Horloge::jour_est_valide( $jour ) ) {
+				$normalises[ $borne ] = $jour;
+			}
+		}
+
+		$auteur_id = isset( $criteres['auteur_id'] ) && is_scalar( $criteres['auteur_id'] )
+			? absint( $criteres['auteur_id'] )
+			: 0;
+
+		if ( $auteur_id > 0 ) {
+			$normalises['auteur_id'] = $auteur_id;
+		}
+
+		$source = SourceStatut::tryFrom( trim( $this->chaine( $criteres, 'source' ) ) );
+
+		if ( $source instanceof SourceStatut ) {
+			$normalises['source'] = $source->value;
+		}
+
+		$debut = trim( $this->chaine( $criteres, 'enregistre_debut' ) );
+
+		if ( '' !== $debut && Horloge::jour_est_valide( $debut ) ) {
+			$normalises['enregistre_le_min'] = Horloge::vers_mysql( Horloge::jour_vers_debut( $debut ) );
+		}
+
+		$fin = trim( $this->chaine( $criteres, 'enregistre_fin' ) );
+
+		if ( '' !== $fin && Horloge::jour_est_valide( $fin ) ) {
+			$normalises['enregistre_le_max'] = Horloge::vers_mysql( Horloge::jour_vers_debut( $fin )->modify( '+1 day' ) );
+		}
+
+		$id_max = isset( $criteres['id_max'] ) && is_scalar( $criteres['id_max'] )
+			? absint( $criteres['id_max'] )
+			: 0;
+
+		if ( $id_max > 0 ) {
+			$normalises['id_max'] = $id_max;
+		}
+
+		$normalises['limite']   = isset( $criteres['limite'] ) && is_scalar( $criteres['limite'] )
+			? max( 1, min( 5000, (int) $criteres['limite'] ) )
+			: 500;
+		$normalises['decalage'] = isset( $criteres['decalage'] ) && is_scalar( $criteres['decalage'] )
+			? max( 0, (int) $criteres['decalage'] )
+			: 0;
+
+		return $normalises;
+	}
+
+	/**
+	 * Journal des écritures, valeur précédente établie en SQL.
+	 *
+	 * @param array<string, mixed> $criteres Critères bruts, liste fermée.
+	 *
+	 * @return list<EntreeHistorique>
+	 */
+	public function journal( array $criteres ): array {
+		return EntreeHistorique::depuis_lignes_jointes(
+			$this->depot->selectionner_journal( $this->normaliser_criteres_journal( $criteres ) )
+		);
+	}
+
+	/**
+	 * Journal résolu contre la légende courante, forme exposée aux consommateurs.
+	 *
+	 * `niveau_lisible` à `false` signale une clé STOCKÉE ABSENTE de la légende
+	 * courante : un échec de configuration, que le consommateur doit montrer
+	 * plutôt que taire. La ligne n'est jamais masquée — un journal qui escamote
+	 * des lignes n'est plus un journal.
+	 *
+	 * @param array<string, mixed> $criteres Critères bruts, liste fermée.
+	 *
+	 * @return list<array<string, mixed>>
+	 */
+	public function journal_resolu( array $criteres ): array {
+		$entrees = array();
+
+		foreach ( $this->journal( $criteres ) as $entree ) {
+			$brut = $entree->en_tableau_journal();
+
+			$niveau           = $this->niveau_resolu( $entree->niveau_cle );
+			$niveau_precedent = $this->niveau_resolu( $entree->niveau_precedent_cle );
+
+			$entrees[] = array(
+				'id'                       => $brut['id'],
+				'massif_code'              => $brut['massif_code'],
+				'jour_validite'            => $brut['jour_validite'],
+				'niveau_cle'               => $brut['niveau_cle'],
+				'niveau'                   => $niveau,
+				'niveau_lisible'           => null === $entree->niveau_cle || null !== $niveau,
+				'niveau_precedent_cle'     => $brut['niveau_precedent_cle'],
+				'niveau_precedent'         => $niveau_precedent,
+				'niveau_precedent_lisible' => null === $entree->niveau_precedent_cle || null !== $niveau_precedent,
+				'zapef_cle'                => $brut['zapef_cle'],
+				'zapef'                    => $this->zapef_resolu( $entree->zapef_cle ),
+				'zapef_precedent_cle'      => $brut['zapef_precedent_cle'],
+				'zapef_precedent'          => $this->zapef_resolu( $entree->zapef_precedent_cle ),
+				'premiere_publication'     => $brut['premiere_publication'],
+				'changement'               => $brut['changement'],
+				'source'                   => $brut['source'],
+				'auteur_id'                => $brut['auteur_id'],
+				'publie_prefecture_le'     => $brut['publie_prefecture_le'],
+				'enregistre_le'            => $brut['enregistre_le'],
+			);
+		}
+
+		return $entrees;
+	}
+
+	/**
+	 * Niveau d'accès au massif correspondant à une clé, en forme tabulaire.
+	 *
+	 * @param string|null $cle Clé stockée.
+	 *
+	 * @return array<string, int|string>|null
+	 */
+	private function niveau_resolu( ?string $cle ): ?array {
+		if ( null === $cle ) {
+			return null;
+		}
+
+		$niveau = $this->legende->niveau( $cle );
+
+		return null === $niveau ? null : $niveau->en_tableau();
+	}
+
+	/**
+	 * Entrée ZAPEF correspondant à une clé, en forme tabulaire.
+	 *
+	 * @param string|null $cle Clé stockée.
+	 *
+	 * @return array<string, int|string>|null
+	 */
+	private function zapef_resolu( ?string $cle ): ?array {
+		if ( null === $cle ) {
+			return null;
+		}
+
+		$entree = $this->legende->zapef_entree( $cle );
+
+		return null === $entree ? null : $entree->en_tableau();
+	}
+
+	/**
+	 * Nombre d'écritures répondant à ces critères.
+	 *
+	 * @param array<string, mixed> $criteres Critères bruts, liste fermée.
+	 */
+	public function compter_journal( array $criteres ): int {
+		return $this->depot->compter_journal( $this->normaliser_criteres_journal( $criteres ) );
+	}
+
+	/**
+	 * Plus grand identifiant de l'ensemble filtré, `0` s'il est vide.
+	 *
+	 * @param array<string, mixed> $criteres Critères bruts, liste fermée.
+	 */
+	public function borne_journal( array $criteres ): int {
+		return $this->depot->id_max_journal( $this->normaliser_criteres_journal( $criteres ) );
+	}
+
+	/**
+	 * Auteurs présents dans le journal.
+	 *
+	 * @return list<int>
+	 */
+	public function auteurs_journal(): array {
+		return $this->depot->auteurs_journal();
+	}
 }

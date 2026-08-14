@@ -1,0 +1,802 @@
+@charset "UTF-8";
+/*
+ * MASSIFS — historique.css
+ * Écran gestionnaire « Historique des statuts » (wp-admin).
+ * Contrat gelé : docs/contracts/issue-15.md §7 (crochets de balisage) et §7.6
+ * (contraintes CSS). Design system : design-system/MASTER.md v2.3.
+ *
+ * DÉPENDANCE — les jetons viennent du THÈME (assets/css/tokens.css), enfilés
+ * par ce module sous sa propre poignée (§7.6.2). `layout.css` et
+ * `composants.css` ne sont DÉLIBÉRÉMENT pas enfilés en administration : le
+ * `box-sizing: border-box` global de layout.css casserait la mise en page de
+ * wp-admin (§7.6.3). Rien n'est donc hérité d'eux, et `box-sizing` est reposé
+ * ICI, SCOPÉ (§1 ci-dessous).
+ *
+ * DÉGRADATION SANS JETONS — si le thème `massifs` n'est pas actif, aucune
+ * custom property n'existe : chaque `var(--…)` devient invalide à la valeur
+ * calculée, la déclaration tombe, et la page retombe sur les styles propres de
+ * wp-admin. Aucune information n'est perdue : les pastilles sont
+ * `aria-hidden` et vides, le sens est porté par `.massifs-pastille-libelle`,
+ * par les mentions textuelles et par la structure du tableau (§7.6.14).
+ * C'est pourquoi AUCUNE valeur de repli n'est écrite dans les `var()` : une
+ * valeur de repli serait un littéral de couleur ou d'espacement, interdit
+ * par §7.6.1, et rachèterait un rendu au prix d'un défaut bloquant.
+ *
+ * LITTÉRAUX ADMIS, ET RIEN D'AUTRE — mêmes bornes que layout.css du thème :
+ * les zéros, les pourcentages, les mots-clés, les angles ; le plafond
+ * typographique `3rem` du §5.1 (arbitrage A-13) ; la marge `12mm` du §13 ; et
+ * les géométries que MASTER §8.1 écrit lui-même en littéral, recopiées
+ * verbatim et signalées une par une (§8 ci-dessous).
+ *
+ * AUCUNE @media de largeur — la composition est intrinsèque (`flex-wrap`) et
+ * la gouttière de page suit `--gouttiere`, que tokens.css fait déjà passer de
+ * `--esp-m` à `--esp-l` à 37,5 rem. Rien à recopier, rien à désynchroniser.
+ *
+ * AUCUN url(), AUCUN @import, AUCUNE @font-face : zéro requête tierce.
+ *
+ * Plan :
+ *   1. Portée et remise à plat            6. Tableau
+ *   2. Chrome de texte                    7. Transition ancienne → nouvelle
+ *   3. Focus                              8. Pastilles (recopie scopée)
+ *   4. Blocs d'état                       9. Pagination
+ *   5. Filtres                           10. Mouvement réduit
+ *                                        11. Impression
+ */
+
+
+/* ═══ 1. Portée et remise à plat ═════════════════════════════════════════ */
+
+/* `box-sizing` est reposé ici, et UNIQUEMENT sous `.massifs-historique` :
+   wp-admin construit sa propre mise en page autour de cet écran et un
+   `box-sizing` global la casserait (§7.6.3). Il est indispensable — la
+   géométrie normative du §8.1 (26 × 16) est une boîte EXTÉRIEURE : en
+   `content-box` la pastille mesurerait 30 × 20 (composants.css l. 96-98). */
+.massifs-historique,
+.massifs-historique *,
+.massifs-historique *::before,
+.massifs-historique *::after {
+  box-sizing: border-box;
+}
+
+
+/* ═══ 2. Chrome de texte ═════════════════════════════════════════════════ */
+
+/* MASTER §7.2 [v2.3] : le chrome du portail — en-tête, tableau, boutons,
+   historique — est ENTIÈREMENT en famille de texte, en casse normale. La
+   famille d'affichage n'entre sur cet écran que par les étiquettes de statut
+   (§8 ci-dessous), qui portent les libellés officiels verbatim (§11.4).
+   Le fond est repeint en `--c-calcaire` : toutes les paires mesurées au §10
+   de MASTER sont établies sur cette surface, pas sur le gris de wp-admin. */
+.massifs-historique {
+  background-color: var(--c-calcaire);
+  color: var(--c-charbon);
+  font-family: var(--police-texte);
+  font-weight: var(--poids-texte);
+  font-size: var(--fs-300);
+  line-height: var(--lh-corps);
+  padding: var(--gouttiere);
+}
+
+/* Bride de consommation du §5.1 (arbitrage A-13, même précédent que
+   layout.css l. 110-113) : `--fs-700` n'est pas modifié, le plafond est posé
+   en consommation, et en `rem` — jamais en `px`, un plafond en px
+   plafonnerait la réponse au zoom (WCAG 1.4.4).
+   Casse NORMALE : D-26 réserve les capitales aux étiquettes `--fs-250`, et
+   §16 fait d'un `h1` capitalisé un défaut bloquant. */
+.massifs-historique #massifs-historique-titre {
+  margin-block: 0 var(--esp-l);
+  font-family: var(--police-texte);
+  font-weight: var(--poids-texte-fort);
+  font-size: min(var(--fs-700), 3rem);
+  line-height: var(--lh-titre);
+  letter-spacing: var(--ls-titre);
+  text-transform: none;
+}
+
+/* Aucun repère sur cet écran, et c'est une décision, pas un oubli : la liste
+   du §3.2 est FERMÉE à sept emplacements, aucun n'est l'historique, et §16
+   fait du repère devant un titre hors portée de la famille d'affichage un
+   défaut bloquant. */
+
+
+/* ═══ 3. Focus ═══════════════════════════════════════════════════════════ */
+
+/* wp-admin pose son propre anneau bleu sur `:focus` (donc aussi à la souris).
+   Il est neutralisé pour laisser place à la spécification UNIQUE du §9.1 —
+   et remplacé, jamais supprimé : `outline: none` n'est écrit nulle part dans
+   ce fichier. Le repère de survol/souris subsiste par la bordure. */
+.massifs-historique :is(a, button, input, select, [tabindex]):focus {
+  border-color: var(--c-charbon);
+  box-shadow: none;
+}
+
+/* MASTER §9.1, reproduit avec les jetons du §12. Vaut aussi pour
+   `.massifs-historique-defilant`, qui porte `tabindex="0"` : c'est par elle
+   qu'un clavier atteint les colonnes de droite, elle DOIT montrer son focus
+   (§7.6.10). Les `0 0 0` du halo sont ceux de la référence §9.1. */
+.massifs-historique :is(a, button, input, select, [tabindex]):focus-visible {
+  outline: var(--focus-epaisseur) solid var(--focus-trait);
+  outline-offset: var(--focus-ecart);
+  box-shadow: 0 0 0 var(--focus-halo-epaisseur) var(--focus-halo);
+}
+
+
+/* ═══ 4. Blocs d'état ════════════════════════════════════════════════════ */
+
+/* `role="status"` : compte de résultats et page courante. Discret par
+   construction — c'est une méta, pas un titre. 7,29:1 sur calcaire. */
+.massifs-historique-resume {
+  margin-block: 0 var(--esp-s);
+  font-size: var(--fs-200);
+  color: var(--c-charbon-doux);
+}
+
+/* Filtres ignorés, intervalle inversé. AUCUNE couleur sémantique : §2.1
+   interdit le rouge d'erreur et l'ambre d'alerte — la bande réservée au rouge
+   officiel ne peut pas servir à autre chose qu'un statut. L'état est porté
+   par le SLAB, le filet et le libellé, jamais par la teinte.
+   `--bord-moyen` et non `--bord-fort` : la règle de quantité du §6.3 réserve
+   l'unique 4 px du chrome nominal, et il est posé au §9 sur la page courante
+   de la pagination. */
+.massifs-historique-avertissement {
+  margin-block: 0 var(--esp-m);
+  padding: var(--esp-s) var(--esp-m);
+  border-block-start: var(--bord-moyen);
+  background-color: var(--c-calcaire-ombre);
+  color: var(--c-charbon);
+  font-weight: var(--poids-texte-fort);
+}
+
+/* « Le journal des statuts est momentanément indisponible. », « Aucune
+   écriture… ». Jamais un tableau vide déguisé : le bloc est visible et occupe
+   la place du tableau. */
+.massifs-historique-vide {
+  margin-block: var(--esp-m);
+  padding: var(--esp-l) var(--esp-m);
+  background-color: var(--c-calcaire-ombre);
+  color: var(--c-charbon);
+  font-size: var(--fs-400);
+}
+
+
+/* ═══ 5. Filtres ═════════════════════════════════════════════════════════ */
+
+/* « Filtres en ligne » (§7.2), en repli sur une colonne dès que la largeur
+   manque : `flex-wrap` est ce qui garantit l'absence de défilement
+   horizontal DE PAGE à 360 px et à 200 % de zoom. `min-inline-size: 0` sur
+   les groupes annule le `min-width: auto` des éléments flex, seul mécanisme
+   par lequel un `<select>` long pourrait pousser la page. */
+.massifs-historique-filtres {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--esp-m);
+  margin-block-end: var(--esp-l);
+  padding: var(--esp-m);
+  border-block-start: var(--bord-moyen);
+  background-color: var(--c-calcaire-ombre);
+}
+
+/* Bordure de `<fieldset>` retirée : le groupement est porté par la `<legend>`
+   et par l'espacement. Un filet `--c-poussiere` autour de trois groupes
+   serait un filet non informatif de plus dans un écran déjà dense.
+   Le `<fieldset>` reste un BLOC et n'est jamais mis en `display: flex` : les
+   moteurs traitent le `<legend>` comme une boîte spéciale et son placement
+   diverge dès que le fieldset devient conteneur flex. `min-inline-size: 0`
+   annule le `min-width: min-content` que les UA imposent aux fieldsets — sans
+   lui, un `<select>` long empêcherait le groupe de rétrécir et pousserait la
+   page à 360 px. */
+.massifs-historique-filtres__groupe {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Les deux `<legend>` de date (« Jour de validité », « Enregistré le ») sont
+   du chrome de portail : famille de TEXTE, casse normale (§7.2 [v2.3]). Elles
+   ne sont pas des étiquettes de statut et n'entrent donc pas dans la borne (a)
+   du §5.1. */
+.massifs-historique-filtres__groupe > legend {
+  padding: 0;
+  font-size: var(--fs-200);
+  font-weight: var(--poids-texte-fort);
+  color: var(--c-charbon);
+}
+
+/* Les champs coulent EN LIGNE dans leur groupe et reviennent à la ligne quand
+   la largeur manque — c'est la « ligne de filtres » du §7.2, sans requête de
+   largeur. La règle vaut que `__champ` soit l'enveloppe d'un couple
+   étiquette + contrôle ou le contrôle lui-même : `inline-block` et une
+   gouttière sont inoffensifs dans les deux lectures, et le dimensionnement du
+   contrôle est porté par les sélecteurs d'élément ci-dessous. */
+.massifs-historique-filtres__champ {
+  display: inline-block;
+  vertical-align: bottom;
+  max-inline-size: 100%;
+  margin-block-start: var(--esp-s);
+  margin-inline-end: var(--esp-s);
+}
+
+.massifs-historique-filtres label {
+  display: block;
+  margin-block-end: var(--esp-2xs);
+  font-size: var(--fs-200);
+  font-weight: var(--poids-texte-fort);
+}
+
+/* Cible ≥ 44 px sur tout contrôle (§9.3, `--cible-min`). `--bord-champ` fait
+   4,83:1 sur calcaire et 4,19:1 sur calcaire-ombre : au-dessus du seuil 3:1
+   des éléments non textuels (WCAG 1.4.11) dans les deux cas. */
+.massifs-historique-filtres :is(input, select) {
+  max-inline-size: 100%;
+  min-block-size: var(--cible-min);
+  padding-inline: var(--esp-xs);
+  border: var(--bord-champ);
+  border-radius: var(--r-1);
+  background-color: var(--c-calcaire);
+  color: var(--c-charbon);
+  font-family: var(--police-texte);
+  font-size: var(--fs-300);
+  line-height: var(--lh-dense);
+}
+
+/* Valeur rejetée par l'analyseur (contrat §3) : le champ conserve la saisie,
+   `aria-invalid="true"` et `aria-describedby` portent le sens, l'avertissement
+   relié le dit en toutes lettres. Le liseré passe de garrigue à charbon —
+   renfort visuel REDONDANT, jamais le seul porteur : aucune information n'est
+   ici portée par la couleur seule. */
+.massifs-historique-filtres [aria-invalid="true"] {
+  border-color: var(--c-charbon);
+}
+
+.massifs-historique-filtres__aide {
+  margin-block: var(--esp-2xs) 0;
+  font-size: var(--fs-200);
+  color: var(--c-charbon-doux);
+}
+
+.massifs-historique-filtres__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-s);
+}
+
+/* §7.6.9 : `.massifs-bouton` n'a PAS d'état `:disabled` à styler — §9.2
+   supprime le bouton désactivé du système, l'action reste focusable et
+   s'explique. Aucune règle `:disabled` n'est donc écrite ici. */
+.massifs-historique .massifs-bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--cible-min);
+  min-inline-size: var(--cible-min);
+  padding-inline: var(--esp-m);
+  border: var(--bord-moyen);
+  border-radius: var(--r-1);
+  font-family: var(--police-texte);
+  font-weight: var(--poids-texte-fort);
+  font-size: var(--fs-300);
+  line-height: var(--lh-dense);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--duree-court) var(--ease-net);
+}
+
+/* `background-image` et `text-shadow` sont remis à plat : wp-admin peint ses
+   propres boutons avec un dégradé et une ombre de texte que §16 interdit
+   (dégradé décoratif, ombre floue). */
+.massifs-historique .massifs-bouton--primaire {
+  border-color: var(--c-mistral);
+  background-color: var(--c-mistral);
+  background-image: none;
+  color: var(--c-calcaire);
+  text-shadow: none;
+}
+
+/* Survol : assombrissement DANS la famille mistral, pas un changement de
+   registre. `--c-calcaire` sur `--c-mistral-nuit` fait 12,66:1, contre 6,81:1
+   au repos — les deux conformes AA. Le `--c-calcaire-ombre` prescrit au §9.2
+   pour les boutons est impraticable ici : calcaire sur calcaire-ombre vaut
+   1,15:1, l'étiquette disparaîtrait. */
+.massifs-historique .massifs-bouton--primaire:hover {
+  border-color: var(--c-mistral-nuit);
+  background-color: var(--c-mistral-nuit);
+}
+
+.massifs-historique .massifs-bouton--secondaire {
+  border-color: var(--c-charbon);
+  background-color: var(--c-calcaire);
+  background-image: none;
+  color: var(--c-charbon);
+  text-shadow: none;
+}
+
+.massifs-historique .massifs-bouton--secondaire:hover {
+  background-color: var(--c-calcaire-ombre);
+}
+
+/* « Réinitialiser les filtres » est un `<a>` qui agit comme un contrôle :
+   même silhouette que le bouton secondaire, même cible de 44 px. Il n'est pas
+   souligné parce que ce n'est pas un lien DE CONTENU au sens du §9.2 — sa
+   nature de commande est dite par sa boîte. */
+.massifs-historique-filtres__reinitialiser {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--cible-min);
+  padding-inline: var(--esp-m);
+  border: var(--bord-moyen);
+  border-radius: var(--r-1);
+  background-color: var(--c-calcaire);
+  color: var(--c-charbon);
+  font-weight: var(--poids-texte-fort);
+  font-size: var(--fs-300);
+  text-decoration: none;
+  transition: background-color var(--duree-court) var(--ease-net);
+}
+
+.massifs-historique-filtres__reinitialiser:hover {
+  background-color: var(--c-calcaire-ombre);
+}
+
+
+/* ═══ 6. Tableau ═════════════════════════════════════════════════════════ */
+
+/* La zone défilante est le SEUL endroit qui a le droit de défiler
+   horizontalement (§7.6.11) : le tableau y est confiné, la page ne bouge pas,
+   ni à 360 px ni à 200 % de zoom. `min-inline-size: 0` la protège d'un
+   éventuel contexte flex ; `overflow-x: auto` suffit à créer le confinement.
+   Le focus de cette zone est traité au §3 — c'est par elle qu'un clavier
+   atteint les dernières colonnes. */
+.massifs-historique-defilant {
+  overflow-x: auto;
+  min-inline-size: 0;
+}
+
+.massifs-historique-table {
+  border-collapse: collapse;
+  inline-size: 100%;
+  font-size: var(--fs-200);
+  line-height: var(--lh-dense);
+}
+
+/* `<caption>` : c'est une boîte `table-caption`, sur laquelle une marge basse
+   se comporte mal selon les moteurs — l'écart se prend en `padding`. */
+.massifs-historique-table__legende {
+  padding-block-end: var(--esp-s);
+  text-align: start;
+  font-size: var(--fs-200);
+  color: var(--c-charbon-doux);
+}
+
+/* En-têtes : chrome de portail, donc famille de texte et casse normale
+   (§7.2 [v2.3]). `--bord-moyen` ancre la tête du tableau ; c'est un filet
+   2 px, non soumis à la règle de quantité du §6.3 qui ne vise que le 4 px. */
+.massifs-historique-table th {
+  padding: var(--esp-xs) var(--esp-s);
+  border-block-end: var(--bord-moyen);
+  text-align: start;
+  vertical-align: bottom;
+  font-family: var(--police-texte);
+  font-weight: var(--poids-texte-fort);
+  color: var(--c-charbon);
+  text-transform: none;
+}
+
+.massifs-historique-table td {
+  padding: var(--esp-xs) var(--esp-s);
+  border-block-start: var(--bord-fin);
+  text-align: start;
+  vertical-align: top;
+}
+
+/* Rythme de lecture d'un long tableau d'audit : l'alternance est POSITIONNELLE
+   (`nth-child`), elle ne dit rien de la ligne. Encres admises sur
+   calcaire-ombre : charbon 12,79:1 et charbon-doux 6,33:1. `--c-garrigue` y
+   est proscrit (4,19:1, échec AA — §16) et n'apparaît nulle part comme
+   couleur de texte dans ce fichier. */
+.massifs-historique-table tbody tr:nth-child(even) {
+  background-color: var(--c-calcaire-ombre);
+}
+
+/* `.massifs-historique-ligne--premiere`, `--modification` et
+   `--sans-changement` sont VOLONTAIREMENT sans règle. Le contrat les déclare
+   décoratifs et interdit qu'une information y soit portée : les différencier
+   reviendrait à encoder « modification » par une teinte, ce que §16 refuse.
+   Le fait est déjà dit en toutes lettres dans la cellule (« Première
+   publication », deux pastilles + libellés). Le rythme des lignes est donc
+   positionnel, ci-dessus, et rien d'autre. */
+
+.massifs-historique-cellule--massif {
+  font-weight: var(--poids-texte-fort);
+}
+
+/* Colonnes chiffrées : chasse fixe des chiffres — Atkinson Hyperlegible Next
+   expose bien `tnum` (MASTER §8.2) — et pas de retour à la ligne, une date ou
+   une référence coupée en deux se relit mal dans un journal d'audit. */
+.massifs-historique-cellule--jour,
+.massifs-historique-cellule--enregistre,
+.massifs-historique-cellule--reference {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* La référence est l'identifiant technique de l'écriture : il doit rester
+   lisible (7,29:1 sur calcaire, 6,33:1 sur les lignes alternées) sans disputer
+   la lecture aux quatre faits du §6 — qui, quoi, quand, ancienne / nouvelle.
+   Les colonnes Source et Auteur, elles, ne sont PAS atténuées : ce sont deux
+   de ces quatre faits. */
+.massifs-historique-cellule--reference {
+  color: var(--c-charbon-doux);
+}
+
+
+/* ═══ 7. Transition ancienne → nouvelle ══════════════════════════════════ */
+
+/* MASTER §7.2 : deux pastilles séparées par une flèche typographique, JAMAIS
+   une couleur de diff. `--ancienne` et `--nouvelle` sont donc sans règle —
+   les teinter serait exactement l'interdit. La lecture repose sur l'ordre,
+   sur la flèche et sur les deux libellés officiels. */
+.massifs-historique-transition {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-2xs);
+}
+
+/* Rien à distinguer pour `--premiere` : le serveur n'émet ni seconde pastille
+   ni flèche, et la mention ci-dessous porte le fait. */
+
+/* La flèche est un SVG EN LIGNE, jamais le caractère U+2192 : celui-ci est
+   hors du sous-ensemble `latin` des deux polices du projet (MASTER §5, D-25)
+   et s'afficherait en tofu ou dans une police système. Le contrat #15 tranche
+   en ce sens (`CORRECTIF-1`, §7.4 bis). Il n'y a donc AUCUNE famille ni
+   AUCUNE taille à imposer ici : le dessin porte `fill="currentColor"` et hérite
+   de l'encre du texte. Seuls l'écart au voisinage et cette encre sont posés —
+   `--c-charbon`, l'encre de la page, et surtout jamais une teinte de diff, que
+   MASTER §7.2 interdit nommément. */
+.massifs-historique-transition__fleche {
+  margin-inline: var(--esp-2xs);
+  color: var(--c-charbon);
+}
+
+.massifs-historique-transition__mention,
+.massifs-historique-sans-niveau {
+  font-size: var(--fs-200);
+  color: var(--c-charbon-doux);
+}
+
+/* Échec de configuration : la clé stockée est absente de la légende courante.
+   Il doit se voir — encre pleine et graisse forte, jamais un gris discret. */
+.massifs-historique-niveau-inconnu {
+  font-weight: var(--poids-texte-fort);
+  color: var(--c-charbon);
+}
+
+.massifs-historique-niveau-inconnu code {
+  padding: var(--esp-3xs) var(--esp-2xs);
+  background-color: var(--c-calcaire-ombre);
+  color: var(--c-charbon);
+  font-size: var(--fs-200);
+}
+
+
+/* ═══ 8. Pastilles — recopie scopée ══════════════════════════════════════ */
+
+/* SOURCE DE VÉRITÉ : wp-content/themes/massifs/assets/css/composants.css,
+   section 2 (pastilles) et section 3 (jalons), elle-même reproduction de
+   MASTER §8.1. Cette recopie est un arbitrage ENREGISTRÉ du contrat #15
+   (`ARBITRAGE-CSS`) : aucune empreinte du lot ne possède de feuille de chrome
+   de portail partagée, et enfiler `composants.css` en administration y
+   importerait `layout.css` et son `box-sizing` global. Le coût assumé est le
+   RISQUE DE DÉRIVE entre les deux copies — toute modification de la géométrie
+   du §8.1 doit être portée des deux côtés.
+   Le liseré n'est JAMAIS `--bord-moyen` : ce jeton code `--c-charbon` en dur
+   et annulerait la bascule `.sur-sombre` de tokens.css, or c'est le liseré qui
+   PORTE la conformité AA — pire cas mesuré 4,11:1 sur le rouge officiel,
+   contre 1,48:1 pour la teinte seule (§10.2).
+   `box-sizing` est redéclaré sur la pastille elle-même, en plus de la remise à
+   plat du §1 : 26 × 16 est la boîte EXTÉRIEURE, en `content-box` elle
+   mesurerait 30 × 20. */
+.massifs-historique .massifs-pastille {
+  display: inline-block;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  inline-size: var(--pastille-l);
+  block-size: var(--pastille-h);
+  border: var(--statut-lisere-epaisseur) solid var(--statut-lisere);
+  border-radius: var(--r-0);
+}
+
+/* Aplats — pilotés par `data-niveau`. AUCUN texte n'est posé dessus : la
+   pastille est un `<span aria-hidden="true">` VIDE et le libellé vit à côté
+   (§4.1.d règle 3 ; `--c-charbon` sur `#E63A3C` plafonne à 4,11:1). */
+.massifs-historique .massifs-pastille[data-niveau="autorise"] {
+  background-color: var(--statut-autorise);
+}
+
+.massifs-historique .massifs-pastille[data-niveau="interdit"] {
+  background-color: var(--statut-interdit);
+}
+
+/* La ZAPEF est une dimension distincte : jetons distincts, même si le pigment
+   publié est le même. Un jeton sémantique manquant ne peint rien — l'échec est
+   bruyant, donc sûr (§4.1.d règle 7). */
+.massifs-historique .massifs-pastille--zapef[data-niveau="autorise"] {
+  background-color: var(--statut-zapef-autorise);
+}
+
+.massifs-historique .massifs-pastille--zapef[data-niveau="interdit"] {
+  background-color: var(--statut-zapef-interdit);
+}
+
+/* Motifs — pilotés par `data-motif`, OBLIGATOIRES partout où une pastille
+   paraît, écran gestionnaire compris (§4.1.d règle 4). Un statut ne repose
+   jamais sur la teinte seule : aplat + motif + libellé.
+   `data-motif="aucun"` n'a volontairement aucune règle : c'est l'opposition
+   nu / marqué qui encode le sens, et poser un motif sur « autorisé » est un
+   défaut bloquant (§16). */
+
+/* Hachure croisée, verbatim §8.1 : 45deg et -45deg, trait et pas tokenisés. */
+.massifs-historique .massifs-pastille[data-motif="hachure_croisee"] {
+  background-image:
+    repeating-linear-gradient(45deg, var(--statut-interdit-encre) 0 var(--statut-motif-trait), transparent var(--statut-motif-trait) var(--statut-motif-pas)),
+    repeating-linear-gradient(-45deg, var(--statut-interdit-encre) 0 var(--statut-motif-trait), transparent var(--statut-motif-trait) var(--statut-motif-pas));
+}
+
+/* Barre oblique unique du jalon ZAPEF, et non la hachure croisée : à 18 px un
+   pas de 10 px ne montrerait que deux croisements et se lirait comme du
+   crénelage (§8.1).
+   LITTÉRAUX VERBATIM §8.1 : `calc(50% - 1.5px)` / `calc(50% + 1.5px)`.
+   Aucun jeton de motif n'existe pour cette demi-épaisseur, et en substituer un
+   modifierait le dessin normatif. */
+.massifs-historique .massifs-pastille[data-motif="barre"] {
+  background-image: linear-gradient(45deg, transparent calc(50% - 1.5px), var(--statut-zapef-interdit-encre) calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px));
+}
+
+/* LITTÉRAUX VERBATIM §8.1 : `2px` / `9px`. La hachure descendante emploie un
+   pas PLUS SERRÉ que la hachure croisée ; substituer `--statut-motif-trait` et
+   `--statut-motif-pas` ici modifierait le dessin normatif.
+   Encre `--c-charbon-doux` : 6,33:1 sur l'aplat (§10.3). */
+.massifs-historique .massifs-pastille[data-motif="hachure_descendante"] {
+  background-image: repeating-linear-gradient(-45deg, var(--statut-indisponible-encre) 0 2px, transparent 2px 9px);
+}
+
+/* LITTÉRAUX VERBATIM §8.1 : `1.2px` / `1.4px` (arrêts du radial) et `6px 6px`
+   (pas du pointillé). Même motif : ce sont les valeurs du dessin normatif. */
+.massifs-historique .massifs-pastille[data-motif="pointille"] {
+  background-image: radial-gradient(var(--statut-non-publie-encre) 1.2px, transparent 1.4px);
+  background-size: 6px 6px;
+}
+
+/* Silhouette du jalon ZAPEF : carré 18 × 18 planté sur une hampe. La FORME dit
+   la dimension (surface / point), la couleur dit l'état — §16 fait de deux
+   silhouettes identiques un défaut bloquant, et le cas nominal du `level` brut
+   3 affiche un jalon vert sous un massif rouge.
+   La hampe est absolue : elle n'agrandit aucune boîte, d'où la réserve en
+   `margin-block-end`. */
+.massifs-historique .massifs-pastille--zapef {
+  position: relative;
+  inline-size: var(--jalon-cote);
+  block-size: var(--jalon-cote);
+  margin-block-end: var(--jalon-hampe);
+}
+
+/* LITTÉRAUX VERBATIM §8.1, recopiés de composants.css l. 155-169 (notes L-7 et
+   L-8) : `calc(50% - 1px)` centre une hampe de `2px`, dont le `1px` est
+   exactement la moitié — tokeniser l'une sans l'autre les désynchroniserait, et
+   aucun jeton ne vaut `1px`. `inset-block-start: 100%` se mesure depuis la
+   boîte de remplissage : la hampe recouvre les 2 px de bordure basse et 6 px
+   restent visibles. Le liseré du jalon comprend la hampe. */
+.massifs-historique .massifs-pastille--zapef::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-start: calc(50% - 1px);
+  inline-size: 2px;
+  block-size: var(--jalon-hampe);
+  background-color: var(--statut-lisere);
+}
+
+/* Le libellé officiel, À CÔTÉ de l'aplat. C'est la seule étiquette de cet
+   écran en famille d'AFFICHAGE : borne (a) de la règle de portée du §5.1, qui
+   vaut « y compris dans le portail » pour les `--fs-250` porteuses des chaînes
+   officielles reproduites verbatim (§11.4).
+   `--poids-titre` est OBLIGATOIRE : l'axe `wght` de Big Shoulders Display
+   retombe à 100 sans déclaration de poids.
+   `color` n'est PAS déclarée, comme dans composants.css : §8.1 écrit
+   « `--c-charbon` sur le fond de page », et l'héritage donne 14,74:1 sur
+   calcaire et 12,79:1 sur les lignes alternées.
+   `text-transform` et non des capitales saisies dans le HTML : §16 fait d'un
+   libellé officiel capitalisé à la source un défaut bloquant. */
+.massifs-historique .massifs-pastille-libelle {
+  font-family: var(--police-titre);
+  font-weight: var(--poids-titre);
+  font-size: var(--fs-250);
+  letter-spacing: var(--ls-etiquette);
+  text-transform: uppercase;
+}
+
+
+/* ═══ 9. Pagination ══════════════════════════════════════════════════════ */
+
+.massifs-historique-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-xs);
+  margin-block-start: var(--esp-l);
+}
+
+.massifs-historique-pagination__lien {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--cible-min);
+  min-inline-size: var(--cible-min);
+  padding-inline: var(--esp-s);
+  border: var(--bord-moyen);
+  border-radius: var(--r-1);
+  background-color: var(--c-calcaire);
+  color: var(--c-charbon);
+  font-size: var(--fs-200);
+  text-decoration: none;
+  transition: background-color var(--duree-court) var(--ease-net);
+}
+
+.massifs-historique-pagination__lien:hover {
+  background-color: var(--c-calcaire-ombre);
+}
+
+/* Page courante — un `<span aria-current="page">`, pas un lien. §9.2 traite
+   l'état sélectionné par un LISERÉ PORTÉ À 4 px, jamais par un simple
+   changement de fond ; le repère qui l'accompagne d'ordinaire est exclu ici
+   (liste fermée du §3.2). La graisse forte double le signal, et `aria-current`
+   le porte pour les technologies d'assistance : trois canaux, dont aucun n'est
+   la couleur.
+   C'est l'UNIQUE occurrence de `--bord-fort` de l'écran — règle de quantité du
+   §6.3 tenue exactement. `box-sizing: border-box` fait que le passage de 2 à
+   4 px ne déplace rien.
+   La boîte est REDITE au lieu d'être héritée du modificateur : le contrat
+   décrit un `<span>` « pas un lien », et rien ne garantit qu'il porte aussi la
+   classe de base. Écrite ainsi, la règle rend le même repère dans les deux
+   balisages — c'est le prix du travail à l'aveugle, et il est modeste. */
+.massifs-historique-pagination__lien--courant {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--cible-min);
+  min-inline-size: var(--cible-min);
+  padding-inline: var(--esp-s);
+  border: var(--bord-fort);
+  border-radius: var(--r-1);
+  background-color: var(--c-calcaire);
+  color: var(--c-charbon);
+  font-size: var(--fs-200);
+  font-weight: var(--poids-texte-fort);
+}
+
+
+/* ═══ 10. Mouvement réduit ═══════════════════════════════════════════════ */
+
+/* Les trois seules transitions de cet écran sont neutralisées. `tokens.css`
+   ramène déjà `--duree-court` à 0,01 ms sous la même requête, mais cette
+   feuille ne doit pas dépendre de la présence du thème pour honorer une
+   préférence d'accessibilité (§9.5). Aucun `!important` : la spécificité
+   0-2-1 de `:is()` l'emporte sur les règles de base ci-dessus. */
+@media (prefers-reduced-motion: reduce) {
+  .massifs-historique :is(a, button) {
+    transition: none;
+  }
+}
+
+
+/* ═══ 11. Impression ═════════════════════════════════════════════════════ */
+
+/* Feuille d'impression intégrée à ce fichier, et non séparée : le module
+   n'enregistre qu'une poignée pour cet écran, et une seconde feuille en
+   `media="print"` dépendrait d'un enfilage que ce contrat ne décrit pas.
+   `12mm` est le seul littéral de longueur retenu ici, verbatim MASTER §13. */
+@media print {
+
+  @page {
+    margin: 12mm;
+  }
+
+  /* Les aplats de chrome ne sont pas imprimés : le papier est blanc, et
+     l'alternance grise des lignes coûterait de l'encre sans rien encoder —
+     elle n'encode rien, elle rythme (§6). */
+  .massifs-historique {
+    padding: 0;
+    background-color: transparent;
+  }
+
+  .massifs-historique-avertissement,
+  .massifs-historique-vide,
+  .massifs-historique-filtres,
+  .massifs-historique-table tbody tr:nth-child(even) {
+    background-color: transparent;
+  }
+
+  /* Le confinement du défilement n'a plus d'objet sur papier : sans
+     `overflow: visible`, les colonnes de droite seraient purement et
+     simplement absentes de la feuille (§7.6.12). */
+  .massifs-historique-defilant {
+    overflow: visible;
+  }
+
+  /* Commandes : rien à actionner sur une feuille imprimée. Les CHAMPS de
+     filtre, eux, restent imprimés — ils disent sur quoi porte le relevé. */
+  .massifs-historique-filtres__actions,
+  .massifs-historique-pagination {
+    display: none;
+  }
+
+  /* En-tête répété sur chaque page et lignes non coupées (§13). */
+  .massifs-historique-table thead {
+    display: table-header-group;
+  }
+
+  .massifs-historique-table tbody tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Un lien absolu qui survivrait à l'impression doit exposer sa cible :
+     une adresse cliquable sur papier ne mène nulle part. */
+  .massifs-historique a[href^="http"]::after {
+    content: " (" attr(href) ")";
+  }
+
+  /* CONSERVATION DES MOTIFS — le point bloquant de cette feuille. Sans
+     `print-color-adjust: exact`, les moteurs abandonnent les fonds : le motif
+     disparaîtrait et le statut redeviendrait une information portée par la
+     couleur seule (§7.6.12, §16). La déclaration reste STRICTEMENT limitée aux
+     pastilles et à la hampe (MASTER §13 : « uniquement sur les pastilles et
+     les jalons »).
+     Le préfixe -webkit- est encore requis : un moteur d'impression déployé qui
+     ne connaît que la forme préfixée abandonnerait le motif. */
+  .massifs-historique .massifs-pastille,
+  .massifs-historique .massifs-pastille--zapef::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* §13 : `autorisé` → aplat BLANC, liseré noir, aucun motif ; `interdit` →
+     hachure croisée NOIRE ; `indisponible` → hachure descendante grise. Les
+     aplats de couleur sont donc retirés et les encres de motif forcées en
+     charbon — sans quoi une pastille héritée d'un contexte `.sur-sombre`
+     imprimerait un liseré calcaire sur papier blanc, ≈ 1,04:1, perdant d'un
+     coup le mécanisme porteur d'AA et la moitié de l'information.
+     Aucun jeton n'est redéfini : §12 reste intact. */
+  .massifs-historique .massifs-pastille {
+    background-color: transparent;
+    border-color: var(--c-charbon);
+  }
+
+  .massifs-historique .massifs-pastille--zapef::after {
+    background-color: var(--c-charbon);
+  }
+
+  .massifs-historique .massifs-pastille[data-motif="hachure_croisee"] {
+    background-image:
+      repeating-linear-gradient(45deg, var(--c-charbon) 0 var(--statut-motif-trait), transparent var(--statut-motif-trait) var(--statut-motif-pas)),
+      repeating-linear-gradient(-45deg, var(--c-charbon) 0 var(--statut-motif-trait), transparent var(--statut-motif-trait) var(--statut-motif-pas));
+  }
+
+  .massifs-historique .massifs-pastille[data-motif="barre"] {
+    background-image: linear-gradient(45deg, transparent calc(50% - 1.5px), var(--c-charbon) calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px));
+  }
+
+  .massifs-historique .massifs-pastille[data-motif="hachure_descendante"] {
+    background-image: repeating-linear-gradient(-45deg, var(--c-charbon-doux) 0 2px, transparent 2px 9px);
+  }
+
+  .massifs-historique .massifs-pastille[data-motif="pointille"] {
+    background-image: radial-gradient(var(--c-charbon-doux) 1.2px, transparent 1.4px);
+    background-size: 6px 6px;
+  }
+}
