@@ -679,10 +679,19 @@
   font-weight: var(--poids-texte-fort);
 }
 
-/* Le retrait de 40 px que l'agent utilisateur pose sur un <dd> : à 360 px, il
-   décalerait chaque valeur d'un neuvième de la largeur utile. */
+/* Deux corrections sur le <dd>, et elles sont indépendantes.
+
+   1. Le retrait de 40 px que l'agent utilisateur pose sur un <dd> : à 360 px,
+      il décalerait chaque valeur d'un neuvième de la largeur utile.
+
+   2. La mesure de ligne. `layout.css` l. 143-145 est `:where(.bande__contenu)
+      > p` — ENFANTS DIRECTS, et des <p> seulement. Un <dd> niché dans un <dl>
+      dans un <li> n'est ni l'un ni l'autre : il échappe entièrement au plafond
+      de --mesure et se composerait sur toute la largeur de la bande. La règle
+      est donc reposée ici, sur le seul élément qu'aucune feuille n'atteint. */
 .zones-parcourues__valeur {
   margin-inline-start: 0;
+  max-inline-size: var(--mesure);
 }
 
 /* Le :where() de layout.css remet <dl> à `margin-block: 0` mais ne touche pas
