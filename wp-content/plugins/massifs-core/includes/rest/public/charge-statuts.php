@@ -29,10 +29,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /*
- * Les deux seules valeurs du vocabulaire fermé des états que ce module ÉCRIT
- * lui-même, quand il ramène un statut douteux à « information indisponible ».
- * `hors_saison` et `non_encore_publie` n'y figurent pas : ils sont relayés
- * verbatim depuis le domaine et ne sont jamais écrits ici.
+ * Le vocabulaire fermé des états du §3 du contrat, en entier. Le module ne
+ * DÉCIDE lui-même qu'un seul de ces états — `indisponible`, son repli prudent ;
+ * il se borne à COMPARER contre `disponible`, et les deux derniers ne font que
+ * transiter depuis le domaine. Les quatre sont pourtant nommées ici parce que
+ * `massifs_rest_public_etat_du_vocabulaire()` les ÉNUMÈRE : c'est cette
+ * énumération exhaustive qui replie un cinquième état sur `indisponible` au lieu
+ * de le laisser sortir verbatim en HTTP 200 (I-8).
  */
 if ( ! defined( 'MASSIFS_REST_PUBLIC_ETAT_DISPONIBLE' ) ) {
 	define( 'MASSIFS_REST_PUBLIC_ETAT_DISPONIBLE', 'disponible' );
@@ -40,6 +43,14 @@ if ( ! defined( 'MASSIFS_REST_PUBLIC_ETAT_DISPONIBLE' ) ) {
 
 if ( ! defined( 'MASSIFS_REST_PUBLIC_ETAT_INDISPONIBLE' ) ) {
 	define( 'MASSIFS_REST_PUBLIC_ETAT_INDISPONIBLE', 'indisponible' );
+}
+
+if ( ! defined( 'MASSIFS_REST_PUBLIC_ETAT_HORS_SAISON' ) ) {
+	define( 'MASSIFS_REST_PUBLIC_ETAT_HORS_SAISON', 'hors_saison' );
+}
+
+if ( ! defined( 'MASSIFS_REST_PUBLIC_ETAT_NON_ENCORE_PUBLIE' ) ) {
+	define( 'MASSIFS_REST_PUBLIC_ETAT_NON_ENCORE_PUBLIE', 'non_encore_publie' );
 }
 
 if ( ! function_exists( 'massifs_rest_public_charge' ) ) {
@@ -136,6 +147,54 @@ if ( ! function_exists( 'massifs_rest_public_charge' ) ) {
 	}
 }
 
+if ( ! function_exists( 'massifs_rest_public_etat_du_vocabulaire' ) ) {
+	/**
+	 * Ramène un état du domaine au vocabulaire fermé du §3, ou à `indisponible`.
+	 *
+	 * `match()` SANS bras `default`, sous `try/catch` : c'est l'absence de
+	 * `default` qui fait lever, et c'est tout le point de l'invariant I-8. Le
+	 * contrat annonce quatre valeurs et interdit au consommateur d'écrire
+	 * `isset()` ou `??` sur une clé ; relayer verbatim un cinquième état ferait
+	 * lever `UnhandledMatchError` chez le réutilisateur qui applique le `match()`
+	 * prescrit. L'échec doit être bruyant ICI — dans notre journal, sous
+	 * `WP_DEBUG` — et silencieux chez lui.
+	 *
+	 * Le repli est `indisponible` et le statut HTTP reste `200` : un état inconnu
+	 * est une information manquante, jamais une panne (I-2, §4.2). Le `catch` est
+	 * donc volontairement plus étroit que le `catch ( Throwable )` du callback de
+	 * route, qui lui produit un `503`.
+	 *
+	 * Le message de l'exception nomme la valeur inconnue : c'est exactement le
+	 * diagnostic recherché, et il ne quitte jamais le serveur.
+	 *
+	 * @param string $etat État lu dans une forme du domaine.
+	 *
+	 * @return string Une des quatre valeurs du vocabulaire fermé.
+	 */
+	function massifs_rest_public_etat_du_vocabulaire( string $etat ): string {
+		try {
+			return match ( $etat ) {
+				MASSIFS_REST_PUBLIC_ETAT_DISPONIBLE        => MASSIFS_REST_PUBLIC_ETAT_DISPONIBLE,
+				MASSIFS_REST_PUBLIC_ETAT_INDISPONIBLE      => MASSIFS_REST_PUBLIC_ETAT_INDISPONIBLE,
+				MASSIFS_REST_PUBLIC_ETAT_HORS_SAISON       => MASSIFS_REST_PUBLIC_ETAT_HORS_SAISON,
+				MASSIFS_REST_PUBLIC_ETAT_NON_ENCORE_PUBLIE => MASSIFS_REST_PUBLIC_ETAT_NON_ENCORE_PUBLIE,
+			};
+		} catch ( \UnhandledMatchError $exception ) {
+			// `massifs_rest_public_journaliser()` vit dans `reponse.php`, que
+			// `module.php` charge APRÈS ce fichier. L'appel résout dès qu'une requête
+			// est servie ; la garde ne couvre que l'inclusion isolée de ce fichier —
+			// cette fonction est la seule du module à être totale et sans dépendance
+			// de domaine, donc la seule appelable ainsi. Un chemin de rattrapage qui
+			// devient lui-même fatal ne rattrape rien. Le repli reste inconditionnel.
+			if ( function_exists( 'massifs_rest_public_journaliser' ) ) {
+				massifs_rest_public_journaliser( 'massifs_etat_hors_vocabulaire', $exception );
+			}
+
+			return MASSIFS_REST_PUBLIC_ETAT_INDISPONIBLE;
+		}
+	}
+}
+
 if ( ! function_exists( 'massifs_rest_public_ligne_massif' ) ) {
 	/**
 	 * Une entrée de la liste `massifs`.
@@ -150,7 +209,13 @@ if ( ! function_exists( 'massifs_rest_public_ligne_massif' ) ) {
 	 * @return array<string,mixed>
 	 */
 	function massifs_rest_public_ligne_massif( string $code, array $ligne_referentiel, array $statut ): array {
-		$etat   = isset( $statut['etat'] ) && is_string( $statut['etat'] ) ? $statut['etat'] : MASSIFS_REST_PUBLIC_ETAT_INDISPONIBLE;
+		// Le filtre du vocabulaire vient EN PREMIER : un état inconnu devient
+		// `indisponible` avant que la garde ci-dessous ne s'exécute, qui n'est
+		// alors qu'un no-op sur lui. L'ordre inverse laisserait la garde raisonner
+		// sur une valeur hors contrat.
+		$etat   = massifs_rest_public_etat_du_vocabulaire(
+			isset( $statut['etat'] ) && is_string( $statut['etat'] ) ? $statut['etat'] : MASSIFS_REST_PUBLIC_ETAT_INDISPONIBLE
+		);
 		$niveau = isset( $statut['niveau'] ) && is_array( $statut['niveau'] ) ? $statut['niveau'] : null;
 		$zapef  = isset( $statut['zapef'] ) && is_array( $statut['zapef'] ) ? $statut['zapef'] : null;
 
@@ -298,9 +363,11 @@ if ( ! function_exists( 'massifs_rest_public_bloc_synthese' ) ) {
 		}
 
 		return array(
-			'etat_global'            => isset( $synthese['etat_global'] ) && is_string( $synthese['etat_global'] )
-				? $synthese['etat_global']
-				: MASSIFS_REST_PUBLIC_ETAT_INDISPONIBLE,
+			'etat_global'            => massifs_rest_public_etat_du_vocabulaire(
+				isset( $synthese['etat_global'] ) && is_string( $synthese['etat_global'] )
+					? $synthese['etat_global']
+					: MASSIFS_REST_PUBLIC_ETAT_INDISPONIBLE
+			),
 			'partiel'                => isset( $synthese['partiel'] ) && is_bool( $synthese['partiel'] ) ? $synthese['partiel'] : true,
 			'total'                  => isset( $synthese['total'] ) && is_int( $synthese['total'] ) ? $synthese['total'] : 0,
 			'disponibles'            => isset( $synthese['disponibles'] ) && is_int( $synthese['disponibles'] ) ? $synthese['disponibles'] : 0,

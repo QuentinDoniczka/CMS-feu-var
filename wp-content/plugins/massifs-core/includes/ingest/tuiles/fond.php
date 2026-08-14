@@ -69,16 +69,26 @@ function fond(): array {
 	//
 	// LA MENTION DE SOURCE EST UNE CONDITION DE DISPONIBILITÉ, et c'est
 	// l'invariant I-9.4 tenu côté carte : « l'image et son attribution n'existent
-	// que l'une avec l'autre ». `carte-secours.php` l'obtient en évaluant sa garde
-	// d'attribution AVANT sa garde d'image ; `templates/parts/carte.php`, livré par
-	// la chaîne #7 et hors empreinte, ne peut pas faire la même chose — il monte la
-	// couche de tuiles sur la seule présence de la clé `fond` de l'îlot, et rend
-	// séparément `.carte__attribution[data-attribution="fond"]` sur le seul test
-	// `'' !== $fond_attribution`, qu'une chaîne d'espaces franchit. Sans la
-	// condition ci-dessous, une phrase vide après `trim()` produirait donc des
-	// tuiles OSM affichées sous un lien d'attribution SANS TEXTE : à la fois un
-	// manquement à l'ODbL et un lien sans nom accessible. La seule moitié encore
-	// mobile est celle-ci ; c'est donc elle qui ferme l'invariant, à la source.
+	// que l'une avec l'autre ».
+	//
+	// Le thème rend l'attribution du fond en UN SEUL endroit :
+	// `templates/parts/carte-secours.php` l. 62-71 lit
+	// `massifs_attribution_fond_de_carte()`, rogne `phrase` lui-même, et RETOURNE
+	// SANS RIEN ÉCRIRE si elle est vide — image comprise. Le nœud
+	// `.carte-secours__attribution` qu'il produit est rendu par défaut, hors du
+	// `.carte-secours__repli` que la carte retire après un montage réussi : il
+	// reste donc debout dans tous les états. `templates/parts/carte.php` l. 438-442
+	// ne lit délibérément ni `attribution` ni `attribution_url` de ce retour — en
+	// rendre une seconde copie dupliquerait la mention dès qu'un montage réussit.
+	//
+	// D'où la condition ci-dessous. Les deux surfaces lisent le même bloc de
+	// métadonnées (`attribution()` retourne `donnees()['attribution']`), donc une
+	// `phrase` vide après `trim()` fait taire `carte-secours.php` — et avec lui la
+	// SEULE attribution de la page. `carte.php`, lui, monte la couche de tuiles sur
+	// `disponible`, sans regarder la phrase. Sans `'' !== $phrase` ici, cet état
+	// produirait des tuiles OSM affichées sans aucune mention de source : un
+	// manquement à l'ODbL. La moitié encore mobile de l'invariant est celle-ci ;
+	// c'est donc elle qui le ferme, à la source.
 	$disponible = $donnees['valide']
 		&& MODE_COMPLET === $donnees['mode']
 		&& '' !== $pyramide['version']

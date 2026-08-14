@@ -19,8 +19,10 @@ GET /wp-json/massifs/v1/statuts?jour=AAAA-MM-JJ
 - **Sans authentification**, sans cookie, sans donnée personnelle. La réponse ne varie jamais selon
   l'utilisateur, la session ou un en-tête d'identification.
 - **Servie depuis notre domaine.** Aucune redirection vers un tiers, aucun CDN.
-- `Access-Control-Allow-Origin: *` est posé par le cœur de WordPress : la réutilisation depuis un
-  autre domaine est possible.
+- **La lecture depuis un autre domaine fonctionne.** Le cœur de WordPress renvoie l'origine présentée
+  **en écho** dans `Access-Control-Allow-Origin`, et n'émet rien du tout quand la requête ne porte pas
+  d'en-tête `Origin`. Ce n'est pas une étoile, et la permissivité est la même : un navigateur en
+  contexte cross-origin envoie toujours `Origin`. Détail et conséquences en §5.
 
 ### Le paramètre `jour`
 
@@ -206,6 +208,11 @@ Un ajout d'état est un changement de version de l'API. Un consommateur robuste 
 valeurs de façon exhaustive et échoue bruyamment sur une cinquième, plutôt que de la ranger dans un
 cas par défaut.
 
+**Le serveur garantit ces quatre valeurs.** Les deux clés sont filtrées sur ce vocabulaire avant
+d'être servies : une cinquième valeur ne sort jamais de la route. Elle est repliée sur `indisponible`
+— l'état le plus prudent, en `HTTP 200` — et l'anomalie est journalisée côté serveur, où elle doit
+être corrigée. Un consommateur exhaustif ne peut donc pas échouer sur cette route.
+
 ---
 
 ## 4. Erreurs
@@ -248,7 +255,16 @@ Trois règles de lecture :
 | `Cache-Control` | `no-cache` |
 | `ETag` | `W/"<empreinte>"` |
 | `X-Robots-Tag` | `noindex` |
-| `Access-Control-Allow-Origin` | `*` |
+| `Access-Control-Allow-Origin` | **L'origine présentée, en écho** — jamais `*`. Absent quand la requête ne porte pas d'en-tête `Origin`. |
+| `Vary` | `Origin` (posé par le cœur, avec ou sans `Origin` sur une requête `GET`) |
+
+**Cross-origin : la forme, pas la permissivité.** Le cœur de WordPress recopie l'`Origin` reçue dans
+`Access-Control-Allow-Origin` et pose `Vary: Origin`. Un navigateur en contexte cross-origin envoie
+toujours `Origin` : la lecture publique fonctionne donc depuis n'importe quel domaine, comme annoncé
+au §1. Conséquence pour qui écrit un contrôle : **ne jamais tester l'égalité à `*`**. Vérifier que
+l'en-tête **reflète l'`Origin` envoyée**, et qu'il est **absent** quand aucune ne l'est. La charge
+utile, elle, ne varie pas avec l'`Origin` — l'`ETag` est identique dans les deux cas (voir le §6.0 du
+contrat `docs/contracts/issue-8.md` pour la version longue).
 
 `no-cache` — et non `no-store` : le client conserve sa copie et la revalide à chaque requête. Aucune
 durée de validité n'est annoncée : elle devrait être bornée sur les secondes restant jusqu'à minuit,

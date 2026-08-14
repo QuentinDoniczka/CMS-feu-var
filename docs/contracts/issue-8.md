@@ -299,9 +299,62 @@ une panne, et `"massifs": []` servi en `200` se lit « aucune restriction » che
 |---|---|---|
 | `Content-Type` | `application/json; charset=UTF-8` | cœur |
 | `X-Robots-Tag` | `noindex` | cœur (toutes routes REST) |
-| `Access-Control-Allow-Origin` | `*` | **cœur — on n'y touche pas.** La réutilisation cross-origin est l'objet même du §5.4 |
+| `Access-Control-Allow-Origin` | **l'origine présentée**, en écho — jamais `*` ; **absent** si la requête ne porte pas d'en-tête `Origin` | **cœur — on n'y touche pas.** La réutilisation cross-origin est l'objet même du §5.4 |
+| `Access-Control-Allow-Credentials`, `Access-Control-Allow-Methods`, `Vary: Origin` | posés par le cœur en même temps que l'écho ci-dessus | **cœur — on n'y touche pas** |
 | `Cache-Control` | **`no-cache`** | **notre réponse** |
 | `ETag` | `W/"<sha1 de la charge utile>"` | notre réponse, **sauf** `_fields` / `_jsonp` / `_envelope` |
+
+### 6.0 Correction factuelle — ce que le cœur émet réellement en CORS
+
+**Le gel initial de ce contrat décrivait un `Access-Control-Allow-Origin: *`. C'est faux**, et la
+description est corrigée ici sans qu'une ligne de code change : le défaut était dans le contrat, pas
+dans l'implémentation.
+
+`rest_send_cors_headers()` **renvoie l'origine présentée**, pas une étoile :
+
+- requête portant un en-tête `Origin` ⇒ le cœur émet `Access-Control-Allow-Origin: <cette origine>`,
+  plus `Access-Control-Allow-Methods`, `Access-Control-Allow-Credentials: true` et `Vary: Origin` ;
+- requête **sans** `Origin` — `curl` nu, cron, appel serveur à serveur ⇒ le cœur n'émet **aucun**
+  `Access-Control-Allow-Origin`. Il n'y a rien à y lire, et l'absence n'est pas une restriction : les
+  en-têtes CORS ne s'adressent qu'au navigateur.
+
+**L'effet promis par le §5.4 tient intégralement** : un navigateur en contexte cross-origin envoie
+**toujours** `Origin`, l'obtient en écho, et la lecture publique fonctionne depuis n'importe quel
+domaine. La permissivité effective est celle d'un `*` — l'écho inconditionnel n'autorise pas moins —,
+c'est seulement la **forme** de l'en-tête qui diffère de ce que ce contrat annonçait.
+
+**La consigne opposable est inchangée et tenue : cœur, on n'y touche pas.** Aucun
+`rest_pre_serve_request`, aucun `add_filter`, aucune manipulation d'en-tête CORS dans
+`includes/rest/public/` — c'est l'interdit 5 du §7.1, et la review a confirmé qu'il est respecté.
+**Corriger cette ligne ne justifie surtout pas d'ajouter une manipulation CORS** : rétablir un `*`
+littéral demanderait précisément le filtre site-wide que l'interdit 5 proscrit, pour un gain nul.
+
+**Relevé sur la stack en fonctionnement** (et non déduit de la lecture du cœur — c'est l'absence de ce
+relevé qui avait laissé passer l'erreur) :
+
+```
+$ curl -sI -H 'Origin: https://exemple-tiers.fr' .../wp-json/massifs/v1/statuts
+Access-Control-Allow-Origin: https://exemple-tiers.fr
+Access-Control-Allow-Methods: OPTIONS, GET, POST, PUT, PATCH, DELETE
+Access-Control-Allow-Credentials: true
+Vary: Origin,Accept-Encoding
+ETag: W/"a303cee89281d0975a263c99a1532cf59109be98"
+
+$ curl -sI .../wp-json/massifs/v1/statuts          # aucune en-tête Origin
+Vary: Origin,Accept-Encoding
+ETag: W/"a303cee89281d0975a263c99a1532cf59109be98"
+                                                  # ← AUCUN Access-Control-Allow-Origin
+```
+
+**ETag identique dans les deux cas** : la charge utile ne varie pas avec l'`Origin`, I-9 tient.
+
+Deux conséquences à retenir :
+
+1. **Ne jamais tester l'égalité à `*`.** Une sonde d'intégration vérifie que l'en-tête **reflète
+   l'`Origin` envoyée**, et qu'il est **absent** quand aucune `Origin` n'est envoyée.
+2. `Vary: Origin` vient du cœur et ne contredit pas l'interdit 6 du §7.1, qui vise la variation **par
+   utilisateur ou par session** (`Vary: Cookie`). La réponse reste identique pour tous : `Origin`
+   n'influence que les en-têtes CORS, jamais un octet de la charge utile (I-9).
 
 **Correction factuelle intégrée au contrat** : le cœur n'envoie ses en-têtes `nocache` **que si
 `is_user_logged_in()`** (défaut du filtre `rest_send_nocache_headers`). Sur une requête anonyme — le cas
@@ -435,7 +488,7 @@ le plan back et les règles du projet.
 | **A-10** | Clé de version de format ? | **Non.** | `massifs/v1` la porte. |
 | **A-11** | `communes: []` exposé ou clé omise ? | **Exposé**, plus `referentiel.communes_statut: "inconnue"`. | La lacune est **documentée par le domaine** (`massifs_lacunes()`, `STATUT_COMMUNES_DEFAUT`), pas inventée. Une clé omise obligerait à un `isset()` (contre I-7) ; une liste vide **seule** se lirait « aucune commune concernée », ce que le contrat #6 interdit. Le drapeau est la seule valeur qui ne puisse pas être relue ainsi. L'enrichissement par IGN ADMIN EXPRESS relève d'une issue `referentiel` distincte. |
 | **A-12** | Champ `licence` de notre agrégat ? | **Absent.** Question remontée, jamais comblée. | Le §9 n'énumère que les attributions **amont**. La licence de notre agrégat est une décision du propriétaire du projet, pas une déduction. |
-| **A-13** | `?_jsonp=` désarmé ? | **Non, laissé tel quel.** | `rest_jsonp_enabled` est **site-wide** : un module `rest/public` n'a pas à trancher pour tout le site. Et le cœur envoie déjà `Access-Control-Allow-Origin: *`, donc JSONP n'ajoute aucune exposition — la donnée est publique par destination (§5.4). |
+| **A-13** | `?_jsonp=` désarmé ? | **Non, laissé tel quel.** | `rest_jsonp_enabled` est **site-wide** : un module `rest/public` n'a pas à trancher pour tout le site. Et le cœur renvoie déjà **l'origine présentée** en écho (§6.0), ce qui autorise en pratique n'importe quel domaine : JSONP n'ajoute donc aucune exposition — la donnée est publique par destination (§5.4). |
 
 ---
 
@@ -459,7 +512,7 @@ budget §10 de la page** : cette réponse est un enrichissement progressif, serv
 
 | # | Point | Nature |
 |---|---|---|
-| **Q1** | **Licence de notre agrégat et autorisation de reproduction.** Cette issue transforme la question ouverte du contrat #3 en publication effective : un point d'accès anonyme, `Access-Control-Allow-Origin: *`, servant une reproduction lisible par machine de la légende officielle et des statuts du jour, **sans licence déclarée**. Deux décisions attendues du propriétaire : (a) la licence de notre agrégat ; (b) le maintien de `Access-Control-Allow-Origin: *` tant que (a) n'est pas tranché. | **Bloquante avant mise en production**, pas avant le commit. Se comble par un arbitrage du propriétaire, jamais par une invention. |
+| **Q1** | **Licence de notre agrégat et autorisation de reproduction.** Cette issue transforme la question ouverte du contrat #3 en publication effective : un point d'accès anonyme, ouvert à toute origine par l'écho CORS du cœur (§6.0), servant une reproduction lisible par machine de la légende officielle et des statuts du jour, **sans licence déclarée**. Deux décisions attendues du propriétaire : (a) la licence de notre agrégat ; (b) le maintien de cette ouverture cross-origin tant que (a) n'est pas tranché. | **Bloquante avant mise en production**, pas avant le commit. Se comble par un arbitrage du propriétaire, jamais par une invention. |
 | **Q2** | `tests/scenarios/12-geometrie-et-rest.php` — l. 5, 64 et surtout **l. 69** affirment « aucune route REST massifs ». Cette issue rend l'assertion fausse **par construction**. Fichier **hors empreinte**. Correction minimale : remplacer l'assertion par une **égalité sur liste exacte** (jamais une suppression ni un affaiblissement, contrat #30 interdit 9) — `sort( $nôtres )` puis `t_egal( array( '/massifs/v1', '/massifs/v1/statuts' ), $nôtres, … )`. **Deux entrées, pas une** : le cœur enregistre automatiquement la route d'index d'espace de noms `/massifs/v1`. | À affecter par l'orchestrateur au niveau du lot. |
 | **Q3** | `?_method` et `X-HTTP-Method-Override` — non vérifiables par lecture (WordPress n'est pas vendorisé dans le dépôt). **La mitigation n'en dépend pas** : aucune route en écriture n'existe dans `massifs/v1`, donc un override honoré n'atteint qu'un `404`/`405`. Trois sondes à jouer par `test-integration-cms` : `POST /statuts` → `405` attendu ; `?_method=POST` → `200` ou `405` ; `POST` + `X-HTTP-Method-Override: GET` → `200` acceptable. **Défaut** = un `200` sur un `POST` nu. | Vérification de lot. |
 | **Q4** | **Aucune limitation de débit** sur un point d'accès anonyme à 19 Ko. Le §9 n'en demande pas côté public. | Relève d'une issue `perf` ou `securite`. |
