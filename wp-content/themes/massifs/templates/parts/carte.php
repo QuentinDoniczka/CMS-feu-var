@@ -6,7 +6,8 @@
  * panneau massif et un îlot JSON à DEUX JOURS que `assets/js/carte/carte.js`
  * lit une seule fois. La carte est un ENRICHISSEMENT : la liste textuelle du
  * jour, rendue par `parts/liste-statuts.php`, reste l'équivalent garanti (§5.3
- * du brief), et le `<noscript>` sert la carte de secours de la chaîne #9.
+ * du brief), et `parts/carte-secours.php` est rendue SANS CONDITION à côté de
+ * la racine `.carte` — jamais dans un `<noscript>` (contrat #9, F-1, I-9.1).
  *
  * Aucune règle métier ici : le jour, la saison, l'état, la sévérité et le
  * formatage des dates viennent des fonctions de lecture de l'extension. Aucune
@@ -37,10 +38,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 // peut plus être ni peinte ni décrite : elle rend alors ZÉRO OCTET.
 //
 // Pourquoi zéro octet et non un conteneur vide : `layout.css` l. 198-201 pose
-// ses filets sur `.bande--carte:has(*)`. Un seul enfant — même un `<noscript>`
-// invisible — fait apparaître un filet 4 px en haut et un filet 2 px en bas ;
-// sans contenu entre eux, ils se touchent et dessinent un trait noir au milieu
-// de la page.
+// ses filets sur `.bande--carte:has(*)`. Un seul enfant invisible fait
+// apparaître un filet 4 px en haut et un filet 2 px en bas ; sans contenu entre
+// eux, ils se touchent et dessinent un trait noir au milieu de la page.
+//
+// Ce retour emporte aussi le repli de la chaîne #9, rendu en fin de fichier :
+// la bande est alors entièrement vide et ses filets ne s'allument pas. C'est le
+// seul écart subsistant à la LETTRE de la clause F-1 (« sans aucune
+// condition ») ; le combler par une seconde inclusion en tête de fichier
+// dupliquerait l'attribution du fond, ce que F-3 interdit.
 if ( ! function_exists( 'massifs_referentiel' )
 	|| ! function_exists( 'massifs_jour_courant' )
 	|| ! function_exists( 'massifs_jour_suivant' )
@@ -419,10 +425,19 @@ $ilot = array(
 
 // ═══ Fond de carte — point d'attache unique avec la chaîne #9 ════════════
 //
-// La fonction n'existe pas encore. Si la chaîne #9 la nomme autrement, SEULE
-// cette ligne de garde change : l'îlot, `carte.js` et `carte.css` ne bougent
-// pas. Les quatre conditions sont cumulatives ; à défaut, la clé `fond` est
+// Les quatre conditions sont cumulatives ; à défaut, la clé `fond` est
 // ENTIÈREMENT ABSENTE de l'îlot, et `carte.js` ne pose aucune couche de tuiles.
+//
+// `url_modele` ne passe JAMAIS par `esc_url()` (F-12) : la fonction supprime
+// `{` et `}`, hors de sa liste blanche, et produirait `…/zxy.png` — une panne
+// silencieuse, visible seulement à l'exécution. L'îlot part par
+// `wp_json_encode()`, qui échappe sans amputer.
+//
+// Les clés `attribution` et `attribution_url` de ce retour ne sont PAS lues :
+// l'attribution du fond est portée EN PERMANENCE, dans tous les états, par
+// `.carte-secours__attribution` de la chaîne #9, que `carte.js` ne retire
+// jamais. En rendre une seconde ici la dupliquerait dès qu'un montage réussit —
+// ce que F-3 interdit nommément, et l'ODbL avec.
 $fond_expose = false;
 
 if ( function_exists( 'massifs_fond_de_carte' ) ) {
@@ -442,17 +457,6 @@ if ( function_exists( 'massifs_fond_de_carte' ) ) {
 			'zoom_max'   => isset( $fond['zoom_max'] ) ? (int) $fond['zoom_max'] : $emprise['zoom_max'],
 		);
 	}
-}
-
-$fond_attribution     = '';
-$fond_attribution_url = '';
-
-if ( $fond_expose ) {
-	$fond_attribution = isset( $fond['attribution'] ) && is_string( $fond['attribution'] ) ? $fond['attribution'] : '';
-
-	$fond_attribution_url = isset( $fond['attribution_url'] ) && is_string( $fond['attribution_url'] )
-		? trim( $fond['attribution_url'] )
-		: '';
 }
 
 // `JSON_HEX_TAG` est STRUCTUREL et obligatoire : il échappe `<` en `<`,
@@ -658,18 +662,6 @@ $demain_publie = 'disponible' === $message_suivant['etat'];
 <?php endif; ?>
 <?php
 /*
- * Attribution du fond de carte, rendue seulement si la chaîne #9 expose un fond
- * exploitable, et démasquée par `carte.js` seulement si la couche de tuiles a
- * réellement été posée : on n'attribue jamais une ressource absente, et
- * `carte.js` refuse structurellement toute URL de tuile dont l'origine diffère
- * de `location.origin`.
- */
-?>
-<?php if ( '' !== $fond_attribution ) : ?>
-<p class="carte__attribution" data-attribution="fond" hidden><?php if ( '' !== esc_url( $fond_attribution_url ) ) : ?><a href="<?php echo esc_url( $fond_attribution_url ); ?>"><?php echo esc_html( $fond_attribution ); ?></a><?php else : ?><?php echo esc_html( $fond_attribution ); ?><?php endif; ?></p>
-<?php endif; ?>
-<?php
-/*
  * Le panneau n'est NI `aria-modal`, NI `role="dialog"` : il est hors du flux de
  * focus par simple ordre du DOM, le fond n'est jamais `inert`, le défilement de
  * la page n'est jamais verrouillé, et il n'existe donc aucun piège clavier, y
@@ -773,15 +765,30 @@ $demain_publie = 'disponible' === $message_suivant['etat'];
 ?>
 <p class="carte__aide" id="carte-aide">Flèches : parcourir les massifs. Entrée : ouvrir le panneau. Échap : le fermer.</p>
 <p class="carte__annonce" role="status" aria-live="polite"></p>
+</div>
 <?php
 /*
- * Repli sans JavaScript. La partie appartient à la chaîne #9 et peut ne pas
- * exister : `massifs_partie()` dégrade alors en commentaire HTML, invisible.
+ * Repli de la chaîne #9, rendu SANS AUCUNE CONDITION et jamais dans un
+ * `<noscript>` (contrat #9, clause F-1 et invariant I-9.1). Il couvre les TROIS
+ * états, et non le seul « JS désactivé » : JavaScript absent, montage réussi,
+ * montage en échec. `carte.js` ne retire que `.carte-secours__repli`, et
+ * seulement après un montage réussi (F-2) ; `.carte-secours__attribution`, qui
+ * en est le FRÈRE et non le descendant, reste donc debout par construction
+ * plutôt que par vigilance (F-3), et porte SEULE l'attribution du fond de carte
+ * dans tous les états.
  *
- * Conséquence que la chaîne #9 doit traiter : ce `<noscript>` vit DANS
- * `.bande--carte`, que `print.css` l. 98-103 masque à l'impression. Si l'image
- * statique doit s'imprimer, c'est à #9 de la sortir de cette bande.
+ * Placé APRÈS `</div>` : frère de la racine `.carte`, jamais son descendant.
+ * Deux propriétés en dépendent. Une fois le repli retiré, l'attribution reste
+ * dans le flux SOUS la carte, ce qui satisfait I-9.6 et D-24 sans une règle CSS
+ * (F-5). Et un `racine.remove()` sur un chemin d'échec de `carte.js` ne
+ * l'emporte plus avec lui : la bande dégrade vers l'image statique au lieu de
+ * disparaître, tout en gardant un enfant sous le `:has(*)` de `layout.css`.
+ *
+ * La partie appartient à la chaîne #9 et peut ne pas exister :
+ * `massifs_partie()` dégrade alors en commentaire HTML, invisible.
+ *
+ * Couture C-1 du contrat #9, non résolue ici : ce repli vit toujours dans
+ * `.bande--carte`, que `print.css` l. 98-103 masque à l'impression.
  */
 ?>
-<noscript><?php massifs_partie( 'carte-secours' ); ?></noscript>
-</div>
+<?php massifs_partie( 'carte-secours' ); ?>

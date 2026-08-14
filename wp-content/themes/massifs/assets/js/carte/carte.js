@@ -11,9 +11,13 @@
  * propriété personnalisée, aucun element.style, aucun setProperty.
  *
  * Échec fatal ⇒ la racine est retirée : layout.css pose ses filets sur
- * .bande--carte:has(*), et un conteneur vide en dessinerait deux accolés.
+ * .bande--carte:has(*), et un conteneur vide en dessinerait deux accolés. Le
+ * repli de la chaîne #9 est le FRÈRE de la racine, jamais son descendant : il
+ * survit à ce retrait, la bande garde un enfant et dégrade vers l'image
+ * statique au lieu de disparaître. Il n'est retiré — et seul son nœud
+ * .carte-secours__repli l'est — qu'après un montage RÉUSSI (contrat #9, F-2).
  *
- * Contrat : docs/contracts/issue-7.md
+ * Contrat : docs/contracts/issue-7.md · clauses F-* de docs/contracts/issue-9.md
  *
  * @package Massifs
  * @license GPL-2.0-or-later
@@ -114,8 +118,21 @@
 		annonce.textContent = texte;
 	}
 
+	// Démonter la carte AVANT de détacher la racine : Leaflet écoute le
+	// redimensionnement de la fenêtre, et un conteneur détaché sans démontage
+	// laisserait un écouteur qui mesure un nœud absent. Un montage à demi
+	// construit peut refuser de se démonter — son échec ne doit pas empêcher le
+	// retrait, qui est ce qui évite une barre de jour orpheline au-dessus du
+	// repli de la chaîne #9. Ce repli, lui, est le FRÈRE de la racine : il ne
+	// part jamais par ici.
 	function echecFatal() {
-		if (carte) { carte.remove(); }
+		if (carte) {
+			try {
+				carte.remove();
+			} catch (erreur) {
+				carte = null;
+			}
+		}
 		racine.remove();
 	}
 
@@ -132,71 +149,95 @@
 	// hors du sélecteur, la phrase n'aurait aucun jour auquel se rapporter. Il ne
 	// porte pas data-jour, la bascule de jour ne l'atteint donc jamais.
 	var message = racine.querySelector('.carte__message');
-	if (barre) { barre.hidden = false; }
-	if (message) { message.hidden = false; }
-	toile.hidden = false;
 
-	var carte = L.map(toile, {
-		// Sans cela Leaflet lierait les flèches au panoramique et volerait la
-		// navigation entre massifs. Le zoom clavier est réimplémenté §9.
-		keyboard: false,
-		// Seule phase où Leaflet applique une échelle : elle étirerait les motifs.
-		zoomAnimation: false,
-		fadeAnimation: false,
-		markerZoomAnimation: false,
-		attributionControl: false,
-		// L.SVG est IMPOSÉ : le renderer canvas ne rend pas les <pattern> d'un
-		// <defs>, et le motif est la moitié de l'information.
-		preferCanvas: false,
-		maxZoom: donnees.emprise.zoom_max
-	});
-
-	// Leaflet attend [[sud, ouest], [nord, est]] : la conversion est ici, aucune
-	// coordonnée n'est écrite en dur. Le cadrage précède toute couche — Leaflet
-	// refuse d'en ajouter une à une carte sans vue.
-	var bbox = donnees.emprise.bbox;
-	carte.fitBounds(L.latLngBounds([[bbox.sud, bbox.ouest], [bbox.nord, bbox.est]]), { animate: false });
-
-	// Deux panes, créés DANS CET ORDRE : à z-index égal (leaflet.css donne 400 à
-	// tout .leaflet-pane) le DOM décide, et le repère reste SOUS les tracés
-	// (MASTER §3.2, emplacement 5). Tuiles à 200.
-	var paneRepere = carte.createPane('carte-repere');
-	var paneMassifs = carte.createPane('carte-massifs');
-	paneRepere.classList.add('carte__pane--repere');
-	paneMassifs.classList.add('carte__pane--massifs');
-
-	var rendererRepere = L.svg({ pane: 'carte-repere' });
-	var rendererMassifs = L.svg({ pane: 'carte-massifs' });
-	rendererRepere.addTo(carte);
-	rendererMassifs.addTo(carte);
-
-	var svgMassifs = paneMassifs.querySelector('svg');
-
-	// Le <defs> serveur est DÉPLACÉ dans le <svg> du renderer : la référence
-	// fill: url(#…) devient intra-<svg>, aucune référence inter-fragments ne
-	// peut plus se casser. Le <svg> hôte vide est retiré.
-	var hoteDefs = racine.querySelector('.carte__defs');
-	if (svgMassifs && hoteDefs) {
-		var defs = hoteDefs.querySelector('defs');
-		if (defs) { svgMassifs.insertBefore(defs, svgMassifs.firstChild); }
-		hoteDefs.remove();
-	}
-
-	// Pas d'origine des motifs, RELEVÉ DANS LE DOM : aucune valeur numérique
-	// de présentation n'est écrite ici (garde §11).
+	// Le montage synchrone est enveloppé : une exception de Leaflet laisserait
+	// sinon la barre de jour, le message et une toile vide DÉMASQUÉS au-dessus
+	// de l'image statique du repli — un chrome de carte orphelin, sans carte.
+	// Le `var` reste porté par la fonction, les blocs §6 et suivants voient donc
+	// `carte`, `bbox`, `svgMassifs` et `motifs` comme avant.
+	var carte;
+	var bbox;
+	var svgMassifs;
 	var motifs = [];
-	if (svgMassifs) {
-		chacun(svgMassifs.querySelectorAll('pattern'), function (motif) {
-			var pas = parseFloat(motif.getAttribute('width'));
-			if (isFinite(pas) && pas > 0) { motifs.push({ noeud: motif, pas: pas }); }
+
+	try {
+		if (barre) { barre.hidden = false; }
+		if (message) { message.hidden = false; }
+		toile.hidden = false;
+
+		carte = L.map(toile, {
+			// Sans cela Leaflet lierait les flèches au panoramique et volerait la
+			// navigation entre massifs. Le zoom clavier est réimplémenté §9.
+			keyboard: false,
+			// Seule phase où Leaflet applique une échelle : elle étirerait les motifs.
+			zoomAnimation: false,
+			fadeAnimation: false,
+			markerZoomAnimation: false,
+			// F-4 du contrat #9 : Leaflet ne pose JAMAIS sa propre attribution. Elle
+			// serait une seconde mention, non maîtrisée, flottant sur la toile nue.
+			attributionControl: false,
+			// L.SVG est IMPOSÉ : le renderer canvas ne rend pas les <pattern> d'un
+			// <defs>, et le motif est la moitié de l'information.
+			preferCanvas: false,
+			// F-11 : le plafond de zoom de la CARTE est celui de l'emprise du
+			// référentiel, jamais `fond.zoom_max`. Le douzième niveau de la pyramide
+			// sert la netteté d'écran ; l'y suivre afficherait un fond sans polygones.
+			maxZoom: donnees.emprise.zoom_max
 		});
+
+		// F-13 : la vue initiale est cadrée sur l'emprise du référentiel, jamais sur
+		// `fond.bbox`, qui est alignée sur la grille de tuiles et en est un
+		// sur-ensemble strict. Leaflet attend [[sud, ouest], [nord, est]] : la
+		// conversion est ici, aucune coordonnée n'est écrite en dur. Le cadrage
+		// précède toute couche — Leaflet refuse d'en ajouter une à une carte sans vue.
+		bbox = donnees.emprise.bbox;
+		carte.fitBounds(L.latLngBounds([[bbox.sud, bbox.ouest], [bbox.nord, bbox.est]]), { animate: false });
+
+		// Deux panes, créés DANS CET ORDRE : à z-index égal (leaflet.css donne 400 à
+		// tout .leaflet-pane) le DOM décide, et le repère reste SOUS les tracés
+		// (MASTER §3.2, emplacement 5). Tuiles à 200.
+		var paneRepere = carte.createPane('carte-repere');
+		var paneMassifs = carte.createPane('carte-massifs');
+		paneRepere.classList.add('carte__pane--repere');
+		paneMassifs.classList.add('carte__pane--massifs');
+
+		var rendererRepere = L.svg({ pane: 'carte-repere' });
+		var rendererMassifs = L.svg({ pane: 'carte-massifs' });
+		rendererRepere.addTo(carte);
+		rendererMassifs.addTo(carte);
+
+		svgMassifs = paneMassifs.querySelector('svg');
+
+		// Le <defs> serveur est DÉPLACÉ dans le <svg> du renderer : la référence
+		// fill: url(#…) devient intra-<svg>, aucune référence inter-fragments ne
+		// peut plus se casser. Le <svg> hôte vide est retiré.
+		var hoteDefs = racine.querySelector('.carte__defs');
+		if (svgMassifs && hoteDefs) {
+			var defs = hoteDefs.querySelector('defs');
+			if (defs) { svgMassifs.insertBefore(defs, svgMassifs.firstChild); }
+			hoteDefs.remove();
+		}
+
+		// Pas d'origine des motifs, RELEVÉ DANS LE DOM : aucune valeur numérique
+		// de présentation n'est écrite ici (garde §11).
+		if (svgMassifs) {
+			chacun(svgMassifs.querySelectorAll('pattern'), function (motif) {
+				var pas = parseFloat(motif.getAttribute('width'));
+				if (isFinite(pas) && pas > 0) { motifs.push({ noeud: motif, pas: pas }); }
+			});
+		}
+	} catch (erreur) {
+		echecFatal();
+		return;
 	}
 
 	/* ═══ 5. Fond de carte — refus structurel de toute origine tierce ═══ */
 
 	// Clé `fond` absente, URL illisible ou origine ≠ celle de la page : AUCUNE
-	// couche de tuiles, et l'attribution reste masquée — on n'attribue pas une
-	// ressource absente.
+	// couche de tuiles, et rien d'autre à défaire — l'attribution du fond n'est
+	// pas la nôtre. Elle est portée en permanence par .carte-secours__attribution
+	// de la chaîne #9, que ce fichier ne touche jamais (F-3). En démasquer une
+	// seconde ici la dupliquerait.
 	function poserFond() {
 		if (!estObjet(donnees.fond) || !estTexte(donnees.fond.url_modele)) { return; }
 
@@ -208,14 +249,21 @@
 		}
 		if (absolue.origin !== window.location.origin) { return; }
 
-		L.tileLayer(donnees.fond.url_modele, {
-			minZoom: estNombre(donnees.fond.zoom_min) ? donnees.fond.zoom_min : 0,
-			maxZoom: estNombre(donnees.fond.zoom_max) ? donnees.fond.zoom_max : donnees.emprise.zoom_max,
-			updateWhenIdle: true,
-			keepBuffer: 1
-		}).addTo(carte);
-
-		demasquerAttribution('fond');
+		// Une couche de fond qui refuse de se poser n'est PAS un échec de carte :
+		// c'est l'état `fond_indisponible` du contrat #9 §3 — aucune couche, les
+		// polygones se peignent sur la toile nue, et surtout aucun repli vers une
+		// origine tierce. `maxZoom` porte ici la borne de la PYRAMIDE, jamais celle
+		// de la carte, plafonnée à l'emprise du référentiel (F-11).
+		try {
+			L.tileLayer(donnees.fond.url_modele, {
+				minZoom: estNombre(donnees.fond.zoom_min) ? donnees.fond.zoom_min : 0,
+				maxZoom: estNombre(donnees.fond.zoom_max) ? donnees.fond.zoom_max : donnees.emprise.zoom_max,
+				updateWhenIdle: true,
+				keepBuffer: 1
+			}).addTo(carte);
+		} catch (erreur) {
+			return;
+		}
 	}
 
 	function demasquerAttribution(nature) {
@@ -295,6 +343,21 @@
 
 		racine.classList.add('carte--prete');
 		demasquerAttribution('statuts');
+
+		// F-2 du contrat #9 : le repli n'est retiré qu'ICI, au terme du montage —
+		// couche posée, polygones peints, clavier câblé — et jamais sur un simple
+		// test de présence de Leaflet. Tout chemin d'échec le laisse DEBOUT.
+		//
+		// SEUL `.carte-secours__repli` part. `.carte-secours__attribution` en est
+		// le frère et non le descendant : elle survit au retrait, et c'est elle qui
+		// porte l'attribution du fond de carte dans tous les états — jamais
+		// retirée, jamais masquée, jamais dupliquée (F-3). Retrait sec, sans
+		// transition ni animation (F-6).
+		//
+		// Cherché sur le document et non sur `racine` : le repli est le FRÈRE de
+		// la racine dans <section id="carte">, jamais son descendant.
+		var repli = document.querySelector('.carte-secours__repli');
+		if (repli) { repli.remove(); }
 	}
 
 	/* ═══ 7. Peinture d'un jour — échange de classes, jamais de couche ═══ */
