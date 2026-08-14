@@ -2,7 +2,9 @@
 /**
  * Géométrie servie depuis notre propre origine, métadonnées cohérentes
  * avec le fichier réellement servi, et surface REST conforme au contrat
- * (aucune route dans ce lot).
+ * (exactement deux entrées depuis l'issue #8 : l'index d'espace de noms et la
+ * route publique de lecture — le comportement de cette route est éprouvé en
+ * HTTP réel par `22-api-publique-statuts.php`).
  *
  * @package Massifs
  * @license GPL-2.0-or-later https://www.gnu.org/licenses/gpl-2.0.html
@@ -61,12 +63,24 @@ sort( $codes_ref );
 t_egal( $codes_ref, $codes_geo, 'les codes de la géométrie === les codes du référentiel' );
 t_egal( array(), array_unique( $proprietes_en_trop ), 'aucune propriété autre que `code` dans la géométrie' );
 
-// Surface REST : le contrat annonce zéro route dans ce lot.
+// Surface REST — ÉGALITÉ SUR LISTE EXACTE, jamais une borne inférieure.
+//
+// Cette assertion affirmait « aucune route massifs », ce qui était vrai des
+// contrats #2 et #3 et est devenu FAUX PAR CONSTRUCTION avec l'issue #8, qui
+// publie le point d'accès public en lecture du §5.4 du brief. Le contrat #8 (Q2)
+// avait prévu la correction et en avait fixé la forme : une égalité sur liste
+// exacte, jamais une suppression ni un affaiblissement en `count() >= 1`.
+//
+// DEUX entrées, pas une : le cœur enregistre automatiquement la route d'index
+// d'espace de noms `/massifs/v1` à côté de la route déclarée. Et la liste est
+// EXACTE parce que c'est ce qui rend l'invariant I-11 du contrat #8 opposable —
+// une route d'écriture ajoutée par mégarde dans `massifs/v1` rougit ici.
 $serveur = rest_get_server();
 do_action( 'rest_api_init', $serveur );
 $routes = array_keys( $serveur->get_routes() );
 $nôtres = array_values( array_filter( $routes, static fn( $r ) => str_contains( $r, 'massifs' ) ) );
-t_egal( array(), $nôtres, 'aucune route REST « massifs » (conforme aux contrats #2 et #3)' );
+sort( $nôtres );
+t_egal( array( '/massifs/v1', '/massifs/v1/statuts' ), $nôtres, 'la surface REST « massifs » est exactement l\'index d\'espace de noms et la route de lecture (contrat #8, I-11)' );
 t_note( 'espaces de noms REST exposés : ' . implode( ', ', $serveur->get_namespaces() ) );
 
 // L'EXTENSION n'enfile aucun asset navigateur.

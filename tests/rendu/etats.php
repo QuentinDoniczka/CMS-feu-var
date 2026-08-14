@@ -210,7 +210,64 @@ switch ( $mode ) {
 		massifs_recette_rapporter( 'jour-partiel' );
 		break;
 
+	case 'deux-jours':
+		// Aujourd'hui ET demain publiés. C'est le seul état où le sélecteur de
+		// date de la carte (§5.2 du brief, contrat #7 A-1) est réellement
+		// exerçable : sans lui, le bouton « Demain » reste `aria-disabled` et la
+		// bascule ne peut pas être jouée. Les deux journées portent des niveaux
+		// DIFFÉRENTS (le décalage d'un rang change quels massifs sont interdits),
+		// sans quoi une bascule sans effet passerait pour une bascule réussie.
+		massifs_recette_purger();
+		$codes  = massifs_codes();
+		$demain = massifs_jour_suivant();
+		$rang   = 0;
+
+		foreach ( $codes as $code ) {
+			massifs_enregistrer_statut(
+				array(
+					'massif_code'   => $code,
+					'jour_validite' => massifs_jour_courant(),
+					'niveau_cle'    => 0 === $rang % 5 ? 'interdit' : 'autorise',
+					'zapef_cle'     => 0 === $rang % 2 ? 'autorise' : null,
+					'source'        => 'saisie_manuelle',
+					'auteur_id'     => 1,
+				)
+			);
+			massifs_enregistrer_statut(
+				array(
+					'massif_code'   => $code,
+					'jour_validite' => $demain,
+					'niveau_cle'    => 1 === $rang % 5 ? 'interdit' : 'autorise',
+					'zapef_cle'     => null,
+					'source'        => 'saisie_manuelle',
+					'auteur_id'     => 1,
+				)
+			);
+			++$rang;
+		}
+
+		massifs_enregistrer_releve_reussi( 'prefecture', gmdate( 'Y-m-d\TH:i:s\Z' ) );
+
+		$courant_interdits = 0;
+		$demain_interdits  = 0;
+		foreach ( massifs_statuts_du_jour( $codes, massifs_jour_courant() ) as $statut ) {
+			$courant_interdits += ( is_array( $statut['niveau'] ) && 'interdit' === $statut['niveau']['cle'] ) ? 1 : 0;
+		}
+		foreach ( massifs_statuts_du_jour( $codes, $demain ) as $statut ) {
+			$demain_interdits += ( is_array( $statut['niveau'] ) && 'interdit' === $statut['niveau']['cle'] ) ? 1 : 0;
+		}
+
+		printf(
+			"ETAT deux-jours total=%d jour=%s interdits_aujourdhui=%d demain=%s interdits_demain=%d\n",
+			count( $codes ),
+			massifs_jour_courant(),
+			$courant_interdits,
+			$demain,
+			$demain_interdits
+		);
+		break;
+
 	default:
-		fwrite( STDERR, "Mode inconnu. Modes : absente | jour-nominal | veille-seule | jour-complet <autorises> | jour-partiel <renseignes> <autorises>\n" );
+		fwrite( STDERR, "Mode inconnu. Modes : absente | jour-nominal | veille-seule | jour-complet <autorises> | jour-partiel <renseignes> <autorises> | deux-jours\n" );
 		exit( 1 );
 }

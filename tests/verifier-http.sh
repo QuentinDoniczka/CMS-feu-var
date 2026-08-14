@@ -223,4 +223,97 @@ verifier '/' 200
 verifier '/wp-login.php' 200
 verifier '/wp-json/' 200
 
+# --- Issues #7 et #9 : ce que le navigateur demande réellement pour la carte.
+#
+# Le fond de carte est la ressource la plus exposée à une fuite tierce : c'est le
+# seul artefact du site dont l'équivalent « naturel » est un CDN public. Les
+# sondes ci-dessous prouvent qu'il vient de chez nous, qu'il est servi, et que ce
+# qui l'entoure reste fermé.
+#
+# La version est un SEGMENT DE CHEMIN : elle est relue dans les métadonnées, et
+# jamais écrite ici — un chemin codé en dur mentirait au premier rebuild.
+VERSION_TUILES="$(sed -n "s/.*'version' *=> *'\([0-9a-f]\{8\}\)'.*/\1/p" \
+	"$RACINE/wp-content/plugins/massifs-core/data/tuiles/fond-13.php" | head -1)"
+
+if [ -z "$VERSION_TUILES" ]; then
+	echo 'ECHEC : version de la pyramide de tuiles illisible dans data/tuiles/fond-13.php'
+	statut=1
+else
+	echo "version de pyramide relue dans les métadonnées : $VERSION_TUILES"
+	# Une tuile à chaque extrémité de la pyramide : le plancher z5 et le plafond
+	# z12, qui existe pour la netteté sur écran dense (contrat #9, A-7).
+	verifier "/wp-content/plugins/massifs-core/data/tuiles/$VERSION_TUILES/5/16/11.png" 200
+	verifier "/wp-content/plugins/massifs-core/data/tuiles/$VERSION_TUILES/12/2102/1500.png" 200
+	# Une tuile est-elle un VRAI PNG ? Un 404 déguisé en 200 passerait la sonde
+	# précédente sans qu'un pixel soit peint.
+	signature=$(curl -s "$BASE/wp-content/plugins/massifs-core/data/tuiles/$VERSION_TUILES/8/131/93.png" \
+		| head -c 8 | od -An -tx1 | tr -d ' \n')
+	if [ "$signature" = '89504e470d0a1a0a' ]; then
+		printf 'ok    %-95s %s\n' 'signature PNG de la tuile z8/131/93' "$signature"
+	else
+		printf 'ECHEC %-95s %s (attendu 89504e470d0a1a0a)\n' 'signature PNG de la tuile z8/131/93' "$signature"
+		statut=1
+	fi
+	# Aucun listing de la pyramide (`Options -Indexes` du .htaccess livré).
+	verifier "/wp-content/plugins/massifs-core/data/tuiles/$VERSION_TUILES/8/" 403
+
+	# Politique de cache des tuiles. Le `.htaccess` livré par l'extension pose
+	# `Cache-Control: public, max-age=31536000, immutable` — ce qui est honnête,
+	# la version étant un SEGMENT DE CHEMIN. Mais la directive est enveloppée dans
+	# `<IfModule mod_headers.c>` : si le module n'est pas chargé, elle est ignorée
+	# EN SILENCE. On mesure donc l'en-tête réellement servi, et l'on affirme le
+	# minimum qui, lui, ne dépend d'aucun module : une tuile porte toujours un
+	# validateur, donc un rechargement coûte au pire un 304 et jamais 4 Ko.
+	entetes_tuile=$(curl -sI "$BASE/wp-content/plugins/massifs-core/data/tuiles/$VERSION_TUILES/8/131/93.png" | tr -d '\r')
+	cache_tuile=$(printf '%s\n' "$entetes_tuile" | grep -i '^cache-control:' | cut -d' ' -f2-)
+
+	if printf '%s\n' "$entetes_tuile" | grep -qiE '^(etag|last-modified):'; then
+		printf 'ok    %-95s %s\n' 'la tuile porte un validateur de cache (ETag ou Last-Modified)' 'présent'
+	else
+		printf 'ECHEC %-95s %s\n' 'la tuile porte un validateur de cache (ETag ou Last-Modified)' 'aucun'
+		statut=1
+	fi
+
+	if printf '%s\n' "$cache_tuile" | grep -q 'immutable'; then
+		printf 'ok    %-95s %s\n' 'cache long des tuiles (Cache-Control immutable)' "$cache_tuile"
+	else
+		echo "note  Cache-Control des tuiles : «${cache_tuile:-absent}» — le .htaccess de l'extension"
+		echo "      pose bien « public, max-age=31536000, immutable », mais la directive est sous"
+		echo "      <IfModule mod_headers.c> et mod_headers n'est PAS chargé dans cette image Apache."
+		echo "      Conséquence : chaque visite revalide les tuiles au lieu de les servir du cache."
+		echo "      COÛT DE PERFORMANCE, jamais une panne — à porter à docker-cms, pas à l'extension."
+	fi
+fi
+
+# Les métadonnées du fond sont lues par PHP en interne, jamais par une requête.
+verifier '/wp-content/plugins/massifs-core/data/tuiles/fond-13.php' 403
+# Le pipeline de build ne doit rien servir : il vit sous `includes/`, 403 par
+# construction, et c'est ce qui rend l'invariant vrai sans vigilance.
+verifier '/wp-content/plugins/massifs-core/includes/ingest/tuiles/fond.php' 403
+verifier '/wp-content/plugins/massifs-core/includes/ingest/tuiles/build/construire.mjs' 403
+
+# L'image statique du repli sans JavaScript — la ligne §5.5 du brief en dépend.
+verifier '/wp-content/themes/massifs/assets/img/carte-statique.png' 200
+
+# Leaflet vendorisé : servi, licence et provenance comprises. Et les DEUX
+# absences qui comptent — la source map, dont la ligne a été retirée du build, et
+# les images du CSS amont, qu'aucune API appelée ne réclame (contrat #7 §10).
+verifier '/wp-content/themes/massifs/assets/vendor/leaflet/leaflet.js' 200
+verifier '/wp-content/themes/massifs/assets/vendor/leaflet/leaflet.css' 200
+verifier '/wp-content/themes/massifs/assets/vendor/leaflet/LICENSE' 200
+verifier '/wp-content/themes/massifs/assets/vendor/leaflet/leaflet.js.map' 404
+verifier '/wp-content/themes/massifs/assets/vendor/leaflet/images/marker-icon.png' 404
+
+# Issue #8 — le point d'accès public en lecture répond sans authentification, et
+# aucune écriture n'est atteignable dans son espace de noms. Le comportement
+# détaillé est éprouvé par `tests/scenarios/22-api-publique-statuts.php`.
+verifier '/wp-json/massifs/v1/statuts' 200
+code_post=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/wp-json/massifs/v1/statuts")
+if [ "$code_post" = '404' ] || [ "$code_post" = '405' ]; then
+	printf 'ok    %-95s %s\n' 'POST /wp-json/massifs/v1/statuts (aucune écriture atteignable)' "$code_post"
+else
+	printf 'ECHEC %-95s %s (attendu 404 ou 405)\n' 'POST /wp-json/massifs/v1/statuts' "$code_post"
+	statut=1
+fi
+
 exit "$statut"

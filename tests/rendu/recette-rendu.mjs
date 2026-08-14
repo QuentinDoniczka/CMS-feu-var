@@ -21,7 +21,7 @@
  * @license GPL-2.0-or-later
  */
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -246,6 +246,26 @@ async function charger( contexte, chemin ) {
 }
 
 /**
+ * Retire les commentaires `/* … *\/` d'une feuille de style.
+ *
+ * Une URL écrite dans un commentaire CSS ne produit AUCUNE requête : elle n'est
+ * pas une déclaration, le moteur ne la voit jamais. La distinguer n'est pas un
+ * assouplissement de l'exigence du §12 — c'est ce qui la rend mesurable sur une
+ * bibliothèque vendorisée que le contrat #7 §10 interdit d'éditer (`leaflet.css`
+ * est repris « octet pour octet » et porte deux adresses de bugtracker dans ses
+ * commentaires, l. 64 et 102). Les URLs ainsi retirées ne disparaissent pas de
+ * la recette : elles sont relevées et affichées à part, et l'assertion des
+ * origines RÉELLEMENT CONTACTÉES par le navigateur, elle, ne connaît aucune
+ * exception.
+ *
+ * @param {string} css Feuille servie.
+ * @return {string} Feuille sans ses commentaires.
+ */
+function sansCommentairesCss( css ) {
+	return css.replace( /\/\*[\s\S]*?\*\//g, ' ' );
+}
+
+/**
  * Toute URL absolue citée dans un texte (HTML ou CSS).
  *
  * @param {string} texte Contenu.
@@ -276,11 +296,13 @@ async function s01_zeroRequeteTierce( navigateur ) {
 	const originesDemandees = new Map();
 	const originesCitees = new Map();
 	const feuilles = new Set();
+	const toutesLesRequetes = [];
 
 	for ( const cible of PAGES ) {
 		const { page, requetes, echecs } = await charger( contexte, cible.chemin );
 
 		for ( const r of requetes ) {
+			toutesLesRequetes.push( r.url );
 			const origine = new URL( r.url ).origin;
 			originesDemandees.set( origine, ( originesDemandees.get( origine ) ?? 0 ) + 1 );
 		}
@@ -319,19 +341,77 @@ async function s01_zeroRequeteTierce( navigateur ) {
 		}
 		const reponse = await requeteApi.get( feuille );
 		const corps = await reponse.text();
-		for ( const u of urlsAbsolues( corps ) ) {
+		const declarations = sansCommentairesCss( corps );
+
+		// Ce qui compte : les URLs que le moteur peut réellement suivre, donc
+		// celles des DÉCLARATIONS. Une seule tierce ici est un défaut.
+		for ( const u of urlsAbsolues( declarations ) ) {
 			const origine = new URL( u ).origin;
 			originesCitees.set( origine, ( originesCitees.get( origine ) ?? 0 ) + 1 );
 			if ( origine !== ORIGINE ) {
-				ko( `feuille tierce référencée dans ${ feuille }`, ORIGINE, u );
+				ko( `feuille tierce référencée dans une DÉCLARATION de ${ feuille }`, ORIGINE, u );
 			}
 		}
-		const relatives = [ ...corps.matchAll( /url\(\s*['"]?([^)'"]+)/g ) ].map( ( m ) => m[ 1 ] );
+
+		// Les commentaires sont relevés, jamais tus : une adresse tierce y est
+		// inerte, mais elle doit rester visible au rapport de recette.
+		const enCommentaire = urlsAbsolues( corps ).filter(
+			( u ) => ! urlsAbsolues( declarations ).includes( u ) && new URL( u ).origin !== ORIGINE
+		);
+		if ( enCommentaire.length ) {
+			note( `${ feuille.replace( BASE, '' ) } : ${ enCommentaire.length } adresse(s) tierce(s) en COMMENTAIRE, inertes → ${ enCommentaire.join( ', ' ) }` );
+		}
+
+		const relatives = [ ...declarations.matchAll( /url\(\s*['"]?([^)'"]+)/g ) ].map( ( m ) => m[ 1 ] );
 		note( `${ feuille.replace( BASE, '' ) } : url() → ${ relatives.join( ', ' ) || '(aucune)' }` );
 	}
 
 	const tierces = [ ...originesDemandees.keys() ].filter( ( o ) => o !== ORIGINE );
 	egal( [], tierces, 'aucune origine tierce n’a été CONTACTÉE par le navigateur' );
+
+	// Assertions léguées par le contrat #7 §12 (1, 2 et 6) et par le contrat #9.
+	// `leaflet.css` porte trois `url(images/…)` inertes : la chaîne #7 n'ajoute ni
+	// L.Control.Layers, ni L.Marker, ni L.Icon.Default, donc aucune de ces règles
+	// n'est atteinte. La preuve est ici, sur les requêtes réellement émises — un
+	// 404 sur `images/marker-icon.png` serait le signe qu'une API interdite a été
+	// appelée. De même, la ligne `sourceMappingURL` a été retirée du build
+	// vendorisé : aucune requête ne doit viser un `.map`.
+	egal(
+		[],
+		toutesLesRequetes.filter( ( u ) => u.includes( '/vendor/leaflet/images/' ) ),
+		'contrat #7 §12.1 : aucune requête vers /vendor/leaflet/images/*'
+	);
+	egal(
+		[],
+		toutesLesRequetes.filter( ( u ) => /\.map(\?|$)/.test( u ) ),
+		'contrat #7 §12.2 : aucune requête vers une source map'
+	);
+
+	// Le fond de carte est la ressource la plus exposée à une fuite tierce : le
+	// gabarit d'URL vient du serveur, et `carte.js` refuse structurellement toute
+	// origine autre que la sienne. On mesure les tuiles RÉELLEMENT demandées.
+	const tuiles = toutesLesRequetes.filter( ( u ) => /\/data\/tuiles\/.+\.png/.test( u ) );
+	assert( tuiles.length > 0, 'le fond de carte est réellement chargé (des tuiles sont demandées)', '> 0 tuile', tuiles.length );
+	egal(
+		[],
+		tuiles.filter( ( u ) => new URL( u ).origin !== ORIGINE ),
+		'contrainte #2 : chaque tuile du fond de carte vient de NOTRE origine'
+	);
+	note( `tuiles demandées : ${ tuiles.length }, toutes sur ${ ORIGINE }` );
+
+	// Contrat #9 I-9.2 : aucun serveur de tuiles rendues, sous aucune forme, y
+	// compris en commentaire de code ou en `errorTileUrl` du cas dégradé.
+	const carteJs = await ( await contexte.request.get( `${ BASE }/wp-content/themes/massifs/assets/js/carte/carte.js` ) ).text();
+	egal(
+		[],
+		[ 'tile.openstreetmap', 'tile.osm', 'basemaps.', 'thunderforest', 'mapbox', 'maptiler', 'stadiamaps' ].filter( ( m ) => carteJs.includes( m ) ),
+		'contrat #9 I-9.2 : carte.js ne nomme aucun serveur de tuiles tiers, même en commentaire'
+	);
+	egal(
+		[],
+		urlsAbsolues( carteJs ).filter( ( u ) => new URL( u ).origin !== ORIGINE ),
+		'carte.js ne porte aucune URL absolue tierce'
+	);
 	note( `origines contactées : ${ [ ...originesDemandees.entries() ].map( ( [ o, n ] ) => `${ o } (${ n })` ).join( ' · ' ) }` );
 	note( `origines citées dans le HTML/CSS : ${ [ ...originesCitees.entries() ].map( ( [ o, n ] ) => `${ o } (${ n })` ).join( ' · ' ) }` );
 
@@ -411,13 +491,97 @@ async function s02_sansJavascript( navigateur ) {
 		await page.locator( '.bandeau-non-officialite' ).count()
 	);
 
-	// L'accueil ne dépend d'aucun script : aucun n'est enfilé par ce lot.
-	egal( 0, await page.locator( 'script[src]' ).count(), 'aucun script externe n’est nécessaire à l’information' );
+	// L'accueil porte désormais deux scripts (Leaflet vendorisé + carte.js), et
+	// c'est conforme : la carte est un ENRICHISSEMENT. L'assertion « zéro script »
+	// disait la bonne chose au mauvais endroit — elle mesurait l'absence d'un
+	// moyen au lieu de la présence de l'information. Toutes les assertions
+	// ci-dessus ont été jouées dans un contexte où JavaScript est COUPÉ : elles
+	// sont, elles, la preuve directe de la contrainte n° 3. Ce qui reste à
+	// affirmer sur les scripts, c'est qu'ils ne peuvent pas être un point d'entrée
+	// tiers, et qu'ils ne bloquent pas le rendu.
+	const scripts = await page.evaluate( () =>
+		[ ...document.querySelectorAll( 'script[src]' ) ].map( ( s ) => ( {
+			src: s.src,
+			differe: s.defer || s.async,
+		} ) )
+	);
+	note( `scripts de l’accueil : ${ scripts.map( ( s ) => s.src.replace( /^https?:\/\/[^/]+/, '' ) ).join( ', ' ) || '(aucun)' }` );
+	egal(
+		[],
+		scripts.filter( ( s ) => new URL( s.src ).origin !== ORIGINE ).map( ( s ) => s.src ),
+		'tout script de l’accueil est servi depuis notre origine'
+	);
+	egal(
+		[],
+		scripts.filter( ( s ) => ! s.differe ).map( ( s ) => s.src ),
+		'aucun script ne bloque l’analyse du document (defer ou async)'
+	);
 
-	// GAP connu : le repli statique sans JS (image du département + lien vers la
-	// liste) n'existe pas encore — la bande carte est vide.
-	const carte = await page.locator( '#carte' ).innerHTML();
-	note( `#carte (repli sans JS attendu au §5.5) : ${ carte.trim() === '' ? 'VIDE — aucune image de repli, aucun lien vers la liste' : carte.slice( 0, 120 ) }` );
+	// §5.5 du brief, en entier : sans JavaScript, la carte est remplacée par une
+	// image statique du département renvoyant à la liste textuelle. Le repli est
+	// rendu PAR DÉFAUT par PHP, jamais dans un <noscript> (contrat #9, I-9.1) — la
+	// preuve est qu'il est ici, dans un contexte sans JavaScript, ET qu'aucune
+	// balise <noscript> ne l'enveloppe.
+	egal( 0, await page.locator( 'noscript' ).count(), 'contrat #9 I-9.1 : le repli n’est pas enfermé dans un <noscript>' );
+
+	const repli = page.locator( '#carte .carte-secours' );
+	egal( 1, await repli.count(), '§5.5 : le repli statique de la carte est rendu par PHP' );
+
+	const image = page.locator( '#carte .carte-secours__image' );
+	egal( 1, await image.count(), '§5.5 : l’image statique du département est présente' );
+	egal( ORIGINE, new URL( await image.getAttribute( 'src' ) ).origin, 'l’image de repli est servie depuis notre origine' );
+	egal( '', await image.getAttribute( 'alt' ), 'alt="" : l’information exploitable est portée par la liste adjacente, pas par une description inventée' );
+	// `width` et `height` réservent la boîte : sans eux, la page saute quand
+	// l'image arrive (§10 du brief).
+	assert(
+		Number( await image.getAttribute( 'width' ) ) > 0 && Number( await image.getAttribute( 'height' ) ) > 0,
+		'l’image de repli porte ses dimensions intrinsèques (aucun saut de mise en page)',
+		'width > 0 et height > 0',
+		`${ await image.getAttribute( 'width' ) } × ${ await image.getAttribute( 'height' ) }`
+	);
+	// L'image est réellement chargée, pas seulement déclarée : un `src` mort
+	// passerait toutes les assertions d'attribut.
+	const imageChargee = await image.evaluate( ( i ) => ( { w: i.naturalWidth, h: i.naturalHeight } ) );
+	assert(
+		imageChargee.w > 0 && imageChargee.h > 0,
+		'l’image de repli est réellement décodée par le navigateur',
+		'naturalWidth/Height > 0',
+		JSON.stringify( imageChargee )
+	);
+
+	// Le chemin d'accès à l'équivalent textuel, et sa cible.
+	const lienListe = page.locator( '#carte .carte-secours__lien' );
+	egal( 1, await lienListe.count(), '§5.5 : le repli porte le lien vers la liste textuelle' );
+	egal( '#liste', await lienListe.getAttribute( 'href' ), 'le lien du repli vise l’ancre de la liste' );
+	egal( 'Aller à la liste des statuts', await texteSource( lienListe ), 'libellé du lien, repris du §5.3 du brief' );
+	egal( 1, await page.locator( '[id="liste"]' ).count(), 'l’ancre visée par le repli existe une fois et une seule' );
+
+	// Contrat #9, I-9.4 : l'image et son attribution n'existent que l'une avec
+	// l'autre. Afficher un rendu ODbL sans attribution est une violation de
+	// licence ; créditer une source dont rien n'est affiché est une affirmation
+	// fausse. On affirme donc la conjonction, pas chacune de son côté.
+	const attribution = page.locator( '#carte .carte-secours__attribution' );
+	egal( 1, await attribution.count(), 'contrat #9 I-9.4 : l’attribution du fond accompagne l’image' );
+	// U+0027 et non U+2019 : c'est la chaîne du §9 du brief, servie par
+	// `massifs_attribution_fond_de_carte()['phrase']`. Toute « uniformisation
+	// typographique » de cette chaîne est un défaut, pas une variante.
+	egal( "© les contributeurs d'OpenStreetMap", await texteSource( attribution ), '§9 du brief : la phrase d’attribution OSM, verbatim' );
+	egal(
+		'https://www.openstreetmap.org/copyright',
+		await page.locator( '#carte .carte-secours__attribution-lien' ).getAttribute( 'href' ),
+		'§9 du brief : le lien de licence OSM'
+	);
+
+	// Contrat #9, I-9.3 : le repli ne porte JAMAIS les statuts du jour. Il dit OÙ,
+	// la liste dit QUOI. La règle est tenue par l'absence de couplage
+	// (`carte-secours.php` n'appelle aucune fonction de statut) — ce qui s'observe
+	// ici par l'absence de tout libellé de niveau dans la partie.
+	const texteRepli = await texteSource( repli );
+	egal(
+		[],
+		[ 'Accès au massif autorisé', 'Accès au massif interdit', 'information non disponible' ].filter( ( l ) => texteRepli.includes( l ) ),
+		'contrat #9 I-9.3 : le repli ne porte aucun statut — il ne peut donc pas en périmer un'
+	);
 
 	await contexte.close();
 }
@@ -471,7 +635,13 @@ async function s03_structureEtAncres( navigateur ) {
 		assert( structure.lang.startsWith( 'fr' ), `${ cible.nom } : lang français`, 'fr…', structure.lang );
 
 		if ( cible.statuts ) {
-			egal( 2, structure.h2, 'accueil : deux h2 (légende, liste) — aucun doublon de titre' );
+			// Trois h2 depuis la chaîne #7 : légende, liste, et le titre du panneau
+			// de massif de la carte. Le troisième est le nom accessible de
+			// l'`<aside aria-labelledby>` exigé par le contrat #7 §9 ; il est vide et
+			// masqué tant qu'aucun massif n'est sélectionné, et rempli par le JS.
+			// Le compte reste une ÉGALITÉ EXACTE, jamais un « au moins » : c'est ce
+			// qui détecte un titre dupliqué par une inclusion accidentelle.
+			egal( 3, structure.h2, 'accueil : trois h2 (légende, liste, panneau de carte) — aucun doublon de titre' );
 			const cible2 = await page.evaluate( () => {
 				const e = document.getElementById( 'liste' );
 				return e ? { tag: e.tagName, tabindex: e.getAttribute( 'tabindex' ), nom: e.getAttribute( 'aria-labelledby' ) } : null;
@@ -555,12 +725,55 @@ async function s04_statutPerimeJamaisCourant( navigateur ) {
 	// le scénario ne vaut que parce qu'elle est là. Elle ne doit apparaître nulle
 	// part sur la page du jour, hors de la légende — qui, elle, énumère les
 	// niveaux possibles sans jamais les attribuer à un massif.
+	//
+	// Deux mesures, et il en faut deux depuis la chaîne #7.
+	//
+	// (a) Ce qui est PRÉSENTÉ. Le panneau de la carte porte désormais un gabarit
+	//     de libellés pré-rendus par PHP (« information non disponible »,
+	//     « dispositif estival inactif », la phrase de non-publication), tous
+	//     enfermés dans des conteneurs `hidden` que le JS démasque un par un. Rien
+	//     de tout cela n'est présenté au visiteur, et rien de tout cela n'est une
+	//     donnée : ce sont les quatre états possibles, écrits d'avance. Ce qui doit
+	//     rester vide, c'est ce qui est réellement RENDU hors de la légende.
 	const fuites = await page.evaluate( () =>
 		[ ...document.querySelectorAll( '.statut__libelle' ) ]
 			.filter( ( e ) => ! e.closest( '#legende' ) )
+			.filter( ( e ) => e.offsetParent !== null || e.getClientRects().length > 0 )
 			.map( ( e ) => e.textContent.trim() )
 	);
-	egal( [], fuites, 'aucun libellé de statut hors de la légende : rien de la veille ne fuit' );
+	egal( [], fuites, 'aucun libellé de statut PRÉSENTÉ hors de la légende : rien de la veille ne fuit' );
+
+	// (b) La mesure qui, elle, ne connaît aucune exception : AUCUN libellé de
+	//     NIVEAU de la veille n'existe où que ce soit dans le document — visible
+	//     ou non, y compris dans l'îlot JSON de la carte, que le JS lirait. C'est
+	//     la règle absolue du §4.2, et elle porte sur les octets servis, pas sur
+	//     le rendu. La journée d'hier a bien été écrite (20 autorisés sur 25) :
+	//     l'assertion ne vaut que parce que la donnée existe en base.
+	const fuitesCachees = await page.evaluate( () =>
+		[ ...document.querySelectorAll( '*' ) ]
+			.filter( ( e ) => ! e.closest( '#legende' ) && e.children.length === 0 )
+			.map( ( e ) => e.textContent.trim() )
+			.filter( ( t ) => t.includes( 'Accès au massif' ) || t.includes( 'Accès à la ZAPEF' ) )
+	);
+	egal( [], fuitesCachees, '§4.2 : aucun libellé de NIVEAU de la veille dans le document, masqué compris' );
+
+	// L'îlot JSON de la carte est lu par le JS : un niveau d'hier qui y survivrait
+	// serait peint sur la carte à la seconde où le script démarre. On le décode et
+	// l'on affirme sur la donnée, pas sur une sous-chaîne.
+	const ilot = await page.evaluate( () => {
+		const n = document.getElementById( 'carte-donnees' );
+		return n ? JSON.parse( n.textContent ) : null;
+	} );
+	assert( ilot !== null, 'l’îlot de données de la carte est présent', 'un objet', 'absent' );
+	if ( ilot ) {
+		const jours = Object.keys( ilot.jours );
+		egal( [ ilot.jour_courant, ilot.jour_suivant ], jours, 'contrat #7 §4 : l’îlot ne porte QUE le jour courant et le suivant — la veille en est absente' );
+		const niveaux = jours.flatMap( ( j ) => Object.values( ilot.jours[ j ] ) ).filter( ( s ) => s.niveau !== null || s.zapef !== null );
+		egal( [], niveaux, '§4.2 : aucun niveau de la veille ne voyage dans l’îlot de la carte' );
+		const etats = [ ...new Set( jours.flatMap( ( j ) => Object.values( ilot.jours[ j ] ).map( ( s ) => s.etat ) ) ) ].sort();
+		note( `états portés par l’îlot : ${ etats.join( ', ' ) }` );
+		assert( ! etats.includes( 'disponible' ), 'aucun massif n’est « disponible » dans l’îlot le jour où la donnée manque', 'aucun disponible', etats.join( ', ' ) );
+	}
 
 	egal( 1, await page.locator( '.ardoise__peremption' ).count(), 'la mention de péremption est ajoutée, sans masquer quoi que ce soit' );
 
@@ -602,9 +815,21 @@ async function s06_jamaisLaCouleurSeule( navigateur ) {
 	const page = await contexte.newPage();
 	await page.goto( BASE + '/', { waitUntil: 'load' } );
 
+	// Portée de la mesure : ce que le visiteur voit RÉELLEMENT.
+	//
+	// Depuis la chaîne #7, le panneau de la carte porte un gabarit de marques
+	// pré-rendu par PHP — une pastille et un jalon SANS classe d'état et SANS
+	// libellé — que `carte.js` renseigne à la sélection d'un massif. Ces deux
+	// nœuds sont enfermés dans des conteneurs `hidden` et ne sont donc jamais
+	// présentés : les compter comme « marques colorées sans libellé » ferait dire
+	// à ce scénario le contraire de ce qu'il éprouve. On mesure les marques
+	// rendues, et l'on affirme séparément — plus bas — que les gabarits sont bien
+	// masqués ET bien vides, ce qui est la seule forme sous laquelle ils sont
+	// acceptables.
 	const releve = await page.evaluate( () => {
-		const marques = [ ...document.querySelectorAll( '.statut__marque' ) ];
-		const libelles = [ ...document.querySelectorAll( '.statut__libelle' ) ];
+		const rendu = ( e ) => e.getClientRects().length > 0;
+		const marques = [ ...document.querySelectorAll( '.statut__marque' ) ].filter( rendu );
+		const libelles = [ ...document.querySelectorAll( '.statut__libelle' ) ].filter( rendu );
 		const orphelines = marques.filter( ( m ) => {
 			const suivant = m.nextElementSibling;
 			return ! suivant || ! suivant.classList.contains( 'statut__libelle' ) || suivant.textContent.trim() === '';
@@ -635,6 +860,30 @@ async function s06_jamaisLaCouleurSeule( navigateur ) {
 	// n'est plus un manque annoncé, c'est une régression. Le détail par état est
 	// dans le scénario « couche-statut ».
 	egal( 0, releve.sansAplat, 'chaque marque colorée est réellement peinte' );
+
+	// Le pendant de la restriction de portée : les gabarits du panneau de carte
+	// n'échappent à la mesure QUE parce qu'ils sont masqués et vides. Si l'un
+	// d'eux devenait visible sans libellé, ou portait un aplat d'état sans mot,
+	// ce serait exactement l'information portée par la couleur seule que le §8
+	// interdit — et ce contrôle rougirait.
+	const gabarits = await page.evaluate( () =>
+		[ ...document.querySelectorAll( '.carte__panneau-etat .statut__marque, .carte__panneau-zapef .statut__marque' ) ].map( ( m ) => ( {
+			classes: m.className,
+			rendu: m.getClientRects().length > 0,
+			libelle: ( m.nextElementSibling?.textContent ?? '(aucun)' ).trim(),
+		} ) )
+	);
+	note( `gabarits de marque du panneau de carte : ${ JSON.stringify( gabarits ) }` );
+	egal(
+		[],
+		gabarits.filter( ( g ) => g.rendu ),
+		'les gabarits de marque du panneau de carte ne sont jamais présentés sans JavaScript'
+	);
+	egal(
+		[],
+		gabarits.filter( ( g ) => g.libelle !== '' || /--/.test( g.classes ) ),
+		'les gabarits de marque ne portent NI libellé écrit d’avance NI classe d’état : le serveur ne préjuge d’aucun statut'
+	);
 
 	await contexte.close();
 }
@@ -781,7 +1030,14 @@ async function s09_budgets( navigateur ) {
 
 	const estPolice = ( t ) => t.type === 'font' || /\.woff2?($|\?)/.test( t.url );
 	const estGeometrie = ( t ) => /geometrie|\.geojson/.test( t.url );
-	const enveloppe = tailles.filter( ( t ) => ! estPolice( t ) && ! estGeometrie( t ) );
+	// « HORS FOND DE CARTE » est écrit dans le §10 du brief, et le fond de carte a
+	// deux artefacts depuis la chaîne #9 : la pyramide de tuiles servie à Leaflet,
+	// et l'image statique du repli sans JavaScript — qui EST le fond de carte,
+	// rendu en un seul fichier. Les compter dans l'enveloppe des 250 Ko ferait dire
+	// au budget le contraire de ce qu'il énonce. Ils ne sortent pas de la mesure
+	// pour autant : ils sont pesés à part, contre leurs propres plafonds.
+	const estFondDeCarte = ( t ) => /\/data\/tuiles\/.+\.png/.test( t.url ) || /carte-statique\.png/.test( t.url );
+	const enveloppe = tailles.filter( ( t ) => ! estPolice( t ) && ! estGeometrie( t ) && ! estFondDeCarte( t ) );
 	const octetsEnveloppe = enveloppe.reduce( ( s, t ) => s + t.octets, 0 );
 
 	for ( const t of enveloppe ) {
@@ -793,6 +1049,22 @@ async function s09_budgets( navigateur ) {
 		'< 256000 o',
 		`${ octetsEnveloppe } o`
 	);
+
+	// Fond de carte, pesé à part et affirmé contre ses propres plafonds.
+	const tuiles = tailles.filter( ( t ) => /\/data\/tuiles\/.+\.png/.test( t.url ) );
+	const octetsTuiles = tuiles.reduce( ( s, t ) => s + t.octets, 0 );
+	note( `fond de carte, hors enveloppe §10 : ${ tuiles.length } tuiles = ${ octetsTuiles } o` );
+
+	const statique = tailles.filter( ( t ) => /carte-statique\.png/.test( t.url ) );
+	const octetsStatique = statique.reduce( ( s, t ) => s + t.octets, 0 );
+	// Plafond fixé par le contrat #9 §2 pour l'image de repli : 150 Ko transférés.
+	assert(
+		octetsStatique > 0 && octetsStatique < 150 * 1024,
+		`repli statique du fond de carte sous 150 Ko (contrat #9 §2, mesuré ${ octetsStatique } o)`,
+		'0 < octets < 153600',
+		`${ octetsStatique } o`
+	);
+	egal( 1, statique.length, 'contrat #9 F-9 : une seule image statique est demandée — aucun srcset, aucun second artefact' );
 
 	const polices = tailles.filter( estPolice );
 	const fichiersPolice = new Set( polices.map( ( t ) => t.url.split( '?' )[ 0 ] ) );
@@ -860,6 +1132,63 @@ async function s10_apiPublique( navigateur ) {
 	// admin-post sans authentification ni nonce.
 	const adminPost = await api.post( `${ BASE }/wp-admin/admin-post.php`, { data: { action: 'massifs_publier_statuts' }, failOnStatusCode: false } );
 	note( `POST admin-post.php (action massifs_publier_statuts) → HTTP ${ adminPost.status() }` );
+
+	// Issue #8 — le point d'accès public du §5.4, vu du navigateur et sans aucune
+	// session. La forme complète et le bornage du paramètre `jour` sont éprouvés
+	// en HTTP par `tests/scenarios/22-api-publique-statuts.php` ; ce qui est
+	// affirmé ici, c'est ce qui n'a de sens que depuis un client web : la route
+	// est atteignable anonymement, elle est réutilisable cross-origin (c'est
+	// l'objet même du §5.4), et elle sert bien les 25 massifs.
+	egal(
+		[ '/massifs/v1', '/massifs/v1/statuts' ],
+		routesMassifs.sort(),
+		'l’espace « massifs » expose exactement son index et la route publique de lecture'
+	);
+	const statuts = await api.get( `${ BASE }/wp-json/massifs/v1/statuts`, { failOnStatusCode: false } );
+	egal( 200, statuts.status(), '§5.4 : les statuts du jour sont lisibles en JSON, sans authentification' );
+
+	// L'en-tête CORS n'est émis par le cœur QUE si la requête porte un `Origin` :
+	// une sonde sans `Origin` mesurerait son absence et conclurait à un refus. On
+	// joue donc la requête telle qu'un réutilisateur tiers l'émettrait.
+	//
+	// Le contrat #8 §6 annonce « `*` émis par le cœur ». Mesuré : le cœur RENVOIE
+	// L'ORIGINE PRÉSENTÉE (`rest_send_cors_headers` fait `header( 'Access-Control-
+	// Allow-Origin: ' . get_http_origin() )`). L'effet est le même — n'importe
+	// quelle origine tierce est autorisée à lire —, la lettre du contrat ne l'est
+	// pas. On affirme donc l'effet observable, qui est ce que le §5.4 promet, et
+	// l'écart de lettre est rapporté plutôt qu'aligné en douce.
+	const tiers = 'https://un-reutilisateur.example';
+	const croise = await api.get( `${ BASE }/wp-json/massifs/v1/statuts`, {
+		headers: { Origin: tiers },
+		failOnStatusCode: false,
+	} );
+	const autorise = croise.headers()[ 'access-control-allow-origin' ];
+	assert(
+		autorise === '*' || autorise === tiers,
+		'§5.4 : la réutilisation cross-origin est ouverte — c’est la destination du point d’accès',
+		`« * » ou « ${ tiers } »`,
+		autorise
+	);
+	note( `Access-Control-Allow-Origin servi pour une origine tierce : « ${ autorise } » (le cœur renvoie l’origine présentée, pas « * » — écart de lettre avec le contrat #8 §6, sans écart d’effet)` );
+	assert(
+		( statuts.headers()[ 'cache-control' ] ?? '' ).includes( 'no-cache' ),
+		'§4.2 : aucun cache d’âge sur les statuts — un max-age servirait la veille après minuit',
+		'no-cache',
+		statuts.headers()[ 'cache-control' ] ?? '(absent)'
+	);
+	const charge = await statuts.json();
+	egal( 25, charge.massifs.length, 'les 25 massifs sont servis, quel que soit l’état de la donnée' );
+	egal(
+		[],
+		charge.massifs.filter( ( m ) => m.jour_validite !== charge.jour ).map( ( m ) => m.code ),
+		'§4.2 : chaque statut servi porte le jour de l’enveloppe, et aucun autre'
+	);
+	assert(
+		typeof charge.attribution?.statuts?.carte_officielle_url === 'string' && charge.attribution.statuts.carte_officielle_url !== '',
+		'le lien de la carte officielle voyage dans la réponse — un réutilisateur peut relayer le repli du §4.2',
+		'une URL',
+		charge.attribution?.statuts?.carte_officielle_url
+	);
 
 	await contexte.close();
 }
@@ -1073,6 +1402,60 @@ async function s12_integriteArtefacts() {
 	// dans le scénario « casse ».
 	const layout = readFileSync( path.join( RACINE, 'wp-content/themes/massifs/assets/css/layout.css' ), 'utf8' );
 	egal( 0, ( layout.match( /text-transform/g ) ?? [] ).length, 'layout.css : plus aucune déclaration text-transform' );
+
+	// --- Image statique du fond de carte (issue #9) : contrôle SUR LE BINAIRE.
+	//
+	// Le contrat #9 §12.5 le demande nommément — « à vérifier sur le binaire, pas
+	// sur l'intention ». Deux invariants s'y jouent :
+	//
+	//   I-9.3 : l'image ne porte AUCUN aplat de statut. Une image qui porterait
+	//           les couleurs du jour se périmerait par un chemin que le PHP ne
+	//           contrôle plus (cache HTTP, CDN de l'hébergeur) — la règle absolue
+	//           du §4.2 tomberait par la porte de derrière. Sur un PNG indexé, la
+	//           preuve est directe : les deux teintes officielles ne sont pas dans
+	//           la palette, donc pas un pixel ne peut les porter.
+	//   I-9.2 : aucune URL tierce nulle part, « métadonnée d'image comprise ».
+	//           `tEXt`, `iTXt` et `zTXt` sont les trois porteurs possibles.
+	const png = readFileSync( path.join( RACINE, 'wp-content/themes/massifs/assets/img/carte-statique.png' ) );
+	const morceaux = {};
+	let palette = null;
+	let entete = null;
+	for ( let i = 8; i + 8 <= png.length; ) {
+		const longueur = png.readUInt32BE( i );
+		const type = png.toString( 'latin1', i + 4, i + 8 );
+		morceaux[ type ] = ( morceaux[ type ] ?? 0 ) + 1;
+		if ( type === 'PLTE' ) {
+			palette = png.subarray( i + 8, i + 8 + longueur );
+		}
+		if ( type === 'IHDR' ) {
+			entete = { largeur: png.readUInt32BE( i + 8 ), hauteur: png.readUInt32BE( i + 12 ), typeCouleur: png[ i + 17 ] };
+		}
+		i += 12 + longueur;
+	}
+
+	egal( 3, entete?.typeCouleur, 'contrat #9 §2 : l’image de repli est un PNG INDEXÉ (type de couleur 3), format gelé' );
+	const teintes = [];
+	for ( let i = 0; palette && i + 2 < palette.length; i += 3 ) {
+		teintes.push( `#${ palette.subarray( i, i + 3 ).toString( 'hex' ).toUpperCase() }` );
+	}
+	note( `palette de carte-statique.png : ${ teintes.length } couleurs — ${ teintes.join( ' ' ) }` );
+	egal(
+		[],
+		[ '#22B14C', '#E63A3C' ].filter( ( t ) => teintes.includes( t ) ),
+		'contrat #9 I-9.3 : aucune teinte de statut dans la palette — l’image ne peut pas périmer un statut'
+	);
+	egal(
+		[],
+		[ 'tEXt', 'iTXt', 'zTXt' ].filter( ( t ) => morceaux[ t ] ),
+		'contrat #9 I-9.2 : aucun morceau de métadonnée textuelle dans le PNG (aucune URL tierce n’y est cachée)'
+	);
+	assert(
+		entete.largeur === 1600 && entete.hauteur > 0,
+		'contrat #9 A-4 : une seule variante, 1600 px de large, hauteur dérivée de la bbox projetée',
+		'1600 × (>0)',
+		`${ entete?.largeur } × ${ entete?.hauteur }`
+	);
+	note( `dimensions intrinsèques : ${ entete.largeur } × ${ entete.hauteur } (rapport ${ ( entete.largeur / entete.hauteur ).toFixed( 4 ) } — l’avenant du contrat #9 §13 fixe 1,125)` );
 }
 
 // ---------------------------------------------------------------- lot « direction mairie et couche visuelle »
@@ -1101,8 +1484,18 @@ const CALCAIRE = 'rgb(237, 238, 236)';
  * @return {Promise<object[]>} Un relevé par marque présente dans le DOM.
  */
 function releverMarques( page ) {
+	// Marques RÉELLEMENT RENDUES seulement.
+	//
+	// Depuis la chaîne #7, le panneau de la carte porte dans le HTML servi un
+	// gabarit de marques que `carte.js` renseigne à la sélection : deux marques
+	// sans classe d'état, et une occurrence masquée de chacun des trois états hors
+	// niveau. Toutes vivent sous un conteneur `hidden`, donc sans boîte (0 × 0) et
+	// sans peinture. Les mesurer reviendrait à affirmer qu'une marque non affichée
+	// est mal dessinée — un rouge qui ne décrit rien. Ce que le §8 exige porte sur
+	// ce que le visiteur voit ; le fait que ces gabarits soient bien masqués et
+	// bien vides est affirmé, lui, par le scénario `couleur`.
 	return page.evaluate( () =>
-		[ ...document.querySelectorAll( '.statut__marque' ) ].map( ( e ) => {
+		[ ...document.querySelectorAll( '.statut__marque' ) ].filter( ( e ) => e.getClientRects().length > 0 ).map( ( e ) => {
 			const s = getComputedStyle( e );
 			const r = e.getBoundingClientRect();
 			return {
@@ -1265,10 +1658,28 @@ async function s15_ordreDesFeuilles( navigateur ) {
 		} ) )
 	);
 
+	// Sept feuilles depuis la chaîne #7, dans un ordre que le contrat #7 §8.5 fixe
+	// et qui n'est pas négociable :
+	//   — `massifs-carte` s'insère ENTRE `composants` et `print`, parce qu'elle
+	//     réserve la hauteur de la bande carte : enfilée plus tard, elle ferait
+	//     grandir le héros après coup (§10 du brief) ;
+	//   — `print` reste après `composants`, pour l'emporter à spécificité égale ;
+	//   — `leaflet` est enfilée en dernier, tardivement par `carte.php`, ce qui est
+	//     l'avertissement 3 du §8.3 : toute surcharge de `carte.css` doit gagner en
+	//     spécificité, jamais par ordre de cascade. Sa position après `print` est
+	//     sans effet, `print` étant en `media="print"`.
+	// L'assertion reste une ÉGALITÉ SUR LISTE ORDONNÉE : c'est elle qui détecte
+	// qu'une feuille a été insérée au mauvais rang.
 	egal(
-		[ 'massifs-fonts-css', 'massifs-tokens-css', 'massifs-layout-css', 'massifs-composants-css', 'massifs-print-css' ],
+		[ 'massifs-fonts-css', 'massifs-tokens-css', 'massifs-layout-css', 'massifs-composants-css', 'massifs-carte-css', 'massifs-print-css', 'massifs-leaflet-css' ],
 		liens.map( ( l ) => l.id ),
-		'les cinq feuilles sont servies dans l’ordre du contrat, et aucune autre'
+		'les sept feuilles sont servies dans l’ordre du contrat, et aucune autre'
+	);
+	assert(
+		liens.findIndex( ( l ) => l.id === 'massifs-leaflet-css' ) > liens.findIndex( ( l ) => l.id === 'massifs-carte-css' ),
+		'contrat #7 §8.3 : leaflet.css est enfilée APRÈS carte.css',
+		'leaflet après carte',
+		liens.map( ( l ) => l.id ).join( ' → ' )
 	);
 	egal(
 		[ 'print' ],
@@ -1283,9 +1694,9 @@ async function s15_ordreDesFeuilles( navigateur ) {
 		liens.map( ( l ) => l.id ).join( ' → ' )
 	);
 	egal(
-		[ 'all', 'all', 'all', 'all' ],
+		[ 'all', 'all', 'all', 'all', 'all', 'all' ],
 		liens.filter( ( l ) => l.id !== 'massifs-print-css' ).map( ( l ) => l.media ),
-		'les quatre feuilles d’écran sont en media="all"'
+		'les six feuilles d’écran sont en media="all"'
 	);
 
 	// `media="print"` n'est pas décoratif : la feuille ne doit rien peindre à
@@ -1448,13 +1859,18 @@ async function s17_couleursForcees( navigateur ) {
 	note( `aplat forcé par l’UA sur .pastille--interdit : ${ releve.fondForce } — la teinte ne distingue plus rien` );
 
 	// Le libellé DOIT donc être là, et non vide : c'est lui qui porte tout.
+	// Même portée que le scénario `couleur` : les marques RENDUES. Les gabarits
+	// masqués du panneau de carte n'ont ni couleur ni libellé, par construction,
+	// et ne portent donc rien qu'un mode « couleurs forcées » puisse effacer.
 	const orphelines = await page.evaluate( () =>
-		[ ...document.querySelectorAll( '.statut__marque' ) ].filter( ( m ) => {
-			const s = m.nextElementSibling;
-			return ! s || ! s.classList.contains( 'statut__libelle' ) || s.textContent.trim() === '';
-		} ).length
+		[ ...document.querySelectorAll( '.statut__marque' ) ]
+			.filter( ( m ) => m.getClientRects().length > 0 )
+			.filter( ( m ) => {
+				const s = m.nextElementSibling;
+				return ! s || ! s.classList.contains( 'statut__libelle' ) || s.textContent.trim() === '';
+			} ).length
 	);
-	egal( 0, orphelines, 'sous couleurs forcées, chaque marque garde son libellé en toutes lettres' );
+	egal( 0, orphelines, 'sous couleurs forcées, chaque marque rendue garde son libellé en toutes lettres' );
 
 	await contexte.close();
 }
@@ -2487,6 +2903,324 @@ async function s22_publicationPartielle( navigateur ) {
 	await contexte.close();
 }
 
+// ---------------------------------------------------------------- lot « carte interactive et fond auto-hébergé »
+
+async function s24_carteInteractive( navigateur ) {
+	scenario( '24 — carte interactive : montage, fond auto-hébergé, repli et bascule de jour (issues #7 et #9)' );
+
+	// L'état est celui où le sélecteur de date est RÉELLEMENT exerçable : sans
+	// statut pour demain, le bouton reste `aria-disabled` et la bascule ne peut
+	// pas être jouée. Les deux journées portent des niveaux différents.
+	const etat = poserEtat( 'deux-jours' );
+	const total = Number( /total=(\d+)/.exec( etat )?.[ 1 ] ?? -1 );
+	const jourCourant = /jour=([\d-]+)/.exec( etat )?.[ 1 ] ?? '';
+	const jourSuivant = /demain=([\d-]+)/.exec( etat )?.[ 1 ] ?? '';
+	const interditsAujourdhui = Number( /interdits_aujourdhui=(\d+)/.exec( etat )?.[ 1 ] ?? -1 );
+	const interditsDemain = Number( /interdits_demain=(\d+)/.exec( etat )?.[ 1 ] ?? -1 );
+
+	const contexte = await navigateur.newContext();
+	const { page, requetes } = await charger( contexte, '/' );
+
+	// --- 1. Le montage a réellement eu lieu.
+	await page.waitForSelector( '.carte--prete', { timeout: 15000 } ).catch( () => {} );
+	egal( 1, await page.locator( '.carte--prete' ).count(), 'contrat #7 §8.2 : la carte est montée et peinte (.carte--prete)' );
+	egal( 25, await page.locator( '.carte__massif' ).count(), 'les 25 massifs sont tracés, un <path> par massif du référentiel' );
+	egal( total, await page.locator( '.carte__massif' ).count(), 'autant de tracés que de massifs au référentiel' );
+
+	// --- 2. Contrat #9, F-2 : le repli ne part QU'APRÈS un montage réussi, et
+	//        l'attribution ne part JAMAIS (F-3, I-9.4).
+	egal( 0, await page.locator( '.carte-secours__repli' ).count(), 'contrat #9 F-2 : le repli statique est retiré après le montage' );
+	egal( 1, await page.locator( '.carte-secours__attribution' ).count(), 'contrat #9 F-3 : l’attribution OSM survit au montage — elle n’est jamais retirée ni dupliquée' );
+
+	// F-4 : Leaflet ne pose PAS sa propre attribution. Deux attributions, dont
+	// une non maîtrisée sur la toile nue, seraient un défaut de D-24.
+	egal( 0, await page.locator( '.leaflet-control-attribution' ).count(), 'contrat #9 F-4 : Leaflet est monté avec attributionControl: false' );
+	const liensLeaflet = await page.locator( 'a[href*="leafletjs.com"]' ).count();
+	egal( 0, liensLeaflet, 'aucun lien vers leafletjs.com n’est rendu (l’attribution de la bibliothèque n’est pas posée)' );
+
+	// --- 3. Le fond de carte vient de chez nous, et de nulle part ailleurs.
+	const tuiles = await page.evaluate( () => [ ...document.querySelectorAll( '.leaflet-tile' ) ].map( ( t ) => t.src ) );
+	assert( tuiles.length > 0, 'une couche de tuiles est montée', '> 0 tuile', tuiles.length );
+	egal(
+		[],
+		tuiles.filter( ( u ) => new URL( u ).origin !== ORIGINE ),
+		'contrainte #2 : chaque tuile affichée vient de notre origine'
+	);
+	const tuilesDemandees = requetes.filter( ( r ) => /\/data\/tuiles\/.+\.png/.test( r.url ) );
+	assert( tuilesDemandees.length > 0, 'des tuiles ont été réellement demandées au serveur', '> 0', tuilesDemandees.length );
+	// Une tuile est-elle un VRAI PNG ? Un 404 mis en cache par le navigateur
+	// passerait toutes les assertions d'URL sans qu'un pixel soit peint.
+	const uneTuile = await contexte.request.get( tuilesDemandees[ 0 ].url );
+	egal( 200, uneTuile.status(), 'la tuile demandée est servie en 200' );
+	egal( 'image/png', ( uneTuile.headers()[ 'content-type' ] ?? '' ).split( ';' )[ 0 ], 'la tuile est un PNG' );
+	const entete = ( await uneTuile.body() ).subarray( 0, 8 ).toString( 'hex' );
+	egal( '89504e470d0a1a0a', entete, 'les octets servis sont bien ceux d’un PNG (signature de fichier)' );
+
+	// F-11 : la pyramide monte à z12, la carte reste plafonnée à z11 — sans quoi
+	// un cran de zoom afficherait un fond SANS polygones.
+	const zooms = await page.evaluate( () => {
+		const ilot = JSON.parse( document.getElementById( 'carte-donnees' ).textContent );
+		return { emprise: ilot.emprise.zoom_max, fond: ilot.fond ? ilot.fond.zoom_max : null };
+	} );
+	egal( 11, zooms.emprise, 'contrat #7 : le plafond de zoom de la carte reste 11' );
+	egal( 12, zooms.fond, 'contrat #9 A-7 : la pyramide de tuiles monte à 12, pour la netteté — pas pour un cran de zoom de plus' );
+
+	// --- 4. Aucun statut d’un autre jour rendu comme courant (contrat #7 §12.4).
+	//
+	// `.carte__jour` existe en DEUX exemplaires — un par jour —, un seul rendu à
+	// la fois. On lit donc la phrase RÉELLEMENT AFFICHÉE, jamais le `textContent`
+	// de la barre : celui-ci concatènerait les deux dates et le contrôle passerait
+	// pour de mauvaises raisons, dans les deux sens.
+	const jourAffiche = () =>
+		page.evaluate( () => {
+			const visibles = [ ...document.querySelectorAll( '.carte__jour' ) ].filter( ( e ) => e.getClientRects().length > 0 );
+			return {
+				nombre: visibles.length,
+				texte: visibles.map( ( e ) => e.textContent.replace( /\s+/g, ' ' ).trim() ).join( ' | ' ),
+				jour: visibles.map( ( e ) => e.getAttribute( 'data-jour' ) ).join( ' | ' ),
+			};
+		} );
+	const interdits = () =>
+		page.evaluate( () => [ ...document.querySelectorAll( '.carte__massif--interdit' ) ].map( ( e ) => e.getAttribute( 'aria-label' ) ).sort() );
+
+	const avant = await jourAffiche();
+	egal( 1, avant.nombre, 'contrat #7 A-1 : une seule phrase de jour est affichée à la fois' );
+	assert( avant.texte !== '', 'contrat #7 A-1 : le jour affiché est écrit en toutes lettres, en permanence', 'un libellé', '(vide)' );
+	egal( jourCourant, avant.jour, 'au chargement, le jour affiché est le jour COURANT du serveur' );
+	note( `libellé de jour au chargement : « ${ avant.texte } »` );
+
+	const interditsAvant = await interdits();
+	egal( interditsAujourdhui, interditsAvant.length, `au chargement, ${ interditsAujourdhui } massifs sont peints « interdit » — le compte du serveur` );
+
+	// Bascule vers « Demain ». Trois verrous du contrat #7 A-1 sont éprouvés
+	// ensemble : le libellé change, les polygones changent, et le panneau porte la
+	// date de validité de CE jour-là.
+	const boutonDemain = page.locator( `.carte__jour-bouton[data-bascule="${ jourSuivant }"]` );
+	egal( 1, await boutonDemain.count(), 'le sélecteur porte un bouton « Demain » pour le jour suivant du serveur' );
+	assert(
+		( await boutonDemain.getAttribute( 'aria-disabled' ) ) !== 'true',
+		'demain étant publié, le bouton n’est pas neutralisé',
+		'aria-disabled absent ou « false »',
+		await boutonDemain.getAttribute( 'aria-disabled' )
+	);
+	await boutonDemain.click();
+	await page.waitForTimeout( 200 );
+
+	egal( 'true', await boutonDemain.getAttribute( 'aria-pressed' ), 'après bascule, « Demain » est le bouton pressé' );
+	const apres = await jourAffiche();
+	egal( 1, apres.nombre, 'après bascule, une seule phrase de jour reste affichée' );
+	egal( jourSuivant, apres.jour, 'contrat #7 A-1 : le jour ÉCRIT suit la bascule — jamais une carte de demain sous le mot d’aujourd’hui' );
+	assert(
+		apres.texte !== avant.texte,
+		'la phrase de jour rendue change réellement de date',
+		'une phrase différente',
+		`${ avant.texte } → ${ apres.texte }`
+	);
+	note( `libellé de jour après bascule : « ${ apres.texte } »` );
+
+	// Le COMPTE peut coïncider d'un jour à l'autre : c'est l'ENSEMBLE des massifs
+	// interdits qui doit changer, sans quoi une bascule sans effet passerait pour
+	// une bascule réussie.
+	const interditsApres = await interdits();
+	egal( interditsDemain, interditsApres.length, `après bascule, ${ interditsDemain } massifs sont peints « interdit » — le compte du serveur pour demain` );
+	assert(
+		JSON.stringify( interditsAvant ) !== JSON.stringify( interditsApres ),
+		'la bascule repeint réellement les polygones : l’ensemble des massifs interdits n’est pas celui d’aujourd’hui',
+		'un ensemble différent',
+		`${ interditsAvant.join( ', ' ) } / ${ interditsApres.join( ', ' ) }`
+	);
+
+	// Verrou 3 : aucune persistance. Un rechargement revient au jour courant.
+	await page.reload( { waitUntil: 'networkidle' } );
+	await page.waitForSelector( '.carte--prete', { timeout: 15000 } ).catch( () => {} );
+	egal(
+		'true',
+		await page.locator( `.carte__jour-bouton[data-bascule="${ jourCourant }"]` ).getAttribute( 'aria-pressed' ),
+		'contrat #7 A-1, verrou 3 : un rechargement revient au jour courant — aucune persistance'
+	);
+
+	// --- 5. Accessibilité de la carte : roving tabindex, aria-label, Échap.
+	const roving = await page.evaluate( () => {
+		const chemins = [ ...document.querySelectorAll( '.carte__massif' ) ];
+		return {
+			total: chemins.length,
+			arrets: chemins.filter( ( c ) => c.getAttribute( 'tabindex' ) === '0' ).length,
+			roles: [ ...new Set( chemins.map( ( c ) => c.getAttribute( 'role' ) ) ) ],
+			sansNom: chemins.filter( ( c ) => ! ( c.getAttribute( 'aria-label' ) ?? '' ).trim() ).length,
+			exemple: chemins[ 0 ].getAttribute( 'aria-label' ),
+		};
+	} );
+	egal( 1, roving.arrets, 'contrat #7 §9 : un SEUL arrêt de tabulation sur les 25 massifs (roving tabindex)' );
+	egal( [ 'button' ], roving.roles, 'chaque tracé porte role="button"' );
+	egal( 0, roving.sansNom, 'aucun tracé sans nom accessible' );
+	assert(
+		roving.exemple.includes( '—' ),
+		'l’aria-label est « {massif} — {libellé officiel de l’état} » : deux chaînes du serveur, aucun mot ajouté',
+		'un tiret cadratin',
+		roving.exemple
+	);
+	note( `exemple d’aria-label : « ${ roving.exemple } »` );
+
+	// Ouverture au clavier, puis Échap : le panneau se ferme, le focus revient
+	// sur le massif, et le contour reste visible (contrat #7 §9, A-9).
+	await page.locator( '.carte__massif[tabindex="0"]' ).focus();
+	await page.keyboard.press( 'Enter' );
+	await page.waitForTimeout( 150 );
+	egal( 1, await page.locator( '.carte--panneau-ouvert' ).count(), 'Entrée ouvre le panneau du massif' );
+	const titrePanneau = await texteSource( page.locator( '.carte__panneau-titre' ) );
+	assert( titrePanneau !== '', 'le panneau porte le nom du massif', 'un nom', '(vide)' );
+
+	// Le panneau ne dit JAMAIS le statut d’un autre jour que celui affiché. La
+	// mesure a lieu panneau OUVERT — c’est le seul instant où elle a un sens.
+	const datePanneau = await page.evaluate( () => {
+		const jour = document.querySelector( '.carte__jour-bouton[aria-pressed="true"]' )?.getAttribute( 'data-bascule' );
+		const times = [ ...document.querySelectorAll( '.carte__panneau-source time' ) ]
+			.filter( ( t ) => t.getClientRects().length > 0 )
+			.map( ( t ) => t.getAttribute( 'data-jour' ) );
+		return { jour, times };
+	} );
+	egal( [ datePanneau.jour ], datePanneau.times, 'contrat #7 A-1 : la date de validité montrée par le panneau est celle du jour affiché, et aucune autre' );
+
+	await page.keyboard.press( 'Escape' );
+	await page.waitForTimeout( 150 );
+	egal( 0, await page.locator( '.carte--panneau-ouvert' ).count(), 'Échap ferme le panneau (aucun piège clavier)' );
+	// `className` d'un élément SVG est un `SVGAnimatedString`, pas une chaîne :
+	// c'est `getAttribute` qui rend le texte.
+	const focusApres = await page.evaluate( () => document.activeElement?.getAttribute?.( 'class' ) ?? '' );
+	assert(
+		focusApres.includes( 'carte__massif' ),
+		'contrat #7 §9 : après Échap, le focus revient sur le massif d’origine',
+		'un .carte__massif focusé',
+		focusApres
+	);
+
+	// --- 6. Constance du pas de hachure entre les zooms (contrat #7 A-13,
+	//        assertion de recette 5). Un motif qui s’étire redevient de
+	//        l’information portée par la couleur seule, SANS que rien n’ait l’air
+	//        cassé. C’est le point le plus dangereux de l’issue #7.
+	//
+	// La mesure porte sur le pas À L'ÉCRAN, pas sur l'attribut : `carte.js` porte
+	// une garde auto-corrective qui réécrit `width`/`height` des `<pattern>` si le
+	// renderer venait à poser une échelle. Mesurer l'attribut seul confondrait
+	// « pas constant » et « garde jamais déclenchée ». Le pas écran vaut
+	// `attribut × (largeur du <svg> / largeur du viewBox)`.
+	//
+	// Le zoom passe par le CHEMIN RÉEL : les touches `+` et `-` réimplémentées par
+	// `carte.js`, `keyboard: false` ayant retiré celui de Leaflet. Le niveau
+	// atteint est relu sur les tuiles réellement demandées, jamais supposé.
+	const mesurerPas = () =>
+		page.evaluate( () => {
+			const svg = document.querySelector( '.carte__pane--massifs svg' ) ?? document.querySelector( '.carte__toile svg' );
+			const motif = document.querySelector( 'pattern' );
+			if ( ! svg || ! motif || ! svg.viewBox?.baseVal?.width || ! svg.width?.baseVal?.value ) {
+				return null;
+			}
+			const echelle = svg.width.baseVal.value / svg.viewBox.baseVal.width;
+			const zooms = [ ...document.querySelectorAll( '.leaflet-tile' ) ]
+				.map( ( t ) => Number( /\/tuiles\/[^/]+\/(\d+)\//.exec( t.src )?.[ 1 ] ) )
+				.filter( ( z ) => Number.isFinite( z ) );
+			return {
+				attribut: Number( motif.getAttribute( 'width' ) ),
+				unites: motif.getAttribute( 'patternUnits' ),
+				ecran: Number( ( Number( motif.getAttribute( 'width' ) ) * echelle ).toFixed( 3 ) ),
+				zoom: zooms.length ? Math.max( ...zooms ) : null,
+			};
+		} );
+
+	await page.locator( '.carte__massif[tabindex="0"]' ).focus();
+	const pas = [];
+	for ( let i = 0; i < 4; i += 1 ) {
+		const mesure = await mesurerPas();
+		if ( mesure && ! pas.some( ( p ) => p.zoom === mesure.zoom ) ) {
+			pas.push( mesure );
+		}
+		await page.keyboard.press( '+' );
+		await page.waitForTimeout( 400 );
+	}
+
+	note( `pas de hachure mesuré : ${ pas.map( ( p ) => `z${ p.zoom } → attribut ${ p.attribut }, écran ${ p.ecran } px` ).join( ' · ' ) }` );
+	assert( pas.length >= 3, 'contrat #7 A-13 : le pas de hachure a pu être mesuré à au moins trois niveaux de zoom', '≥ 3 niveaux distincts', `${ pas.length }` );
+	if ( pas.length >= 3 ) {
+		const ecarts = pas.map( ( p ) => Math.abs( p.ecran - pas[ 0 ].ecran ) / pas[ 0 ].ecran );
+		assert(
+			Math.max( ...ecarts ) <= 0.01,
+			`contrat #7 A-13 : le pas de hachure À L’ÉCRAN est constant entre z${ pas[ 0 ].zoom } et z${ pas[ pas.length - 1 ].zoom }`,
+			'écart ≤ 1 %',
+			`écart max ${ ( Math.max( ...ecarts ) * 100 ).toFixed( 2 ) } % — ${ pas.map( ( p ) => `${ p.ecran }` ).join( ', ' ) }`
+		);
+		egal(
+			[ 'userSpaceOnUse' ],
+			[ ...new Set( pas.map( ( p ) => p.unites ) ) ],
+			'contrat #7 A-13.1 : patternUnits="userSpaceOnUse" — le défaut objectBoundingBox rendrait la densité proportionnelle à la taille de chaque massif'
+		);
+	}
+
+	await page.close();
+	await contexte.close();
+}
+
+async function s25_carteEnEchecEtSansTuiles( navigateur ) {
+	scenario( '25 — la carte en échec ne laisse jamais un trou : le repli tient (issues #7 et #9)' );
+	poserEtat( 'jour-nominal' );
+
+	// Chemin d'échec du contrat #9 F-2 : Leaflet est empêché de se charger. Le
+	// montage échoue, et c'est exactement le cas que `<noscript>` NE couvre PAS —
+	// JavaScript est actif, mais la carte ne peut pas naître. Le repli statique
+	// doit rester debout : c'est la raison d'être de I-9.1.
+	const contexte = await navigateur.newContext();
+	await contexte.route( '**/vendor/leaflet/leaflet.js*', ( route ) => route.abort() );
+
+	const page = await contexte.newPage();
+	await page.goto( BASE + '/', { waitUntil: 'load' } );
+	await page.waitForTimeout( 800 );
+
+	egal( 0, await page.locator( '.carte--prete' ).count(), 'Leaflet absent : la carte n’est jamais déclarée prête' );
+	egal( 1, await page.locator( '.carte-secours__repli' ).count(), 'contrat #9 F-2 : le repli statique est CONSERVÉ quand le montage échoue' );
+	egal( 1, await page.locator( '.carte-secours__image' ).count(), 'l’image statique du département reste affichée' );
+	egal( 1, await page.locator( '.carte-secours__lien' ).count(), 'le chemin vers la liste textuelle reste offert' );
+	egal( 1, await page.locator( '.carte-secours__attribution' ).count(), 'l’attribution du fond reste rendue' );
+
+	// L'information de statut, elle, n'a jamais dépendu de la carte.
+	egal( 25, await page.locator( '#liste tbody tr' ).count(), 'les 25 statuts restent lisibles dans la liste, carte ou pas' );
+	egal( 1, await page.locator( '.bandeau-non-officialite' ).count(), '§5.6 : le bandeau de non-officialité est là' );
+
+	// Aucune requête de secours vers un domaine tiers n'est tentée quand la
+	// carte échoue. C'est le piège du contrat #9 I-9.2 : le cas dégradé, pas le
+	// cas nominal.
+	const tierces = [];
+	page.on( 'request', ( r ) => {
+		if ( new URL( r.url() ).origin !== ORIGINE ) {
+			tierces.push( r.url() );
+		}
+	} );
+	await page.reload( { waitUntil: 'load' } );
+	await page.waitForTimeout( 800 );
+	egal( [], tierces, 'contrat #9 I-9.2 : sur le chemin dégradé non plus, aucune origine tierce n’est contactée' );
+
+	await page.close();
+	await contexte.close();
+
+	// Second chemin : la métadonnée de fond est là, mais les tuiles manquent.
+	// `disponible === true` atteste les métadonnées, JAMAIS le fichier
+	// (contrat #9, interdit 8) : une tuile manquante doit se dégrader en trou
+	// visuel, jamais en erreur de page.
+	const sansTuiles = await navigateur.newContext();
+	await sansTuiles.route( '**/data/tuiles/**', ( route ) => route.fulfill( { status: 404, body: '' } ) );
+	const p2 = await sansTuiles.newPage();
+	const erreurs = [];
+	p2.on( 'pageerror', ( e ) => erreurs.push( e.message ) );
+	await p2.goto( BASE + '/', { waitUntil: 'load' } );
+	await p2.waitForSelector( '.carte--prete', { timeout: 15000 } ).catch( () => {} );
+
+	egal( 1, await p2.locator( '.carte--prete' ).count(), 'tuiles absentes : la carte se monte quand même' );
+	egal( 25, await p2.locator( '.carte__massif' ).count(), 'tuiles absentes : les 25 massifs restent tracés — le cœur du site tient' );
+	egal( [], erreurs, 'tuiles absentes : aucune erreur JavaScript non rattrapée' );
+	egal( 1, await p2.locator( '.carte-secours__attribution' ).count(), 'tuiles absentes : l’attribution reste rendue' );
+
+	await p2.close();
+	await sansTuiles.close();
+}
+
 /**
  * Journal du conteneur wordpress depuis un instant donné.
  *
@@ -2497,11 +3231,22 @@ async function s22_publicationPartielle( navigateur ) {
  * @return {string} Lignes du journal.
  */
 function journalConteneur( depuis ) {
-	return execFileSync(
+	// LES DEUX FLUX, et c'est le point.
+	//
+	// `docker compose logs` démultiplexe : ce que le conteneur a écrit sur sa
+	// sortie standard ressort sur la sortie standard du client, et ce qu'il a
+	// écrit sur son erreur standard ressort sur l'erreur standard du client. Or
+	// `error_log` d'Apache pointe sur `/dev/stderr` : lire le seul `stdout`
+	// d'`execFileSync` ne rendait que le journal d'ACCÈS, jamais un avertissement
+	// PHP. L'assertion qui suit était donc rouge quoi qu'il arrive — un rouge qui
+	// ne décrivait pas le serveur mais le harnais.
+	const sortie = spawnSync(
 		'docker',
 		[ 'compose', 'logs', '--since', depuis, 'wordpress' ],
 		{ cwd: RACINE, encoding: 'utf8', env: { ...process.env, MSYS_NO_PATHCONV: '1' } }
 	);
+
+	return `${ sortie.stdout ?? '' }\n${ sortie.stderr ?? '' }`;
 }
 
 /**
@@ -2630,8 +3375,12 @@ async function s23_ardoiseEtatInconnu( navigateur ) {
 			egal( 0, await page.locator( '#ardoise time' ).count(), `${ nom } : aucun <time> (fraicheur => false)` );
 			egal( 0, await page.locator( '#ardoise .ardoise__publication-partielle' ).count(), `${ nom } : aucune mention de publication partielle` );
 
-			// 5 — l'ancre d'évitement résout.
-			egal( 1, await page.locator( 'a[href="#liste"]' ).count(), `${ nom } : le lien d’évitement #liste est présent` );
+			// 5 — l'ancre d'évitement résout. DEUX liens la visent depuis la chaîne
+			// #9 : celui du `header` et celui du repli statique de la carte. Le
+			// contrat #9 §6 le dit explicitement — « deux liens de même nom vers la
+			// MÊME destination satisfont WCAG 2.4.4, et la redondance est utile ».
+			// Ce qui doit rester unique, c'est la CIBLE, affirmée juste après.
+			egal( 2, await page.locator( 'a[href="#liste"]' ).count(), `${ nom } : les deux chemins d’accès à la liste sont présents` );
 			egal( 1, await page.locator( '[id="liste"]' ).count(), `${ nom } : l’ancre #liste existe exactement une fois` );
 
 			// 6 — rien de la tuyauterie n'atteint le visiteur.
@@ -2702,6 +3451,8 @@ const SCENARIOS = [
 	[ 'gravatar', s21_aucuneFuiteGravatar ],
 	[ 'partielle', s22_publicationPartielle ],
 	[ 'etat-inconnu', s23_ardoiseEtatInconnu ],
+	[ 'carte', s24_carteInteractive ],
+	[ 'carte-degradee', s25_carteEnEchecEtSansTuiles ],
 ];
 
 const filtre = ( process.argv.find( ( a ) => a.startsWith( '--filtre=' ) ) ?? '' ).slice( 9 );

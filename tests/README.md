@@ -40,7 +40,7 @@ docker compose down        # ne rien laisser tourner
 | `tests/bootstrap.php` | assertions, purge d'état, fabriques de charges utiles, bouchons réseau |
 | `tests/scenarios/*.php` | un scénario par fichier, exécuté par `wp eval-file` dans le conteneur d'outillage |
 | `tests/outils/` | fichiers appelés par les scripts shell, hors de la boucle des scénarios |
-| `tests/rendu/etats.php` | fabrique d'états observables : place la base dans un état connu, puis rend la main. Modes : `absente`, `jour-nominal`, `veille-seule`, `jour-complet <autorises>`, `jour-partiel <renseignes> <autorises>`. Les deux derniers rapportent l'état **relu dans le domaine**, jamais celui que la fabrique a cru écrire |
+| `tests/rendu/etats.php` | fabrique d'états observables : place la base dans un état connu, puis rend la main. Modes : `absente`, `jour-nominal`, `veille-seule`, `jour-complet <autorises>`, `jour-partiel <renseignes> <autorises>`, `deux-jours`. Tous rapportent l'état **relu dans le domaine**, jamais celui que la fabrique a cru écrire. `deux-jours` publie aujourd'hui ET demain, avec des ensembles de massifs interdits **différents** : c'est le seul état où le sélecteur de date de la carte est réellement exerçable |
 | `tests/rendu/recette-rendu.mjs` | recette de rendu — un vrai navigateur charge le site réel en HTTP |
 | `tests/run.sh`, `tests/verifier-http.sh`, `tests/module-absent.sh` | orchestration depuis l'hôte |
 
@@ -95,6 +95,7 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 | `14-install-fraiche` | installation vierge : table créée, aucune erreur PHP, tout « indisponible » honnêtement | chaîne des données |
 | `20-cron-complet.arme` | enregistrement, planification horaire, filtre d'URL de bout en bout, hors-saison sans octet réseau, retrait à la désactivation | chaîne des données |
 | `21-rendu-etats-hors-saison` | les gabarits réels rendus hors saison, sur un jour futur, et avec une donnée de la veille en base | statut périmé, hors-saison |
+| **`22-api-publique-statuts`** | **issue #8** — le point d'accès `/wp-json/massifs/v1/statuts` interrogé **en HTTP réel et sans cookie** depuis le réseau de la stack : les douze clés de l'enveloppe présentes dans l'état le plus pauvre, les 25 massifs dans tous les états, `niveau`/`zapef` en `null` littéral, `par_niveau` encodé en **objet** et non en tableau, le bornage du paramètre `jour` (absent, vide, passé, au-delà de demain, malformé), `POST`/`PUT`/`PATCH`/`DELETE` et les deux contournements de méthode, l'ETag et son `304`, l'absence d'ETag sous `_fields`, l'invariance par cookie, et la veille en base qui ne remplit jamais la journée courante | API publique, statut périmé, chaîne des données |
 
 ### Les scénarios de rendu (`tests/rendu/recette-rendu.mjs`)
 
@@ -122,6 +123,8 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 | `arbre` | l'arbre d'accessibilité réellement construit par le moteur (CDP), **aux deux largeurs** : comptes stricts par rôle, noms accessibles des quatre en-têtes, et le sous-ensemble tabulaire identique à 320 px et à 900 px — `cell` excepté (63 / 75) | accessibilité |
 | `partielle` | **journée de publication partielle (issue #26)** : huit journées posées par la fabrique — trois complètes (X = 0, 1, 20) et cinq partielles (X/Y/Z couvrant 0, 1 et pluriel sur les **trois** axes d'accord) — dont le dénominateur affiché, la phrase de synthèse mot pour mot, la présence *et l'absence* du `<p class="ardoise__publication-partielle">`, sa position entre le `h1` et la ligne de fraîcheur, la concordance de la liste textuelle avec les chiffres du domaine, axe-core et 360 px sur une journée partielle | statut périmé, utilisable sans JS, accessibilité, mobile |
 | `gravatar` | aucune empreinte d'e-mail composée ni servie — anonymement, sous `admin` et sous `gestionnaire-demo`, sur `/`, `/wp-admin/`, `profile.php`, `users.php` et les deux routes REST du cœur — où `avatar_urls` / `author_avatar_urls` ont disparu de la charge utile **et du schéma** (`OPTIONS`) ; la coupe tient **même sous `force_display`**, donc imprenable par une valeur en base | zéro requête tierce, donnée personnelle |
+| **`carte`** | **issues #7 et #9** — la carte réellement montée dans un navigateur : `.carte--prete`, 25 tracés, repli statique retiré **après** montage et attribution OSM conservée, `attributionControl: false`, tuiles servies depuis notre origine et vérifiées **sur leur signature de fichier**, plafond de zoom 11 contre pyramide 12, bascule de jour (phrase de jour affichée, ensemble des polygones repeint, panneau daté du jour affiché, aucune persistance au rechargement), roving tabindex à **un seul** arrêt, `aria-label` composé de deux chaînes serveur, Entrée / Échap / retour du focus, et **le pas de hachure à l'écran mesuré à trois niveaux de zoom** (A-13) | zéro requête tierce, statut périmé, accessibilité |
+| **`carte-degradee`** | **issues #7 et #9, chemins d'échec** — Leaflet empêché de se charger : le repli statique **reste**, avec son image, son lien vers la liste et son attribution, la liste garde ses 25 statuts, et **aucune origine tierce n'est contactée sur le chemin dégradé** (le vrai piège de I-9.2). Puis tuiles renvoyées en 404 : la carte se monte quand même, les 25 massifs restent tracés, aucune erreur JavaScript | utilisable sans JS, zéro requête tierce |
 | `etat-inconnu` | **recette R-27 (issue #27)** : un `etat_global` hors des quatre bras du `match()` de l'ardoise, par ses **deux** déclencheurs — cinquième état, et clé retirée du tableau de synthèse. Page servie en 200, `h1` unique portant la phrase §11.3 mot pour mot avec son lien officiel **du même hôte que le bandeau**, aucun chiffre présenté, ancre `#liste` résolue, document fermé, aucune trace PHP dans le corps, et l'`Undefined array key` **au journal seulement** | statut périmé, utilisable sans JS, accessibilité |
 
 ### `etat-inconnu` — la seule sonde de la garde du `match()`
@@ -194,15 +197,28 @@ explicitement dans sa première jambe. Il **ne couvre pas** l'énumération d'ut
 `GET /wp-json/wp/v2/users`, qui reste ouverte : il asserte même que la route continue de lister les
 mêmes comptes, pour prouver qu'elle n'a pas été touchée. C'est une exigence distincte, du §9 du brief.
 
-Ne sont pas couverts non plus, faute d'exister : la carte et son repli statique sans JavaScript,
-la couche EFFIS, l'indicateur Météo-France, le point d'accès JSON public, les pages « La démarche »,
-« Accessibilité » et « Mentions légales », et **tout le portail** — écran de mise à jour, journal
-d'audit, limitation des tentatives de connexion, double authentification. Ces lignes du §12 ne sont
-déclarées couvertes nulle part.
+Ne sont pas couverts non plus, faute d'exister : la couche EFFIS, l'indicateur Météo-France, les
+pages « La démarche », « Accessibilité » et « Mentions légales », et **tout le portail** — écran de
+mise à jour, journal d'audit, limitation des tentatives de connexion, double authentification. Ces
+lignes du §12 ne sont déclarées couvertes nulle part.
+
+La carte, son fond auto-hébergé, son repli statique et le point d'accès JSON public sont, eux,
+couverts depuis le lot des issues #7, #8 et #9 — `carte`, `carte-degradee`, `sans-js` et
+`22-api-publique-statuts`. Ce qui, là-dedans, reste **hors de portée d'une recette automatisée** est
+énoncé plus bas.
 
 Enfin, l'horloge du domaine n'est pilotée par aucun filtre : « hors saison » et « demain non publié »
 sont donc éprouvés en demandant explicitement un jour aux gabarits (`21-rendu-etats-hors-saison`),
 jamais sur la page d'accueil servie, qui suit l'horloge réelle du conteneur.
+
+**Ce que la recette de la carte ne couvre pas.** Le scénario `carte` mesure le pas de hachure **à
+l'écran**, dérivé du rapport `viewBox / largeur du <svg>` : c'est ce que le moteur applique, ce n'est
+pas une lecture de pixels. Il n'observe ni la lisibilité réelle du motif, ni le contraste du fond
+monochrome sous un vrai écran. La **cible tactile ≥ 44 px** sur les polygones n'est pas éprouvée — le
+contrat #7 §9 écrit lui-même que la limite est assumée et que l'équivalent garanti est la liste
+textuelle. Le **rendu à l'impression du repli statique** n'est pas couvert : `print.css` masque
+`.bande--carte` entière et la couture C-1 du contrat #9 n'a pas de porteur. Enfin, la carte est
+éprouvée dans **Chromium seul** : ni Firefox, ni Safari, ni un vrai appareil tactile.
 
 Conséquence directe et **non couverte** : `front-page.php` appelle le domaine avec `null` (« aujourd'hui »)
 et n'accepte aucun jour. Les bras `hors_saison` et `non_encore_publie` de son `match()` sont donc
