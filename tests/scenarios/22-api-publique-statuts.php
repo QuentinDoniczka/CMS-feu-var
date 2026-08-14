@@ -307,7 +307,7 @@ do_action( 'rest_api_init', $serveur );
 $routes = $serveur->get_routes();
 $nôtres = array_values( array_filter( array_keys( $routes ), static fn( $r ) => str_starts_with( $r, '/massifs/' ) ) );
 sort( $nôtres );
-t_egal( array( '/massifs/v1', '/massifs/v1/statuts' ), $nôtres, 'l\'espace `massifs/v1` expose exactement deux entrées : son index et la route de lecture' );
+t_egal( array( '/massifs/v1', '/massifs/v1/statuts', '/massifs/v1/zones-parcourues-par-le-feu' ), $nôtres, 'l\'espace `massifs/v1` expose exactement trois entrées : son index, la route de lecture des statuts et celle des zones parcourues par le feu' );
 
 $methodes = array();
 foreach ( $routes['/massifs/v1/statuts'] as $definition ) {
