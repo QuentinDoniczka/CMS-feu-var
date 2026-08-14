@@ -342,6 +342,35 @@
   border-radius: var(--r-0);
 }
 
+/* SANS CETTE RÈGLE, AUCUN MASSIF N'EST PEINT — et le défaut est silencieux.
+
+   `layout.css` pose `img, svg { max-inline-size: 100% }`, le rappel responsive
+   standard, qui est sain et doit rester. Mais un pane Leaflet est
+   `position: absolute` SANS largeur déclarée : sa boîte fait 0 px. Le `<svg>`
+   du renderer, enfant de ce pane, se voit donc plafonné à 100 % DE ZÉRO et
+   s'écrase à 0 — ses <path> gardent leur géométrie et leur `fill`, mais le
+   viewport qui les porte n'a plus de surface. Mesuré : 25 `path.carte__massif`
+   présents, correctement placés, `fill: url(#carte-motif-interdit)` résolu, et
+   pas un pixel à l'écran.
+
+   Leaflet connaît le piège et livre la parade en propre — mais scopée à
+   `.leaflet-overlay-pane` (leaflet.css l. 48-51), son calque par défaut. Or
+   `carte.js` ne l'utilise pas : il crée `carte-repere` et `carte-massifs` sur
+   mesure pour que la trace passe SOUS le tracé (L-15, MASTER §3.2 emplacement
+   5), et `.leaflet-overlay-pane` reste vide. La parade ne s'applique jamais.
+
+   Le sélecteur vise `.leaflet-pane` et non nos deux classes : un troisième pane
+   ajouté demain retomberait autrement dans le même trou, en silence. Il ne peut
+   pas atteindre `.carte__defs`, qui n'est jamais enfant d'un pane — et que
+   `carte.js` retire du DOM après avoir déplacé son <defs> (l. 210-218).
+   `max-block-size` n'est pas neutralisé : rien ne le contraint.
+
+   Spécificité (0,2,1) contre (0,0,1) — préfixe `.carte`, pas !important (§8.3
+   avertissement 3 du contrat #7). */
+.carte .leaflet-pane > svg {
+  max-inline-size: none;
+}
+
 /* leaflet.css passe APRÈS : `.leaflet-container` (0,1,0) repeindrait la toile en
    #ddd. Le préfixe porte la règle à (0,2,0) — spécificité, pas !important. */
 .carte .carte__toile {

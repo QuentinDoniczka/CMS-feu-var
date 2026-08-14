@@ -3022,6 +3022,37 @@ async function s24_carteInteractive( navigateur ) {
 	egal( 25, await page.locator( '.carte__massif' ).count(), 'les 25 massifs sont tracés, un <path> par massif du référentiel' );
 	egal( total, await page.locator( '.carte__massif' ).count(), 'autant de tracés que de massifs au référentiel' );
 
+	// --- 1 bis. GÉOMÉTRIE RENDUE, pas seulement présence dans le DOM.
+	//
+	// Ces trois assertions existent parce qu'un défaut critique est passé sous
+	// 1233 assertions PHP et 697 de rendu : le <svg> des panes Leaflet était
+	// écrasé à une largeur de 0 par le `max-inline-size: 100%` de layout.css
+	// (un pane est `position: absolute` sans largeur, donc large de 0). Les 25
+	// <path> étaient dans le DOM, bien placés, avec leur `fill` résolu — et pas
+	// un pixel n'était peint.
+	//
+	// Une assertion de présence ne pouvait pas le voir ; la mesure du <svg> le
+	// voit. C'est la deuxième ci-dessous qui porte la garde — vérifié en
+	// neutralisant le correctif : elle est la SEULE des trois à rougir.
+	//
+	// La troisième passe dans les deux états, et c'est instructif plutôt
+	// qu'inutile : `getBoundingClientRect()` sur un <path> rend sa boîte
+	// GÉOMÉTRIQUE, que le viewport qui le porte ait une surface ou non. Elle
+	// garde contre un tracé dégénéré, jamais contre un viewport écrasé. Ne pas
+	// la prendre pour la sentinelle.
+	const geometrie = await page.evaluate( () => {
+		const panes = [ ...document.querySelectorAll( '.leaflet-pane' ) ]
+			.map( ( p ) => p.querySelector( ':scope > svg' ) )
+			.filter( Boolean )
+			.map( ( s ) => s.getBoundingClientRect().width );
+		const premier = document.querySelector( 'path.carte__massif' );
+		const boite = premier ? premier.getBoundingClientRect() : { width: 0, height: 0 };
+		return { panes, minPane: panes.length ? Math.min( ...panes ) : 0, massifL: boite.width, massifH: boite.height };
+	} );
+	assert( geometrie.panes.length >= 2, 'les deux panes sur mesure portent chacun un <svg> de renderer', '≥ 2 <svg>', `${ geometrie.panes.length }` );
+	assert( geometrie.minPane > 0, 'le <svg> de chaque pane a une largeur NON NULLE — sans quoi aucun massif n’est peint', '> 0 px', `${ geometrie.minPane } px` );
+	assert( geometrie.massifL > 0 && geometrie.massifH > 0, 'un tracé de massif occupe une surface réelle à l’écran', '> 0 × 0 px', `${ Math.round( geometrie.massifL ) } × ${ Math.round( geometrie.massifH ) } px` );
+
 	// --- 2. Contrat #9, F-2 : le repli ne part QU'APRÈS un montage réussi, et
 	//        l'attribution ne part JAMAIS (F-3, I-9.4).
 	egal( 0, await page.locator( '.carte-secours__repli' ).count(), 'contrat #9 F-2 : le repli statique est retiré après le montage' );
