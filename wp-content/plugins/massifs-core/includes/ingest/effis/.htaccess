@@ -1,0 +1,10 @@
+# Rien de ce répertoire n'est destiné au navigateur : ce sont les fichiers PHP du
+# module et son README. Les octets de la couche, eux, ne vivent pas ici — ils
+# vivent dans une option et sont servis par la route REST de même origine.
+<IfModule mod_authz_core.c>
+	Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+	Order allow,deny
+	Deny from all
+</IfModule>
