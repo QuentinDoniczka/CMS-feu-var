@@ -1,0 +1,16 @@
+# AUCUN BOUCHON DATÉ N'EST COMMITÉ, JAMAIS.
+#
+# Un `20260814.json` serait périmé le lendemain : la couche temporelle du
+# validateur ne récupère qu'aujourd'hui et demain, et un fichier daté d'hier
+# produirait un rejet permanent que personne ne relierait à ce répertoire.
+# Pire, un bouchon versionné finirait par être lu comme une source : c'est
+# exactement la déduction que `docs/decisions/portee-non-publiee.md` §3
+# interdit.
+#
+# Les bouchons se fabriquent à la demande — par un scénario de recette, ou à la
+# main — et se suppriment après usage.
+*.json
+
+# Ce fichier et le README, eux, sont commités : ce sont les seuls artefacts
+# durables de ce répertoire.
+!.gitignore
