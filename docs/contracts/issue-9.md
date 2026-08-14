@@ -219,7 +219,7 @@ faire appliquer moi-même** ; elles remontent à l'orchestrateur pour réconcili
 
 | # | Clause | Ce que sa violation casse |
 |---|---|---|
-| **F-1** | `carte.php` inclut `carte-secours.php` **sans aucune condition**, en **premier enfant** de `<section id="carte" class="bande bande--carte">` | §5.5 **en silence** : sans inclusion inconditionnelle, le repli disparaît dès que JS est actif, et `carte-secours.php` devient du code mort qu'un refacto supprimera. **À éprouver par un test nommé.** |
+| **F-1** | `carte-secours.php` est inclus **sans aucune condition** dans `<section id="carte" class="bande bande--carte">`. **Position amendée le 14 août 2026 — lire A-13 du §13 avant toute correction** : l'inclusion appartient à `front-page.php` et vient **après** `massifs_partie( 'carte' )`, et non en premier enfant. L'inconditionnalité, elle, est entière et c'est la moitié opposable de la clause | §5.5 **en silence** : sans inclusion inconditionnelle, le repli disparaît dès que JS est actif, et `carte-secours.php` devient du code mort qu'un refacto supprimera. **Éprouvé par un test nommé** : `tests/rendu/recette-rendu.mjs` l. 549-568. |
 | **F-2** | Le JS ne retire **que** `.carte-secours__repli`, et **seulement après montage réussi** — jamais sur un simple test de présence de Leaflet | Un retrait anticipé produit un trou blanc quand le montage échoue. |
 | **F-3** | `.carte-secours__attribution` n'est **jamais** retiré, jamais masqué, jamais dupliqué | Attribution orpheline ou doublée ; DoD §9 et licence ODbL. |
 | **F-4** | Leaflet est configuré **`attributionControl: false`** | Une seconde attribution, non maîtrisée, posée par la bibliothèque **sur la toile nue** — D-24. |
@@ -497,8 +497,10 @@ informé.
 
 ## 12. Ce que la revue doit regarder en premier
 
-1. **F-1 tenue ?** Sans inclusion inconditionnelle de `carte-secours.php` par `carte.php`, la DoD §5.5
-   tombe **en silence**. C'est le point de rupture le plus probable de tout le lot.
+1. **F-1 tenue ?** Sans inclusion inconditionnelle de `carte-secours.php`, la DoD §5.5 tombe **en
+   silence**. C'est le point de rupture le plus probable de tout le lot — **et il s'est effectivement
+   produit** : voir **A-13** au §13, qui amende la position de la clause et rappelle le correctif.
+   L'inclusion n'appartient plus à `carte.php` mais à `front-page.php`, **après** la carte.
 2. **`grep` de `wp_remote_`, `curl_`, `file_get_contents(` sur `includes/ingest/tuiles/**`** → doit rendre
    zéro, `build/recuperer.mjs` excepté (I-9.8).
 3. **`grep` de `22B14C`, `E63A3C`, `openstreetmap.org/{z}`, `tile.openstreetmap`** sur tout le lot → doit
@@ -566,8 +568,57 @@ remplacée par **1,125**. Cela ne change aucune règle : le §1.2 posait déjà 
 donnée de build et jamais une constante**, et c'est précisément ce qui a permis à l'erreur du contrat de
 rester sans conséquence. Troisième nombre erroné pour la même grandeur — le contrat inclus, cette fois.
 
+### A-13 — F-1 : l'inconditionnalité est tenue, la **position** est arbitrée en faveur de F-5 / I-9.6
+
+**Contexte.** Le §5 gelait F-1 en deux moitiés soudées : l'inclusion de `carte-secours.php` est
+**inconditionnelle**, et elle est **premier enfant** de la bande. La chaîne #7 livrée plaçait l'appel en
+dernière ligne de `templates/parts/carte.php`, donc **après** huit sorties anticipées de ce gabarit —
+trois gardes, référentiel vide, refus d'un jour par le domaine, libellés de jour, absence de tout massif
+libellé, échec de sérialisation de l'îlot. Une seule ressource vendorisée illisible suffisait à faire
+disparaître tout le repli. C'était très exactement le **risque n° 1 du §12.1**, réalisé.
+
+**Décision : l'appel sort de `carte.php` et vit dans `front-page.php`, immédiatement APRÈS
+`massifs_partie( 'carte' )`.** Corrigé sur la chaîne #7 (commit `6be9408`).
+
+**1. L'inconditionnalité est restaurée, entière.** C'est la propriété que le §12.1 nommait, et c'est
+elle que le correctif protège : plus aucun `return` du gabarit de carte n'est en mesure d'emporter le
+repli, puisque l'appel n'est plus dans ce fichier. `massifs_partie( 'carte-secours' )` n'apparaît
+**qu'une seule fois** dans tout le thème — l'unicité est structurelle, donc **F-3** ne peut plus être
+violée par une seconde inclusion défensive.
+
+**2. « Premier enfant » est abandonné, et ce n'est pas une facilité.** La lettre de F-1 et les clauses
+**F-5 / I-9.6** sont **réellement contradictoires** sous un point d'insertion unique : le repli ne peut
+pas être à la fois le premier enfant de la bande et rester **sous** la carte visible. Il fallait trancher,
+et c'est F-5 / I-9.6 qui l'emporte, pour une raison de fond — c'est la position dans le flux, et elle
+seule, qui satisfait **D-24** sans une seule règle CSS. La review l'a vérifié indépendamment :
+`.carte-secours` **ne porte aucune règle CSS dans tout le thème** et `.bande--carte` n'est ni `flex` ni
+`grid` ; l'ordre du document **est** l'ordre visuel. Placer l'appel en premier enfant pousserait
+l'attribution OpenStreetMap **au-dessus** de la carte, et casserait I-9.6 en silence.
+
+**3. Le porteur est `front-page.php`, et ce contrat l'avait déjà désigné.** La couture **C-1** (§10)
+nommait `front-page.php` comme voie (a) légitime pour sortir le repli des chemins de `.bande--carte`. Le
+legs réciproque du contrat #7 §6, qui écrivait que « la chaîne #9 n'a aucune raison d'écrire dans
+`front-page.php` », visait un monde où l'appel était dans le `<noscript>` de `carte.php` — monde supprimé
+par le fix `27e267c`. L'écriture est **chirurgicale**, une seule ligne, au titre de l'arbitrage A-0 du
+contrat #7.
+
+**4. L'arbitrage est verrouillé par un test, pas par ce paragraphe.**
+`tests/rendu/recette-rendu.mjs` l. 549-568 mesure la place réelle des deux nœuds par
+`compareDocumentPosition` et exige `memeParent: true, descendant: false, apres: true`. Déplacer l'appel
+**avant** `massifs_partie( 'carte' )` satisferait toujours « sans condition » **sans qu'aucune autre
+assertion ne bronche** — d'où ce contrôle direct de l'ordre du document. Un futur développeur qui
+« corrigerait » la position vers la lettre d'origine de F-1 fera **rougir ce test**.
+
+**Ce que A-13 ne change pas** : ni F-2, ni F-3, ni F-5, ni aucun invariant I-9.*. Le repli reste rendu
+par défaut hors de tout `<noscript>` (**I-9.1**), `carte.js` ne retire que `.carte-secours__repli` après
+montage réussi (**F-2**), et `.carte-secours__attribution` reste unique et debout dans tous les états
+(**F-3**). La couture **C-1** reste **ouverte** : le repli vit toujours dans `.bande--carte`, que
+`print.css` l. 98-103 masque à l'impression.
+
 ### Ce que cet avenant ne change pas
 
-Aucun invariant I-9.*, aucun interdit du §7, aucune clause F-*, aucun `OUVERT` du §9. `url_modele` reste
+Aucun invariant I-9.*, aucun interdit du §7, aucun `OUVERT` du §9. **Seule la clause F-1 est amendée**,
+et sur sa seule moitié de *position* — voir A-13 ; son exigence d'inconditionnalité est inchangée et
+désormais mieux tenue qu'au gel. `url_modele` reste
 une URL de **même origine** sans query string, la version reste un **segment de chemin**, et le repli
 sans JavaScript reste rendu par défaut hors de tout `<noscript>`.
