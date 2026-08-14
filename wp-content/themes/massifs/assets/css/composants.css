@@ -523,11 +523,21 @@
 
 /* MASTER §8.6 et §7.1 : le module est VISUELLEMENT ÉTRANGER au reste —
    encadrement en bordure fine, aucune ombre, aucun rayon, et AUCUNE COULEUR.
-   L'écart de traitement n'est pas une préférence : le danger météo a cinq
-   crans, l'accès au massif en a deux, et une échelle météo colorée posée à
-   côté d'une carte binaire serait lue comme la vraie granularité du dispositif
-   préfectoral (§2.1 dernière puce, §8.6, §16). Aucune pastille, aucune icône,
-   aucune teinte sémantique — ici par construction, pas par vigilance.
+   L'écart de traitement n'est pas une préférence : le danger météo est une
+   échelle GRADUÉE, l'accès au massif est BINAIRE, et une échelle météo colorée
+   posée à côté d'une carte binaire serait lue comme la vraie granularité du
+   dispositif préfectoral (§2.1 dernière puce, §8.6, §16). Aucune pastille,
+   aucune icône, aucune teinte sémantique — ici par construction, pas par
+   vigilance.
+
+   LA CARDINALITÉ DE L'ÉCHELLE N'EST PAS ÉCRITE ICI, ET NE DOIT PAS L'ÊTRE.
+   Elle n'est sourcée nulle part dans le dépôt : `MASTER.md` §8.6 et §11.2
+   l'affirment sans citation, et le même document portait en v1.0 une échelle
+   de statuts inventée, détruite en v2.0. L'extension REFUSE de la servir tant
+   qu'aucune source écrite ne la donne (`vocabulaire.config.php` l. 9-17) —
+   l'affirmer dans une feuille de style la ferait passer pour un fait acquis
+   auprès du prochain lecteur. Interdit 3 du §6 du contrat #10, qui vise
+   nommément les commentaires. L'argument ci-dessus tient entier sans nombre.
 
    AUCUN REPÈRE sur `.meteo__titre` : §3.2 emplacement n° 2, amendé en v2.3, ne
    vise plus que les `h2` EN PORTÉE de la famille d'affichage, et §16 fait d'un

@@ -313,17 +313,6 @@ a {
   color: var(--c-mistral-clair);
 }
 
-/* MASTER §8.3 : la péremption S'AJOUTE aux statuts, elle ne les remplace ni ne
-   les masque — le chiffre, le titre et la ligne de fraîcheur restent intacts
-   au-dessus d'elle. Elle se détache par le corps et par le poids, jamais par la
-   teinte : aucune couleur n'est posée ici, la phrase hérite du --c-calcaire du
-   chrome (12,66:1), comme le titre. Le sens est porté par son premier mot,
-   « Donnée périmée. », écrit par le gabarit — ni couleur, ni icône (§2.1).
-   Le bandeau d'alerte complet du §8.3 n'appartient pas à cette feuille. */
-.ardoise__peremption {
-  font-weight: var(--poids-texte-fort);
-}
-
 /* Barre haute et pied : ce sont des bandes pleine largeur (elles portent le
    chrome sombre) dont le contenu est bridé par une enveloppe intérieure, sur
    le même modèle que .bande__contenu. Sans elle, le nom du site se collait au
