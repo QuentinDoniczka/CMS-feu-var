@@ -527,6 +527,46 @@ async function s02_sansJavascript( navigateur ) {
 	const repli = page.locator( '#carte .carte-secours' );
 	egal( 1, await repli.count(), '§5.5 : le repli statique de la carte est rendu par PHP' );
 
+	// Contrat #9, F-3 : UNE seule attribution du fond, donc un seul repli. Depuis
+	// que `massifs_partie( 'carte-secours' )` est appelée par `front-page.php` et
+	// non plus par la dernière ligne de `parts/carte.php`, une seconde inclusion
+	// laissée par mégarde dans le gabarit de carte dupliquerait silencieusement le
+	// crédit OpenStreetMap sur le chemin NOMINAL — le seul où les deux appels
+	// s'exécuteraient tous les deux. Les comptes n'étaient affirmés que sur les
+	// chemins d'échec (scénarios 24 et 25) ; ils le sont maintenant ici aussi.
+	egal( 1, await page.locator( '.carte-secours__repli' ).count(), 'contrat #9 F-3 : le repli statique est rendu une fois et une seule sur le chemin nominal' );
+	egal( 1, await page.locator( '.carte-secours__attribution' ).count(), 'contrat #9 F-3 : l’attribution OSM n’est pas dupliquée sur le chemin nominal' );
+
+	// Contrat #9, F-5 et invariant I-9.6 : le repli est le FRÈRE de la racine
+	// `.carte`, jamais son descendant, et il vient APRÈS elle. Les deux moitiés
+	// comptent. Frère : un `racine.remove()` sur un chemin d'échec de `carte.js`
+	// n'emporterait pas le repli avec lui. Après : une fois `.carte-secours__repli`
+	// retiré par un montage réussi, l'attribution reste dans le flux SOUS la carte
+	// visible, ce qui tient I-9.6 et D-24 sans aucune règle CSS. Déplacer l'appel
+	// AVANT `massifs_partie( 'carte' )` satisferait toujours « sans condition »
+	// tout en cassant cet arbitrage sans qu'aucune autre assertion ne bronche —
+	// d'où ce contrôle direct de l'ordre du document.
+	const place = await page.evaluate( () => {
+		const carte = document.querySelector( '#carte .carte' );
+		const secours = document.querySelector( '#carte .carte-secours' );
+		if ( ! carte || ! secours ) {
+			return { carte: !! carte, secours: !! secours };
+		}
+		return {
+			carte: true,
+			secours: true,
+			memeParent: carte.parentElement === secours.parentElement,
+			descendant: carte.contains( secours ),
+			// Node.DOCUMENT_POSITION_FOLLOWING === 4 : `secours` suit `carte`.
+			apres: !! ( carte.compareDocumentPosition( secours ) & 4 ),
+		};
+	} );
+	egal(
+		{ carte: true, secours: true, memeParent: true, descendant: false, apres: true },
+		place,
+		'contrat #9 F-5 / I-9.6 : le repli est le frère de `.carte`, hors d’elle, et APRÈS elle dans le flux'
+	);
+
 	const image = page.locator( '#carte .carte-secours__image' );
 	egal( 1, await image.count(), '§5.5 : l’image statique du département est présente' );
 	egal( ORIGINE, new URL( await image.getAttribute( 'src' ) ).origin, 'l’image de repli est servie depuis notre origine' );
@@ -3221,6 +3261,93 @@ async function s25_carteEnEchecEtSansTuiles( navigateur ) {
 	await sansTuiles.close();
 }
 
+async function s26_gardeCartePhpNEmportePasLeRepli( navigateur ) {
+	scenario( '26 — une garde PHP de `parts/carte.php` n’emporte plus le repli (contrat #9, F-1)' );
+	poserEtat( 'jour-nominal' );
+
+	// Le cœur de la clause F-1, et le seul chemin qu’aucun autre scénario
+	// n’atteignait. Les scénarios 24 et 25 éprouvent le RUNTIME : la carte est
+	// rendue par PHP, puis JavaScript échoue. Ici, `parts/carte.php` sort par
+	// `return` AVANT d’écrire son premier octet — la carte n’existe pas du tout.
+	// C’est le cas où le repli était perdu jusqu’au correctif `6be9408`, parce
+	// que `massifs_partie( 'carte-secours' )` était la DERNIÈRE ligne du gabarit
+	// de carte et se trouvait donc derrière ses huit sorties anticipées.
+	//
+	// La garde choisie est la n° 3 (« ressources vendorisées ») : elle se déclenche
+	// sur un `file_exists()` du disque, elle est donc atteignable sans toucher ni
+	// à la base, ni à l’extension, ni au référentiel. Renommer leaflet.js ne
+	// simule rien — c’est exactement la panne que la garde décrit.
+	//
+	// À distinguer du scénario 13 : là-bas, l’extension est coupée, donc
+	// `massifs_attribution_fond_de_carte()` disparaît et `carte-secours.php`
+	// s’auto-annule sur sa garde d’attribution (I-9.4 : jamais d’image ODbL sans
+	// crédit). Son absence y est le comportement CONTRACTUEL. Ici l’extension
+	// tourne : l’attribution existe, donc le repli DOIT être rendu.
+	const vendor = path.join( RACINE, 'wp-content/themes/massifs/assets/vendor/leaflet/leaflet.js' );
+	const mise = `${ vendor }.recette-absente`;
+
+	if ( existsSync( mise ) ) {
+		renameSync( mise, vendor );
+	}
+
+	const contexte = await navigateur.newContext( { javaScriptEnabled: false } );
+	try {
+		renameSync( vendor, mise );
+		const page = await contexte.newPage();
+		const reponse = await page.goto( BASE + '/', { waitUntil: 'load' } );
+		const html = await page.content();
+
+		egal( 200, reponse.status(), 'la page publique reste servie sans Leaflet sur le disque' );
+		assert(
+			! /Fatal error|Warning:|Notice:/.test( html ),
+			'aucune erreur PHP n’atteint le visiteur',
+			'aucune',
+			( /(?:Fatal error|Warning:|Notice:)[^<\n]{0,120}/.exec( html ) ?? [ '' ] )[ 0 ]
+		);
+
+		// La garde a bien mordu : sans cela, tout ce qui suit passerait au vert
+		// pour la mauvaise raison, en éprouvant le chemin nominal.
+		egal( 0, await page.locator( '.carte' ).count(), 'garde 3 : la racine `.carte` n’est pas rendue du tout' );
+		egal( 0, await page.locator( 'script[src*="leaflet"]' ).count(), 'garde 3 : aucune URL vendorisée qui répondrait 404 n’est enfilée' );
+
+		// F-1 : le repli survit, en entier, une fois et une seule.
+		egal( 1, await page.locator( '#carte .carte-secours' ).count(), 'contrat #9 F-1 : le repli est rendu malgré la sortie anticipée du gabarit de carte' );
+		egal( 1, await page.locator( '.carte-secours__repli' ).count(), 'contrat #9 F-1 : l’image de repli survit à la garde' );
+		egal( 1, await page.locator( '.carte-secours__attribution' ).count(), 'contrat #9 F-3 : l’attribution OSM survit à la garde, sans duplication' );
+		egal( 1, await page.locator( '.carte-secours__lien' ).count(), 'le chemin vers la liste textuelle reste offert' );
+		egal( 0, await page.locator( 'noscript' ).count(), 'contrat #9 I-9.1 : toujours aucun <noscript>' );
+
+		// I-9.9 : la bande garde un enfant, donc ses deux filets ne se touchent
+		// pas. Observé sur la géométrie réelle, pas sur la feuille de style.
+		const hauteur = await page.locator( '#carte' ).evaluate( ( s ) => s.getBoundingClientRect().height );
+		assert(
+			hauteur > 100,
+			'contrat #9 I-9.9 : la bande carte n’est pas réduite à deux filets accolés',
+			'hauteur > 100 px',
+			`${ Math.round( hauteur ) } px`
+		);
+
+		// L’information de statut n’a jamais dépendu de la carte.
+		egal( 25, await page.locator( '#liste tbody tr' ).count(), 'les 25 statuts restent lisibles sans la carte' );
+		egal( 1, await page.locator( '.bandeau-non-officialite' ).count(), '§5.6 : le bandeau de non-officialité est là' );
+
+		await page.close();
+	} finally {
+		if ( existsSync( mise ) ) {
+			renameSync( mise, vendor );
+		}
+		await contexte.close();
+	}
+
+	const verif = await navigateur.newContext();
+	const p = await verif.newPage();
+	await p.goto( BASE + '/', { waitUntil: 'load' } );
+	await p.waitForSelector( '.carte--prete', { timeout: 15000 } ).catch( () => {} );
+	egal( 1, await p.locator( '.carte--prete' ).count(), 'remise en état : leaflet.js est de retour et la carte se monte' );
+	egal( 1, await p.locator( '.carte-secours__attribution' ).count(), 'remise en état : une seule attribution, comme sur le chemin nominal' );
+	await verif.close();
+}
+
 /**
  * Journal du conteneur wordpress depuis un instant donné.
  *
@@ -3240,13 +3367,60 @@ function journalConteneur( depuis ) {
 	// d'`execFileSync` ne rendait que le journal d'ACCÈS, jamais un avertissement
 	// PHP. L'assertion qui suit était donc rouge quoi qu'il arrive — un rouge qui
 	// ne décrivait pas le serveur mais le harnais.
+	// `maxBuffer` EXPLICITE, et c'est le second point.
+	//
+	// La valeur par défaut de `spawnSync` est 1 Mio. Au-delà, Node TRONQUE la
+	// sortie et se contente de poser `result.error = ENOBUFS` — que ce harnais
+	// ignorait. Le journal rendu était alors le PRÉFIXE le plus ANCIEN de la
+	// fenêtre, jamais les lignes que l'appelant vient de provoquer : l'assertion
+	// devenait rouge sans que rien ne soit cassé côté serveur, dès que la stack
+	// avait assez tourné pour écrire 1 Mio de journal d'accès. Défaut du harnais,
+	// à retardement, et invisible — exactement ce qu'un rouge ne doit pas être.
+	//
+	// 256 Mio est hors d'atteinte pour une fenêtre de quelques secondes ; si la
+	// troncature survenait malgré tout, le `ko()` ci-dessous la NOMME au lieu de
+	// la laisser se déguiser en absence de l'avertissement attendu.
 	const sortie = spawnSync(
 		'docker',
 		[ 'compose', 'logs', '--since', depuis, 'wordpress' ],
-		{ cwd: RACINE, encoding: 'utf8', env: { ...process.env, MSYS_NO_PATHCONV: '1' } }
+		{
+			cwd: RACINE,
+			encoding: 'utf8',
+			maxBuffer: 256 * 1024 * 1024,
+			env: { ...process.env, MSYS_NO_PATHCONV: '1' },
+		}
 	);
 
+	if ( sortie.error ) {
+		ko(
+			'journal du conteneur : lecture incomplète',
+			'sortie complète de `docker compose logs`',
+			`${ sortie.error.code ?? '' } ${ sortie.error.message ?? '' }`.trim()
+		);
+	}
+
 	return `${ sortie.stdout ?? '' }\n${ sortie.stderr ?? '' }`;
+}
+
+/**
+ * Horodatage RFC 3339 **en UTC**, accepté sans ambiguïté par `--since`.
+ *
+ * `toISOString().slice( 0, 19 )` amputait le `Z` final. Privé de fuseau, Docker
+ * lit l'horodatage dans le fuseau LOCAL du client : sur une machine à UTC+2, la
+ * fenêtre demandée s'ouvrait deux heures trop tôt et ramenait des dizaines de
+ * milliers de lignes au lieu de quelques dizaines. Conjugué au `maxBuffer` par
+ * défaut ci-dessus, c'est ce qui faisait lire un journal vieux de deux heures.
+ *
+ * La marge de sécurité couvre la dérive d'horloge entre l'hôte et le démon ; elle
+ * reste très inférieure à l'intervalle entre deux exécutions du scénario, donc
+ * elle ne peut pas faire passer pour neuf un avertissement d'une exécution
+ * précédente.
+ *
+ * @param {number} margeSecondes Recul appliqué à l'instant courant.
+ * @return {string} Horodatage UTC, `Z` compris.
+ */
+function instantJournal( margeSecondes = 5 ) {
+	return new Date( Date.now() - margeSecondes * 1000 ).toISOString();
 }
 
 /**
@@ -3329,7 +3503,28 @@ async function s23_ardoiseEtatInconnu( navigateur ) {
 				ko( `${ nom } : point d’injection introuvable`, ANCRE, 'absent de front-page.php' );
 				return;
 			}
-			const depuis = new Date().toISOString().slice( 0, 19 );
+			// BARRIÈRE MONTANTE, avant chaque cas — sans elle, le cas 2 ne
+			// s'observe pas lui-même.
+			//
+			// `attendreRechargement( false )` attend la DISPARITION du chiffre. Le
+			// cas 1 l'a déjà fait disparaître : au cas 2, la condition est vraie dès
+			// la première requête, la fonction rend `true` immédiatement, et la
+			// barrière ne barre plus rien. Avec `opcache.revalidate_freq=2`, le
+			// serveur sert alors encore le bytecode du CAS 1 — dont le rendu est
+			// exactement le même (« information non disponible »), si bien que les
+			// quinze assertions du cas 2 passent au vert en éprouvant le cas 1.
+			// Seule l'assertion du journal distingue les deux : elle attend
+			// « Undefined array key », que le cinquième état du cas 1 ne produit
+			// pas. Le rouge décrivait donc un vrai trou de la recette — dans la
+			// recette, pas dans le serveur : mesuré ci-contre, le gabarit injecté
+			// à la main émet bien l'avertissement.
+			//
+			// On repasse donc par le gabarit d'origine et on attend le RETOUR du
+			// chiffre : chaque cas part d'un front franc et observe son propre code.
+			writeFileSync( gabarit, origine );
+			assert( await attendreRechargement( true ), `${ nom } : le gabarit d’origine est resservi avant injection`, 'chiffre nominal resservi', 'le chiffre nominal n’est pas revenu après 6 s' );
+
+			const depuis = instantJournal();
 			writeFileSync( gabarit, texte.replace( ANCRE, `${ ANCRE }\n\t${ injection }` ) );
 			assert( await attendreRechargement( false ), `${ nom } : l’injection est prise en compte par le serveur`, 'gabarit rechargé', 'le chiffre nominal est encore servi après 6 s' );
 
@@ -3453,6 +3648,7 @@ const SCENARIOS = [
 	[ 'etat-inconnu', s23_ardoiseEtatInconnu ],
 	[ 'carte', s24_carteInteractive ],
 	[ 'carte-degradee', s25_carteEnEchecEtSansTuiles ],
+	[ 'carte-garde', s26_gardeCartePhpNEmportePasLeRepli ],
 ];
 
 const filtre = ( process.argv.find( ( a ) => a.startsWith( '--filtre=' ) ) ?? '' ).slice( 9 );
