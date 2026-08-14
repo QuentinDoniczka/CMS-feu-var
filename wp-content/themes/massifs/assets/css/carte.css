@@ -517,11 +517,14 @@
    est en REM, donc il bascule aussi au zoom — à 200 %, une fenêtre de 1440 px
    repasse en feuille du bas sans perte de contenu (WCAG 1.4.4).
    CONDITIONNÉE À `.carte--prete` (sortie n° 2 de l'avertissement 1) : sans JS,
-   la barre, la toile et le panneau restent `hidden` et la bande ne contient que
-   l'image de repli du <noscript> — une colonne de 380 px réservée y serait un
-   vide de mise en page. La colonne, elle, est réservée EN PERMANENCE dès que la
-   carte est vivante, panneau ouvert ou non : la largeur de la toile ne change
-   jamais à l'ouverture, donc aucun `invalidateSize()` n'est requis du JS.
+   la barre, la toile et le panneau restent `hidden`, la racine ne montre que sa
+   surface d'attente, et le seul contenu réel de la bande est le repli statique
+   rendu par PHP (`.carte-secours`, FRÈRE de la racine et non son descendant),
+   servi par défaut dans le HTML et hors de tout <noscript> (I-9.1) — une
+   colonne de 380 px réservée y serait un vide de mise en page. La colonne, elle,
+   est réservée EN PERMANENCE dès que la carte est vivante, panneau ouvert ou
+   non : la largeur de la toile ne change jamais à l'ouverture, donc aucun
+   `invalidateSize()` n'est requis du JS.
    Toutes les colonnes sauf le panneau vont en colonne 1 et s'empilent par
    placement automatique ; seules la toile et le panneau sont épinglés à la
    ligne 2, ce qui les met côte à côte quel que soit le nombre d'attributions

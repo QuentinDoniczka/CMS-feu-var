@@ -6,8 +6,10 @@
  * panneau massif et un îlot JSON à DEUX JOURS que `assets/js/carte/carte.js`
  * lit une seule fois. La carte est un ENRICHISSEMENT : la liste textuelle du
  * jour, rendue par `parts/liste-statuts.php`, reste l'équivalent garanti (§5.3
- * du brief), et `parts/carte-secours.php` est rendue SANS CONDITION à côté de
- * la racine `.carte` — jamais dans un `<noscript>` (contrat #9, F-1, I-9.1).
+ * du brief), et `parts/carte-secours.php` est APPELÉE SANS CONDITION par
+ * `front-page.php`, juste après ce gabarit et à côté de la racine `.carte` —
+ * jamais dans un `<noscript>` (contrat #9, F-1, I-9.1). Elle n'est donc pas
+ * emportée par les `return` des gardes ci-dessous.
  *
  * Aucune règle métier ici : le jour, la saison, l'état, la sévérité et le
  * formatage des dates viennent des fonctions de lecture de l'extension. Aucune
@@ -42,11 +44,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 // apparaître un filet 4 px en haut et un filet 2 px en bas ; sans contenu entre
 // eux, ils se touchent et dessinent un trait noir au milieu de la page.
 //
-// Ce retour emporte aussi le repli de la chaîne #9, rendu en fin de fichier :
-// la bande est alors entièrement vide et ses filets ne s'allument pas. C'est le
-// seul écart subsistant à la LETTRE de la clause F-1 (« sans aucune
-// condition ») ; le combler par une seconde inclusion en tête de fichier
-// dupliquerait l'attribution du fond, ce que F-3 interdit.
+// Ce retour n'emporte PAS le repli de la chaîne #9 : il est appelé par
+// `front-page.php`, hors de portée de tout `return` d'ici. La bande garde donc
+// un enfant — ses filets s'allument autour de l'image statique — et la clause
+// F-1 est tenue sur les HUIT sorties anticipées de ce gabarit, toutes
+// antérieures au premier octet de balisage : les trois gardes ci-dessous, le
+// référentiel vide, le refus d'un jour par le domaine, les libellés de jour,
+// l'absence de tout massif libellé et l'échec de sérialisation de l'îlot. Une
+// seconde inclusion ici dupliquerait l'attribution du fond, ce que F-3 interdit.
 if ( ! function_exists( 'massifs_referentiel' )
 	|| ! function_exists( 'massifs_jour_courant' )
 	|| ! function_exists( 'massifs_jour_suivant' )
@@ -79,9 +84,9 @@ if ( true !== $geometrie['disponible'] || null === $emprise['bbox'] ) {
 // ═══ Garde 3 — ressources vendorisées ════════════════════════════════════
 //
 // Sans Leaflet ni `carte.js` sur le disque, le balisage resterait masqué pour
-// toujours (la barre et la toile sont démasquées par le JS) et la bande
-// n'afficherait que ses deux filets accolés. On rend donc zéro octet plutôt
-// qu'un trait noir, et on n'enfile jamais une URL qui répondrait 404.
+// toujours (la barre et la toile sont démasquées par le JS). On rend donc zéro
+// octet plutôt qu'une racine invisible, et on n'enfile jamais une URL qui
+// répondrait 404 ; la bande dégrade sur le repli rendu par `front-page.php`.
 $chemins_assets = array(
 	'leaflet_css' => 'assets/vendor/leaflet/leaflet.css',
 	'leaflet_js'  => 'assets/vendor/leaflet/leaflet.js',
@@ -768,27 +773,22 @@ $demain_publie = 'disponible' === $message_suivant['etat'];
 </div>
 <?php
 /*
- * Repli de la chaîne #9, rendu SANS AUCUNE CONDITION et jamais dans un
- * `<noscript>` (contrat #9, clause F-1 et invariant I-9.1). Il couvre les TROIS
- * états, et non le seul « JS désactivé » : JavaScript absent, montage réussi,
- * montage en échec. `carte.js` ne retire que `.carte-secours__repli`, et
- * seulement après un montage réussi (F-2) ; `.carte-secours__attribution`, qui
- * en est le FRÈRE et non le descendant, reste donc debout par construction
- * plutôt que par vigilance (F-3), et porte SEULE l'attribution du fond de carte
- * dans tous les états.
+ * Le repli de la chaîne #9 n'est PAS rendu ici : `front-page.php` l. 385
+ * l'appelle juste après `massifs_partie( 'carte' )`, donc hors de portée des
+ * HUIT `return` de ce gabarit — c'est ce qui tient la clause F-1 sur TOUS les
+ * chemins de sortie, y compris ceux où la carte ne rend pas un octet.
  *
- * Placé APRÈS `</div>` : frère de la racine `.carte`, jamais son descendant.
- * Deux propriétés en dépendent. Une fois le repli retiré, l'attribution reste
- * dans le flux SOUS la carte, ce qui satisfait I-9.6 et D-24 sans une règle CSS
- * (F-5). Et un `racine.remove()` sur un chemin d'échec de `carte.js` ne
- * l'emporte plus avec lui : la bande dégrade vers l'image statique au lieu de
- * disparaître, tout en gardant un enfant sous le `:has(*)` de `layout.css`.
+ * L'appel est donc inconditionnel, comme F-1 l'exige, mais il n'est PAS le
+ * premier enfant de la bande, contrairement à la lettre de la même clause :
+ * l'ordre est arbitré en faveur de F-5 et de I-9.6, pour la raison qui suit.
  *
- * La partie appartient à la chaîne #9 et peut ne pas exister :
- * `massifs_partie()` dégrade alors en commentaire HTML, invisible.
+ * Ce qui reste vrai depuis cette place : le repli est le FRÈRE de la racine
+ * `.carte` et jamais son descendant, donc un `racine.remove()` sur un chemin
+ * d'échec de `carte.js` ne l'emporte pas ; et il vient APRÈS la racine, donc
+ * `.carte-secours__attribution` reste dans le flux SOUS la carte, ce qui
+ * satisfait I-9.6 et D-24 sans une règle CSS (F-5).
  *
- * Couture C-1 du contrat #9, non résolue ici : ce repli vit toujours dans
+ * Couture C-1 du contrat #9, toujours non résolue : le repli vit dans
  * `.bande--carte`, que `print.css` l. 98-103 masque à l'impression.
  */
 ?>
-<?php massifs_partie( 'carte-secours' ); ?>
