@@ -9,7 +9,7 @@
 # (voir docker-compose.yml).
 FROM wordpress:php8.3-apache
 
-RUN a2enmod proxy proxy_http deflate
+RUN a2enmod proxy proxy_http deflate headers
 
 COPY tiles-proxy.conf /etc/apache2/conf-enabled/tiles-proxy.conf
 COPY deflate.conf /etc/apache2/conf-enabled/massifs-deflate.conf
