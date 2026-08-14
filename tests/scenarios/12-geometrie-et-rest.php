@@ -80,7 +80,7 @@ do_action( 'rest_api_init', $serveur );
 $routes = array_keys( $serveur->get_routes() );
 $nôtres = array_values( array_filter( $routes, static fn( $r ) => str_contains( $r, 'massifs' ) ) );
 sort( $nôtres );
-t_egal( array( '/massifs/v1', '/massifs/v1/statuts' ), $nôtres, 'la surface REST « massifs » est exactement l\'index d\'espace de noms et la route de lecture (contrat #8, I-11)' );
+t_egal( array( '/massifs/v1', '/massifs/v1/statuts', '/massifs/v1/zones-parcourues-par-le-feu' ), $nôtres, 'la surface REST « massifs » est exactement l\'index d\'espace de noms, la route de lecture des statuts et celle des zones parcourues par le feu (contrat #8, I-11)' );
 t_note( 'espaces de noms REST exposés : ' . implode( ', ', $serveur->get_namespaces() ) );
 
 // L'EXTENSION n'enfile aucun asset navigateur.

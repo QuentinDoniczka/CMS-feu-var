@@ -27,6 +27,13 @@ $massifs_api = function_exists( 'massifs_codes' )
 	&& function_exists( 'massifs_horodatage' )
 	&& function_exists( 'massifs_attribution_statuts' );
 
+// `$massifs_peremption` SURVIT à l'affichage qu'elle conditionnait. La mention
+// « Donnée périmée. » a quitté l'ardoise pour le bandeau de péremption, qui lit
+// la fraîcheur lui-même — cette variable ne pilote donc plus aucun rendu.
+// Elle reste parce qu'elle est l'ANCRE d'injection de `tests/rendu/recette-rendu.mjs`
+// (scénario 23) : la ligne qui l'affecte est réécrite à la volée pour forcer un
+// état de péremption sans toucher aux données. La retirer casserait cette
+// recette sans rien gagner.
 $massifs_peremption = false;
 
 if ( $massifs_api ) {
@@ -354,18 +361,21 @@ get_template_part( 'templates/header' );
 						}
 					}
 
-					// La péremption AJOUTE une phrase. Elle ne masque, ne remplace et
-					// ne conditionne rien : le chiffre, le titre et la ligne de
-					// fraîcheur restent identiques.
-					if ( $massifs_peremption ) :
-						?>
-						<p class="ardoise__peremption">Donnée périmée.</p>
-						<?php
-					endif;
+					// La mention de péremption N'EST PLUS rendue ici. Elle appartient
+					// désormais au bandeau de péremption posé plus bas, seul endroit du
+					// gabarit où elle paraît. La rendre aux deux endroits l'affichait
+					// deux fois à moins de 100 px d'écart.
 					?>
 				</div>
 			</div>
 		</section>
+
+		<?php
+		// Bandeau de péremption (chaîne #12). PAS de `.bande__contenu` : mesuré,
+		// il injecterait ~96 px de vide au-dessus de la carte TOUS les jours
+		// nominaux, c'est-à-dire les jours où la partie ne rend rien.
+		?>
+		<div class="bande bande--peremption"><?php massifs_partie( 'bandeau-peremption' ); ?></div>
 
 		<section id="non-officialite" class="bande bande--non-officialite">
 			<div class="bande__contenu">
@@ -409,14 +419,24 @@ get_template_part( 'templates/header' );
 		</div>
 
 		<?php
-		// Bande « Danger météo du jour » (MASTER.md §8.6) — non émise : elle
-		// appartient à la chaîne « meteo ». Une <section> portant un h2 et rien
-		// dedans est un landmark vide, donc un défaut d'accessibilité, pas un
-		// emplacement réservé. Elle s'insérera ici, entre #liste et le pied.
+		// Les deux bandes ci-dessous sont émises dans l'ordre du §7.1 : DANGER
+		// MÉTÉO avant ZONES PARCOURUES.
 		//
-		// Bande « Zones parcourues par le feu » (MASTER.md §7.1) — non émise :
-		// elle appartient à la chaîne « effis », même raison, même place.
+		// Leurs deux formes DIFFÈRENT, et c'est voulu. `meteo` a besoin de son
+		// enveloppe `bande` / `bande__contenu` ; `panneau-feu` est auto-portant
+		// et émet lui-même son <div class="bande bande--zones-parcourues">.
+		// L'envelopper une seconde fois casserait la mise en page.
+		//
+		// Aucun `$args` ni dans un cas ni dans l'autre : `massifs_partie()` n'en
+		// transmet pas, et les valeurs par défaut des deux parties suffisent.
 		?>
+		<div class="bande bande--meteo">
+			<div class="bande__contenu">
+				<?php massifs_partie( 'meteo' ); ?>
+			</div>
+		</div>
+
+		<?php massifs_partie( 'panneau-feu' ); ?>
 
 <?php
 get_template_part( 'templates/footer' );

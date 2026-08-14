@@ -815,7 +815,12 @@ async function s04_statutPerimeJamaisCourant( navigateur ) {
 		assert( ! etats.includes( 'disponible' ), 'aucun massif n’est « disponible » dans l’îlot le jour où la donnée manque', 'aucun disponible', etats.join( ', ' ) );
 	}
 
-	egal( 1, await page.locator( '.ardoise__peremption' ).count(), 'la mention de péremption est ajoutée, sans masquer quoi que ce soit' );
+	// La mention de péremption a QUITTÉ l'ardoise pour le bandeau dédié. Les deux
+	// assertions ci-dessous sont indissociables : la première prouve qu'elle est
+	// toujours rendue, la seconde qu'elle ne l'est plus deux fois. Supprimer l'une
+	// des deux rouvrirait exactement le défaut que cette jonction referme.
+	egal( 1, await page.locator( '.bandeau-alerte--peremption' ).count(), 'la mention de péremption est rendue une fois, par le bandeau dédié' );
+	egal( 0, await page.locator( '.ardoise__peremption' ).count(), 'elle n’est plus rendue une seconde fois par l’ardoise' );
 
 	await contexte.close();
 }

@@ -6,6 +6,13 @@
  * légende, bandeau d'alerte, et reconstruction des motifs sous couleurs
  * forcées.
  *
+ * Y vivent aussi, depuis la passe de lot #10/#11, les deux modules QUI NE SONT
+ * PAS DES STATUTS — « Danger météo du jour » (§10 bis) et « Zones parcourues
+ * par le feu » (§10 ter). Ils sont ici parce que ce sont des composants, et
+ * pour aucune autre raison : ils n'empruntent aucune classe des familles
+ * `statut` / `pastille` / `jalon`, ne portent aucun aplat officiel, aucune
+ * couleur sémantique et aucun repère.
+ *
  * Dépend de assets/css/tokens.css (poignée « massifs-tokens », chaîne #4).
  *
  * Règles de fabrication, vérifiables :
@@ -23,10 +30,16 @@
  *
  * PROPRIÉTÉ DES SÉLECTEURS (invariant I-1 du contrat #22, opposable aux
  * chaînes suivantes) : ce fichier est le SEUL à porter `.statut*`,
- * `.pastille*`, `.jalon*`, `.liste-statuts*`, `.legende*` et `.bandeau-alerte*`.
+ * `.pastille*`, `.jalon*`, `.liste-statuts*`, `.legende*`, `.bandeau-alerte*`,
+ * `.meteo*` et `.zones-parcourues*`.
  * `layout.css` n'en porte aucun et ne doit jamais en porter : l'arbre de
  * travail est partagé et la disjonction des empreintes est la seule protection
  * contre l'écrasement mutuel.
+ * La réciproque tient et borne cette passe : `.bande`, `.bande__contenu` et
+ * TOUS les modificateurs `.bande--*` appartiennent à `layout.css`, qui porte
+ * déjà `.bande--carte`, `.bande--non-officialite` et `.bande--ardoise`.
+ * `.bande--meteo`, `.bande--zones-parcourues` et `.bande--peremption` n'ont
+ * donc AUCUNE règle ici — ce n'est pas un oubli, c'est la frontière.
  *
  * Licence : GPL v2 or later.
  */
@@ -503,6 +516,204 @@
   border-block-end: var(--bord-fort);
   padding-block: var(--esp-m);
   padding-inline-end: var(--esp-m);
+}
+
+
+/* ═══ 10 bis. Module « Danger météo du jour » ════════════════════════════ */
+
+/* MASTER §8.6 et §7.1 : le module est VISUELLEMENT ÉTRANGER au reste —
+   encadrement en bordure fine, aucune ombre, aucun rayon, et AUCUNE COULEUR.
+   L'écart de traitement n'est pas une préférence : le danger météo a cinq
+   crans, l'accès au massif en a deux, et une échelle météo colorée posée à
+   côté d'une carte binaire serait lue comme la vraie granularité du dispositif
+   préfectoral (§2.1 dernière puce, §8.6, §16). Aucune pastille, aucune icône,
+   aucune teinte sémantique — ici par construction, pas par vigilance.
+
+   AUCUN REPÈRE sur `.meteo__titre` : §3.2 emplacement n° 2, amendé en v2.3, ne
+   vise plus que les `h2` EN PORTÉE de la famille d'affichage, et §16 fait d'un
+   repère hors portée un défaut bloquant. Le repère est la signature de
+   l'information de statut ; ce module n'en est pas une.
+
+   Crochets consommés : les DOUZE du contrat #10 §4.6, liste FERMÉE. Aucune
+   classe n'est ajoutée en aval, aucune n'est inventée. Trois d'entre eux —
+   `.meteo__carre`, `.meteo__crans`, `.meteo__indisponible` — ne reçoivent
+   volontairement aucune règle : la base de `layout.css` les rend déjà juste et
+   MASTER ne leur prescrit rien.
+
+   `--bord-fin` est ici un ENCADREMENT NON INFORMATIF, jamais une bordure
+   porteuse de sens (§4.2, ligne --c-poussiere) : le module est identifié par
+   son titre, pas par son cadre. C'est aussi le seul emploi que §7.1 lui
+   accorde — « bordure fine », mot pour mot. */
+.meteo {
+  border: var(--bord-fin);
+  padding: var(--esp-m);
+}
+
+/* Rythme interne. Les enfants sont remis à `margin-block: 0` par le :where()
+   de layout.css l. 130-132, et le rythme de `.bande__contenu` ne vise que ses
+   ENFANTS DIRECTS — c'est-à-dire `.meteo` seule. Sans cette règle, les six
+   paragraphes du module se toucheraient. Même idiome que `.legende`, d'un cran
+   plus serré : un module secondaire de bas de page n'a pas le rythme d'une
+   bande. */
+.meteo > * + * {
+  margin-block-start: var(--esp-s);
+}
+
+/* IMPÉRATIF, et c'est la raison d'être de cette passe sur le module (contrat
+   #10 J-2). La borne (b) du §5.1 fait de la famille d'AFFICHAGE le défaut
+   NORMATIF du sélecteur nu `h1, h2, h3` (layout.css l. 90-96). Or §5.1 confine
+   cette famille à trois zones — ardoise, légende de la carte, titres de statut
+   — et le danger météo n'est AUCUNE des trois : §4.3 du brief et §8.6
+   l'opposent frontalement au statut. Sans cette ligne, le titre est un défaut
+   §16, « famille d'affichage employée hors des trois zones en portée ».
+   Le corps (--fs-600), le poids (--poids-titre) et l'approche (--ls-titre)
+   NE SONT PAS touchés : §5.1 les attache au NIVEAU de titre, pas à la famille,
+   et §7.3 — la seule prescription de MASTER sur un `h2` hors portée — ne parle
+   que de famille, de casse et de repère. Les surcharger serait inventer. */
+.meteo__titre {
+  font-family: var(--police-texte);
+}
+
+/* L'échelle et son libellé sur une même ligne, qui se replie. Le libellé
+   officiel est TOUJOURS présent à côté des carrés (garde de sens du gabarit,
+   meteo.php l. 154-160) : le sens n'est jamais porté par le seul dessin. */
+.meteo__echelle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-xs);
+}
+
+/* Le SVG ne rétrécit jamais : sa géométrie vit dans ses attributs (width,
+   height, viewBox, x, y, stroke-width) et le module doit rester lisible sans
+   une ligne de CSS. `flex: 0 0 auto` empêche un libellé long de l'écraser —
+   même raisonnement que `.statut__marque`. Aucune dimension n'est posée ici,
+   et il ne faut jamais en poser : déplacer la géométrie vers la feuille rendrait
+   le module dépendant d'elle, ce qui serait une régression. */
+.meteo__carres {
+  flex: 0 0 auto;
+}
+
+/* MASTER §8.6, la seule peinture du module : pleins en --c-charbon, vides en
+   liseré --c-garrigue. `fill` et `stroke` surchargent les attributs de
+   présentation `currentColor` du gabarit — c'est de la PEINTURE, jamais de la
+   géométrie : `stroke-width="1.5"` reste dans le SVG et n'est pas repris ici.
+   La distinction plein / vide est une FORME (aplat contre contour), pas une
+   teinte : elle survit à `forced-colors: active`, où `fill` et `stroke` sont
+   ramenés aux couleurs système, et elle est de toute façon doublée par le
+   libellé et par la phrase de crans, tous deux en toutes lettres.
+   Mesuré : --c-garrigue sur --c-calcaire 4,83:1, au-dessus du 3:1 de WCAG
+   1.4.11 ; --c-charbon sur --c-calcaire 14,74:1. */
+.meteo__carre--plein {
+  fill: var(--c-charbon);
+}
+
+.meteo__carre--vide {
+  stroke: var(--c-garrigue);
+}
+
+/* §5.1 : --fs-400 est le « libellé d'état », --fs-300 le corps, --fs-100 les
+   attributions. Aucune couleur n'est posée : les trois héritent le --c-charbon
+   du corps de page (14,74:1). */
+.meteo__libelle {
+  font-size: var(--fs-400);
+}
+
+/* La mesure de ligne de layout.css ne vise que les <p> ENFANTS DIRECTS de
+   `.bande__contenu` ; ceux du module sont à deux niveaux de là. Sans cette
+   ligne, la phrase de distinction — la seule prose du module — courrait sur
+   ≈ 85ch à 1200 px, au-delà des 68ch du §5.1. */
+.meteo__distinction {
+  max-inline-size: var(--mesure);
+  font-size: var(--fs-300);
+}
+
+.meteo__attribution {
+  font-size: var(--fs-100);
+}
+
+
+/* ═══ 10 ter. Zones parcourues par le feu ════════════════════════════════ */
+
+/* Divergence A-12 du contrat #11, FERMÉE ICI, et par le même correctif que le
+   module météo, comme le demandait D-3 : « une réponse pour les deux bandes ».
+   Une zone parcourue par le feu n'est pas un statut — §11.2 les sépare, §4.4
+   du brief le répète —, elle est donc hors des trois zones en portée du §5.1.
+   Et pas davantage de repère ici : §3.2 amendé, §16, arbitrage A-12, qui
+   tranche contre le `▌` du croquis §7.1 sur le précédent du §17 divergence 2.
+
+   Le <section> porte LUI-MÊME `bande__contenu` (contrat #11, A-13) : le rythme
+   vertical, l'écart avant le titre et la mesure de ligne de ses enfants directs
+   viennent déjà de layout.css l. 130-145. Ne sont écrites ici que les règles
+   qu'aucune feuille existante ne porte : la famille du titre, la remise à plat
+   de la liste et du <dl>, et trois corps pris dans l'échelle. */
+.zones-parcourues__titre {
+  font-family: var(--police-texte);
+}
+
+/* `role="list"` est explicite au gabarit (panneau-feu.php l. 322-324) : c'est
+   le corollaire liant du §10 D-15 du contrat #11, posé d'avance précisément
+   pour que cette remise à plat ne coûte pas la sémantique de liste sous
+   Safari/VoiceOver. Sans lui, `list-style: none` la ferait perdre. */
+.zones-parcourues__liste {
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+/* Séparation des zones : filet FIN et espacement, jamais un cadre par zone.
+   Le filet est admis ici, et refusé entre les 25 cartes de `.liste-statuts`
+   (§7), parce que la cardinalité n'est pas la même : EFFIS rend une poignée de
+   périmètres, dont les étiquettes se répètent mot pour mot d'une zone à
+   l'autre — sans filet, deux zones consécutives se lisent comme une seule. */
+.zones-parcourues__zone + .zones-parcourues__zone {
+  margin-block-start: var(--esp-l);
+  border-block-start: var(--bord-fin);
+  padding-block-start: var(--esp-l);
+}
+
+/* §5.1 : --fs-200 est le corps des « libellés de tableau », ce qu'un <dt> est
+   exactement. La distinction étiquette / valeur est portée par le corps ET par
+   le poids, jamais par une teinte — aucune couleur n'est posée. */
+.zones-parcourues__etiquette {
+  font-size: var(--fs-200);
+  font-weight: var(--poids-texte-fort);
+}
+
+/* Le retrait de 40 px que l'agent utilisateur pose sur un <dd> : à 360 px, il
+   décalerait chaque valeur d'un neuvième de la largeur utile. */
+.zones-parcourues__valeur {
+  margin-inline-start: 0;
+}
+
+/* Le :where() de layout.css remet <dl> à `margin-block: 0` mais ne touche pas
+   ses enfants ; le rythme de `.bande__contenu` ne descend pas jusqu'ici. Les
+   paires sont donc espacées ici, et la seconde règle — spécificité 0,2,0
+   contre 0,1,0, elle gagne quelle que soit sa position — rouvre l'écart devant
+   chaque nouvelle étiquette, pour qu'une valeur reste collée à SON libellé.
+   Même idiome que layout.css l. 138-140 sur les titres de bande. */
+.zones-parcourues__champs > * + * {
+  margin-block-start: var(--esp-2xs);
+}
+
+.zones-parcourues__champs > * + .zones-parcourues__etiquette {
+  margin-block-start: var(--esp-s);
+}
+
+/* §5.1 : « Méta, fraîcheur ». `tabular-nums` est repris de
+   `.liste-statuts__fraicheur` — la police de texte expose bien « tnum » (§8.2),
+   et la chaîne porte une date et une heure. */
+.zones-parcourues__fraicheur {
+  font-size: var(--fs-200);
+  font-variant-numeric: tabular-nums;
+}
+
+/* §5.1 : « Attributions, mentions de licence ». `.zones-parcourues__limites` et
+   `.zones-parcourues__message` restent DÉLIBÉRÉMENT au corps du texte courant :
+   « ce n'est pas un périmètre officiel d'interdiction » et « Donnée
+   momentanément indisponible. » sont les deux phrases de sécurité de la bande.
+   Les réduire à --fs-100 serait une régression de lisibilité, pas une sobriété. */
+.zones-parcourues__attribution {
+  font-size: var(--fs-100);
 }
 
 
