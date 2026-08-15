@@ -1,0 +1,1075 @@
+@charset "UTF-8";
+/*
+ * MASSIFS — ecran-publication.css
+ * Couche visuelle de l'écran de mise à jour unique des statuts (issue #14).
+ *
+ * CE FICHIER EST UNE FEUILLE DE `wp-admin`, PAS UNE FEUILLE DE THÈME.
+ * Il est enfilé (assets.php, poignée « massifs-ecran-publication ») APRÈS, et
+ * uniquement après, les quatre feuilles du thème listées au §10 du contrat
+ * `docs/contracts/issue-14.md` :
+ *   assets/fonts/fonts.css · assets/css/tokens.css · assets/css/composants.css
+ *   · assets/css/print.css (media="print").
+ * Il en dépend entièrement : TOUS les jetons du §12 de MASTER et TOUTE la
+ * famille de classes de statut (`.statut*`, `.pastille*`, `.bandeau-alerte`, y
+ * compris leurs motifs normatifs et leur reconstruction sous `forced-colors`)
+ * viennent de là et ne sont ni redéfinis ni retouchés ici.
+ *
+ * `layout.css` n'est PAS enfilée — elle style `body`, `a`, `h1,h2,h3` et les
+ * bandes, et se battrait avec `wp-admin`. Elle porte pourtant TROIS choses dont
+ * cet écran a besoin, reposées ici SCOPÉES (déviation D-4 du contrat, dont le
+ * raisonnement vaut à l'identique pour les trois : le gabarit pose le crochet,
+ * et la feuille qui le peint est inchargeable dans `wp-admin`) :
+ *   1. `box-sizing: border-box`, dépendance SÉMANTIQUE de `.pastille` — sans
+ *      lui la pastille mesure 30 × 20 au lieu des 26 × 16 de MASTER §8.1
+ *      (contrat #22) ;
+ *   2. `.repere`, l'élément de signature, reproduit VERBATIM de MASTER §3.1 ;
+ *   3. `.sur-sombre`, le chrome sombre, reproduit VERBATIM de `layout.css` §4 —
+ *      le gabarit le pose sur les bandeaux d'alerte et sur la barre d'action, et
+ *      sans lui le repère inversé peindrait du calcaire sur du calcaire.
+ *
+ * PROPRIÉTÉ DES SÉLECTEURS, respectée sans exception : l'invariant I-1 du
+ * contrat #22 réserve `.statut*`, `.pastille*`, `.jalon*`, `.liste-statuts*`,
+ * `.legende*` et `.bandeau-alerte*` à `composants.css`. AUCUN de ces sélecteurs
+ * n'apparaît dans ce fichier. Les marques de statut et le bandeau d'alerte sont
+ * posés tels quels par le gabarit et mis en page par leur conteneur, jamais
+ * retouchés.
+ *
+ * Règles de fabrication, vérifiables :
+ * - AUCUNE custom property définie ici (MASTER §12 : seul `tokens.css` en
+ *   définit). AUCUNE valeur de repli dans un `var()`, hors la reproduction
+ *   verbatim de §3.1 signalée sur place.
+ * - AUCUNE valeur hexadécimale, AUCUNE durée, AUCUNE taille de police
+ *   littérale. Les seules valeurs nues sont les zéros, les mots-clés, les
+ *   pourcentages, les ratios `fr` (des ratios sans unité, hors du champ du
+ *   §12), et SIX littéraux normatifs recopiés d'un bloc de MASTER, chacun
+ *   signalé sur place, sous le précédent A-13 de la chaîne #5 :
+ *     · `3rem`   — plafond de consommation du `h1` (MASTER §5.1, v2.3 (c)) ;
+ *     · `0.14em`, `0.86em`, `20px` — les trois mesures du repère (§3.1) ;
+ *     · `37.5rem` et `80rem` — `--bp-s` et `--bp-l` recopiés en `@media` : une
+ *       requête média n'accepte pas `var()`, et le §12 qualifie ces jetons de
+ *       « documentaires » pour cette raison précise.
+ * - AUCUN `!important`, AUCUN sélecteur d'ID : `#wpadminbar`, `#adminmenumain`
+ *   et le reste du cœur ne sont jamais nommés. La spécificité de `wp-admin` est
+ *   basse ; le scope `.massifs-ecran` suffit à la battre.
+ * - AUCUN `url()`, AUCUN `@import` : zéro requête vers un domaine tiers.
+ * - AUCUNE transition, AUCUNE animation : il n'y a rien à neutraliser sous
+ *   `prefers-reduced-motion`, et les deux transitions que `wp-admin` pose sur
+ *   `a` et sur les radios sont explicitement retirées au §1.
+ * - UNE SEULE règle n'est pas scopée sous `.massifs-ecran` : le
+ *   `scroll-padding-block-end` de `html`, exigé nommément par le §10 du
+ *   contrat et impossible à scoper. La feuille n'étant enfilée que sur le
+ *   `hook_suffix` de notre écran, sa portée reste celle de cette page.
+ *
+ * Mode dégradé assumé (§10 du contrat) : si le thème actif n'est pas `massifs`,
+ * aucun `var(--…)` ne résout, les déclarations concernées deviennent invalides
+ * au calcul, et l'écran retombe sur le rendu natif de `wp-admin` — radios
+ * natives, `fieldset`/`legend` natifs, structure et libellés intacts.
+ *
+ * Licence : GPL v2 or later.
+ */
+
+
+/* ═══ 1. Remise à zéro — explicite, énumérée, bornée à nos éléments ══════ */
+
+/* JAMAIS `all: unset`, JAMAIS un reset global : chaque propriété ci-dessous
+   neutralise une règle nommée de `wp-admin` ou de la feuille de l'agent
+   utilisateur, et rien d'autre. */
+
+/* Reprise scopée du `box-sizing` global de `layout.css`. Ce n'est pas une
+   commodité de mise en page : `.pastille` (composants.css) déclare 26 × 16 en
+   boîte EXTÉRIEURE, liseré de 2 px compris. Sans cette règle, la pastille
+   mesure 30 × 20 et le dessin normatif de MASTER §8.1 est faux. */
+.massifs-ecran,
+.massifs-ecran *,
+.massifs-ecran *::before,
+.massifs-ecran *::after {
+  box-sizing: border-box;
+}
+
+/* common.css l. 261-266 : `a { color: #2271b1 }` et une transition de 50 ms sur
+   `border, background, color`. La couleur passe au jeton de lien (§4.2,
+   6,81:1 sur calcaire) ; la transition disparaît — cet écran n'anime rien.
+   Le soulignement permanent est celui de MASTER §9.2 ; son offset 0,18em et
+   son épaisseur 1,5 px n'ont aucun jeton au §12 et ne sont donc pas écrits
+   (même arbitrage que `layout.css`). */
+.massifs-ecran a {
+  color: var(--c-mistral);
+  text-decoration-line: underline;
+  transition: none;
+}
+
+/* common.css l. 279-285 : `a:focus` pose un halo `--wp-admin-theme-color` (la
+   couleur du jeu d'administration de l'utilisateur — verte ou rouge selon le
+   jeu choisi, ce qui, sur un écran de statuts, se lirait comme une couleur
+   officielle), un `border-radius: 2px` et une encre `#043959`. L'encre et le
+   rayon sont repris à tous les états de focus ; le halo n'est retiré que là où
+   l'anneau du §12 ne prend PAS le relais — MASTER §9.1 : pas de halo à la
+   souris, mais jamais de focus sans marque au clavier. */
+.massifs-ecran a:focus {
+  border-radius: var(--r-0);
+  color: var(--c-mistral);
+}
+
+.massifs-ecran a:focus:not(:focus-visible) {
+  box-shadow: none;
+}
+
+/* common.css l. 315-319 : `p { font-size: 13px; line-height: 1.5; margin: 1em
+   0 }`. Les trois valeurs sont hors du système ; le rythme est reposé plus bas,
+   composant par composant, dans un seul sens de marge. */
+.massifs-ecran p {
+  margin-block: 0;
+  font-size: var(--fs-300);
+  line-height: var(--lh-corps);
+}
+
+/* common.css l. 325-328 : `li, dd { margin-bottom: 6px }` — 6 px n'appartient
+   pas à l'échelle d'espacement du §6.1. */
+.massifs-ecran li {
+  margin-block-end: 0;
+}
+
+/* common.css l. 374-380 pose déjà `list-style: none` et `padding: 0` sur les
+   listes ; la marge de bloc de la feuille de l'agent utilisateur, elle, reste.
+   Le retrait de liste est remis à zéro explicitement pour que la suppression
+   éventuelle de la règle du cœur ne décale pas la grille des lignes. */
+.massifs-ecran ul {
+  margin-block: 0;
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+/* common.css l. 2700-2704 remet déjà `border`, `padding` et `margin` à zéro sur
+   `fieldset`. Reste la feuille de l'agent utilisateur, qui donne au fieldset un
+   `min-inline-size: min-content` : à 320 px, un groupe dont le contenu est plus
+   large que la piste provoquerait un DÉFILEMENT HORIZONTAL au lieu de se
+   replier. C'est la seule déclaration réellement porteuse de cette règle. */
+.massifs-ecran fieldset {
+  min-inline-size: 0;
+}
+
+/* Feuille de l'agent utilisateur : `legend { padding-inline: 2px }`. */
+.massifs-ecran legend {
+  padding: 0;
+}
+
+/* forms.css l. 126-147 et l. 172-178 remplacent le contrôle natif par un dessin
+   maison : `-webkit-appearance: none`, un disque `border-radius: 50%`, un point
+   en `::before` et un aplat `var(--wp-admin-theme-color)` à l'état coché.
+   Trois raisons de rendre le contrôle natif, et aucune n'est esthétique :
+   (a) l'interdit 7 du contrat #28 et le §10 du contrat #14 exigent que le radio
+       reste VISIBLE — un contrôle natif l'est par construction, sans
+       `opacity`, sans `appearance: none`, sans déport ;
+   (b) sous `forced-colors: active`, un contrôle natif est peint par le système
+       et son état coché survit sans aucune reconstruction de notre part ;
+   (c) l'aplat coché de `wp-admin` prend la couleur du jeu d'administration —
+       verte avec « Ectoplasm », rouge avec « Coucher de soleil ». Sur l'écran
+       qui publie « Accès au massif autorisé » et « Accès au massif interdit »,
+       une pastille de contrôle verte ou rouge est une collision de sens, pas
+       une question de goût (MASTER §2.1).
+   `accent-color` ramène le contrôle dans la palette du site (§4.2), sans
+   toucher à aucun aplat de statut. La transition de 50 ms (l. 147) est retirée
+   ici. `outline: 0` (l. 139) n'a rien à neutraliser dans ce bloc : il ne se voit
+   qu'au focus, où l'anneau du §12 le bat à la spécificité (0,3,0 contre 0,1,1)
+   sans `!important`. `padding: 0 !important` (l. 138) est conservé — c'est déjà
+   la valeur voulue, et rien ne justifierait un second `!important` pour le
+   contredire.
+   La taille n'est PAS reprise : `forms.css` l. 1632-1636 porte le contrôle à
+   25 px sous 782 px de large, ce qui sert exactement la cible tactile du §9.3.
+   On ne défait pas une règle du cœur qui va dans le sens de l'accessibilité. */
+.massifs-ecran input[type="radio"] {
+  appearance: auto;
+  accent-color: var(--c-mistral-nuit);
+  flex: 0 0 auto;
+  margin: 0;
+  border: 0;
+  background-color: transparent;
+  box-shadow: none;
+  transition: none;
+}
+
+/* forms.css l. 110-116 : au `:focus`, le radio reçoit un halo blanc doublé de
+   `--wp-admin-theme-color`. Il est retiré à la souris seulement : `:not(
+   :focus-visible)` est indispensable ici, sans quoi cette règle — plus
+   spécifique que l'anneau du §12 (0,3,1 contre 0,3,0) — priverait le radio de
+   son halo AU CLAVIER, alors que MASTER §9.1 le prescrit. */
+.massifs-ecran input[type="radio"]:focus:not(:focus-visible) {
+  box-shadow: none;
+}
+
+/* forms.css l. 1-9 donne déjà aux boutons `box-sizing`, `font-family`,
+   `font-size` et `font-weight` hérités. Reste le chrome natif de l'agent
+   utilisateur (fond gris, bordure biseautée, coins arrondis), incompatible avec
+   le §6.2 — « la peinture sur pierre, pas le composant d'un kit UI ». Les
+   surfaces sont posées au §11, composant par composant. */
+.massifs-ecran button {
+  margin: 0;
+  border-radius: var(--r-0);
+  background-color: transparent;
+  cursor: pointer;
+}
+
+
+/* ═══ 2. Le repère — élément de signature (MASTER §3.1) ══════════════════ */
+
+/* Déviation D-4, déjà arbitrée : `layout.css` est inchargeable dans `wp-admin`,
+   et ne pas rendre le repère violerait le §3.2 emplacements 6 (bord gauche du
+   bandeau d'alerte) et 7 (bord gauche de la barre d'action du portail) — les
+   deux seuls emplacements de la liste FERMÉE du §3.2 que cet écran rencontre,
+   et les deux que le gabarit marque.
+   L'implémentation est reproduite VERBATIM de §3.1 — là où le §12 fournit un
+   jeton, c'est le jeton qui est employé ; les trois mesures restantes
+   (0.14em, 0.86em, 20px) n'en ont aucun et sont celles de la référence
+   normative. Le repli `var(--repere-couleur, var(--c-mistral-nuit))` appartient
+   au bloc normatif et est reproduit tel quel : il ne contient aucune valeur
+   littérale, seulement un second jeton (la règle 6 du §4.1.d vise les pigments
+   écrits hors de `tokens.css`).
+   Le repère ne porte AUCUNE information (§3.4) : il est décoratif, il n'est
+   jamais animé, et sa disparition ne retire rien.
+   Le second groupe de sélecteurs est l'option SÉLECTIONNÉE de la paire
+   segmentée, que MASTER §7.2 marque du repère (contradiction avec le §3.3
+   tranchée par l'arbitrage A-19 du contrat, en faveur du §7.2). C'est le MÊME
+   repère, réutilisé — jamais une seconde implémentation (§3.1 : « une seule
+   implémentation, réutilisée partout ») — et il y est peint en version
+   `--bloc`, comme un bord gauche de panneau. */
+.massifs-ecran .repere {
+  position: relative;
+  /* MASTER §3.4 : retrait réduit à 360 px (8 px de barre + 3 px de décalage
+     tiennent dans 16 px). Il repasse à --esp-l à partir de --bp-s. */
+  padding-inline-start: var(--esp-m);
+}
+
+.massifs-ecran .repere::before,
+.massifs-ecran .repere::after,
+.massifs-ecran .massifs-segmentee__option:has(:checked)::before,
+.massifs-ecran .massifs-segmentee__option:has(:checked)::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 0.14em;   /* aligné sur la hauteur de capitale */
+  inline-size: var(--repere-largeur);
+  block-size: 0.86em;
+  min-block-size: 20px;
+}
+
+/* La trace : l'ancienne peinture. */
+.massifs-ecran .repere::before,
+.massifs-ecran .massifs-segmentee__option:has(:checked)::before {
+  transform: translate(var(--repere-decalage-x), var(--repere-decalage-y));
+  background-color: var(--c-trace);
+}
+
+/* Le repère : la peinture du jour. */
+.massifs-ecran .repere::after,
+.massifs-ecran .massifs-segmentee__option:has(:checked)::after {
+  background-color: var(--repere-couleur, var(--c-mistral-nuit));
+}
+
+/* Variante longue : bord gauche d'un panneau, d'un bandeau, d'une bande. */
+.massifs-ecran .repere--bloc::before,
+.massifs-ecran .repere--bloc::after,
+.massifs-ecran .massifs-segmentee__option:has(:checked)::before,
+.massifs-ecran .massifs-segmentee__option:has(:checked)::after {
+  inset-block-start: 0;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+/* Variante inversée sur chrome sombre. Le cas AUTO-PORTÉ (`.repere` ET
+   `.sur-sombre` sur le MÊME élément) est celui du bandeau d'alerte et de la
+   barre d'action, que le gabarit marque tous deux des deux classes : un
+   sélecteur descendant ne l'atteindrait pas, et le repère y serait mistral-nuit
+   sur mistral-nuit, donc invisible, aux emplacements 6 et 7 de la liste fermée.
+   Le cas est ajouté, exactement comme `layout.css` l'a déjà fait pour le même
+   bandeau ; aucune valeur de §3.1 n'est modifiée. */
+.massifs-ecran .sur-sombre .repere::before,
+.massifs-ecran .repere.sur-sombre::before {
+  background-color: var(--c-mistral);
+}
+
+.massifs-ecran .sur-sombre .repere::after,
+.massifs-ecran .repere.sur-sombre::after {
+  background-color: var(--c-calcaire);
+}
+
+
+/* ═══ 3. Chrome sombre (reprise de `layout.css` §4) ══════════════════════ */
+
+/* MASTER §4.2 : calcaire sur mistral-nuit 12,66:1 ; mistral-clair sur
+   mistral-nuit 7,73:1 (`--c-mistral`, lui, y tomberait à 1,86:1 et est donc
+   interdit sur cette surface). `tokens.css` bascule déjà, sous cette même
+   classe, le liseré et les encres de motif des statuts.
+   Sans ces deux règles, les deux éléments que le gabarit marque `.sur-sombre`
+   — le bandeau d'alerte et la barre d'action — resteraient clairs, et le repère
+   inversé du §2 peindrait du calcaire sur du calcaire. */
+.massifs-ecran .sur-sombre {
+  background-color: var(--c-mistral-nuit);
+  color: var(--c-calcaire);
+}
+
+.massifs-ecran .sur-sombre a {
+  color: var(--c-mistral-clair);
+}
+
+
+/* ═══ 4. L'écran ═════════════════════════════════════════════════════════ */
+
+/* Ce n'est pas un réglage d'extension : c'est notre outil. Le gris
+   d'administration cède la place au calcaire, les angles sont vifs (--r-0),
+   aucune ombre n'est posée (--ombre-0), et la composition est faite de bandes,
+   comme le reste du site (§7.1).
+   `.massifs-ecran` est porté par le même `<div>` que `.wrap` : les marges du
+   cœur (common.css l. 586-588, `10px 20px 0 2px`) sont donc remises dans
+   l'échelle du §6.1. */
+.massifs-ecran {
+  max-inline-size: var(--largeur-max);
+  margin-block: var(--esp-m) 0;
+  margin-inline: 0;
+  padding: 0;
+  background-color: var(--c-calcaire);
+  border-radius: var(--r-0);
+  box-shadow: var(--ombre-0);
+  color: var(--c-charbon);
+  font-family: var(--police-texte);
+  font-weight: var(--poids-texte);
+  font-size: var(--fs-300);
+  line-height: var(--lh-corps);
+  /* Dernier filet de sécurité contre le défilement horizontal à 320 px : un
+     libellé officiel, un code de massif ou une URL dépliée ne débordent jamais
+     leur piste. Aucune troncature n'est posée nulle part (§10.6 règle 6). */
+  overflow-wrap: break-word;
+}
+
+/* Rythme vertical du document, et l'UNIQUE endroit où se lisent ses deux
+   exceptions.
+   `.wp-header-end` : WordPress lui donne `margin: -2px 0 0` (common.css
+   l. 606-609) pour placer ses notices d'administration, et lui ajouter une
+   marge déplacerait ce point d'ancrage.
+   `.massifs-ecran__sous-titre` : il n'est pas un bloc du document, c'est la
+   seconde ligne de la BANDE DE TÊTE (§5). Un écart de 32 px l'en détacherait et
+   ouvrirait une bande de calcaire au milieu du mistral-nuit. */
+.massifs-ecran > * + *:not(.wp-header-end, .massifs-ecran__sous-titre) {
+  margin-block-start: var(--esp-xl);
+}
+
+/* LA SEULE RÈGLE NON SCOPÉE DE CETTE FEUILLE, et elle est exigée nommément par
+   le §10 du contrat. Elle est le pendant du `padding-block-end` de la liste :
+   sans elle, un `Tab` vers les dernières lignes les amènerait SOUS la barre
+   d'action collante. La feuille n'est enfilée que sur le `hook_suffix` de cet
+   écran ; sa portée est donc celle de cette page. */
+html {
+  scroll-padding-block-end: var(--esp-4xl);
+}
+
+
+/* ═══ 5. Bande de tête ═══════════════════════════════════════════════════ */
+
+/* Déviation D-7 : pas d'en-tête de portail séparé de 56 px avec date de session
+   et déconnexion — `wp-admin` porte déjà ce chrome. La bande est le `h1`
+   lui-même, interne à notre conteneur. Elle ne porte PAS de repère : la liste
+   du §3.2 est fermée et n'en prévoit aucun ici (l'écran en compte deux, aux
+   emplacements 6 et 7). Rythme asymétrique du §6.1 : start > end.
+   `.wrap h1` (common.css l. 590-598) vaut 0,1,1 et impose 23 px, un poids 400 et
+   un `padding` hors échelle ; le sélecteur scopé ci-dessous vaut 0,2,0 et le bat
+   sans `!important` ni sélecteur d'ID.
+   MASTER §5.1, règle de portée : le chrome du portail est en famille de TEXTE,
+   en casse normale — la famille d'affichage est réservée aux trois zones du
+   §5.1, dont le portail ne fait pas partie (seules ses étiquettes `--fs-250` y
+   restent, borne (a), voir §9). D-26 : aucun `h1` en capitales.
+   Plafond de consommation de MASTER §5.1 (v2.3 c) : 3rem est le MILIEU EXACT
+   des bornes 2,25rem et 3,75rem du clamp — une valeur DÉRIVÉE, pas choisie. Il
+   est en `rem` et jamais en `px` : un plafond en `rem` recule quand
+   l'utilisateur grossit son texte et ne peut donc pas plafonner la réponse au
+   zoom (WCAG 1.4.4). Le clamp du jeton n'est pas réécrit. */
+.massifs-ecran .massifs-ecran__titre {
+  margin-block: 0;
+  padding-block: var(--esp-l) var(--esp-m);
+  padding-inline: var(--gouttiere);
+  background-color: var(--c-mistral-nuit);
+  color: var(--c-calcaire);
+  font-family: var(--police-texte);
+  font-weight: var(--poids-texte-fort);
+  font-size: min(var(--fs-700), 3rem);
+  line-height: var(--lh-titre);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* Le jour édité, en toutes lettres, servi déjà formaté par le serveur. Il est
+   la SECONDE LIGNE de la bande, pas un bloc du document : même aplat, même
+   encre, aucun écart au-dessus (l'exclusion est posée à l'oeil du §4), et c'est
+   lui qui referme la bande quand il est présent.
+   Le `h1` garde son propre `padding-block-end` : la bande se referme
+   correctement que le sous-titre soit rendu ou non — le serveur ne l'émet pas
+   quand la chaîne est vide. Rythme du §6.1 préservé dans les deux cas :
+   start (--esp-l) > end (--esp-m).
+   Encre calcaire sur mistral-nuit : 12,66:1.
+   Aucune mesure de ligne n'est posée : elle brutalise l'aplat, qui s'arrêterait
+   à 68ch au milieu de la bande. La chaîne est d'une ligne, servie par le
+   serveur, et n'en a pas besoin. */
+.massifs-ecran .massifs-ecran__sous-titre {
+  padding-block: 0 var(--esp-m);
+  padding-inline: var(--gouttiere);
+  background-color: var(--c-mistral-nuit);
+  color: var(--c-calcaire);
+  font-size: var(--fs-400);
+}
+
+
+/* ═══ 5 bis. Bandeaux d'état de page ═════════════════════════════════════ */
+
+/* Le bandeau lui-même appartient à `composants.css` (`.bandeau-alerte`, gelé,
+   jamais touché ici) : il y prend son filet `--bord-fort` bas et son rythme
+   interne. Son aplat vient de `.sur-sombre` (§3), son repère du §2 — c'est
+   l'emplacement 6 de la liste fermée du §3.2.
+   Reste une seule chose à poser : l'écart entre DEUX bandeaux empilés. Sans
+   lui, « référentiel indisponible » et « légende non confirmée » se touchent et
+   se lisent comme un seul bloc traversé d'un filet parasite. `--esp-xs` suffit
+   à les séparer sans les éloigner : ce sont deux états de la même page. */
+.massifs-ecran .massifs-ecran__bandeau + .massifs-ecran__bandeau {
+  margin-block-start: var(--esp-xs);
+}
+
+
+/* ═══ 6. Récapitulatif ═══════════════════════════════════════════════════ */
+
+/* MASTER §7.3 : les encarts sont des slabs `--c-calcaire-ombre` avec
+   `--bord-fort` en haut — jamais une carte ombrée. C'est un bloc PERSISTANT et
+   IMPRIMABLE, la trace de ce qui vient d'être publié, jamais une notification
+   fugitive.
+   Le `--bord-fort` ne contrevient pas à la règle de quantité du §6.3 : celle-ci
+   borne le CHROME NOMINAL, et ce bloc n'existe qu'au retour d'une publication —
+   exactement le régime que le §6.3 accorde déjà au bandeau d'alerte.
+   LE TON N'EST PAS PEINT. Le gabarit émet `massifs-recapitulatif--succes`,
+   `--partiel`, `--refus` et `--prefixe` ; aucun de ces quatre modificateurs n'a
+   de règle ici, et c'est une décision : MASTER §2.1 interdit la couleur
+   sémantique (« pas de bouton vert, pas de message d'erreur rouge, pas d'alerte
+   ambre »), et le §7 du contrat fait servir par le serveur un titre et un résumé
+   explicites qui portent seuls la distinction. Les peindre inventerait une
+   troisième famille de couleurs à côté du vert et du rouge officiels. */
+.massifs-ecran .massifs-recapitulatif {
+  padding-block: var(--esp-l) var(--esp-m);
+  padding-inline: var(--gouttiere);
+  background-color: var(--c-calcaire-ombre);
+  border-block-start: var(--bord-fort);
+  border-radius: var(--r-0);
+}
+
+/* §3.2 amendé en v2.3 : les `h2` du portail sont HORS PORTÉE de la famille
+   d'affichage et ne portent donc PAS de repère. */
+.massifs-ecran .massifs-recapitulatif__titre {
+  margin-block: 0;
+  font-family: var(--police-texte);
+  font-weight: var(--poids-texte-fort);
+  font-size: var(--fs-600);
+  line-height: var(--lh-titre);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--c-charbon);
+}
+
+.massifs-ecran .massifs-recapitulatif__resume {
+  margin-block-start: var(--esp-s);
+  max-inline-size: var(--mesure);
+  font-size: var(--fs-400);
+}
+
+.massifs-ecran .massifs-recapitulatif__intitule {
+  margin-block-start: var(--esp-m);
+  max-inline-size: var(--mesure);
+  font-weight: var(--poids-texte-fort);
+}
+
+.massifs-ecran .massifs-recapitulatif__liste {
+  margin-block-start: var(--esp-xs);
+  max-inline-size: var(--mesure);
+}
+
+.massifs-ecran .massifs-recapitulatif__element + .massifs-recapitulatif__element {
+  margin-block-start: var(--esp-2xs);
+}
+
+/* Le message de refus est posé SOUS le nom du massif, pas à sa suite : à la
+   suite, le lien et la phrase se lisent comme une seule phrase et le nom du
+   massif cesse de se détacher comme cible cliquable. Il est distingué par la
+   position et par la mesure, jamais par une couleur. */
+.massifs-ecran .massifs-recapitulatif__message {
+  display: block;
+  max-inline-size: var(--mesure);
+}
+
+
+/* ═══ 7. Sélecteur de jour ═══════════════════════════════════════════════ */
+
+/* Deux liens dans un `<nav>` : changer de jour est une NAVIGATION, pas une
+   saisie, et cela n'écrit jamais rien (§2 du contrat). La paire est
+   délibérément DIFFÉRENTE de la paire segmentée des statuts — même forme, même
+   confusion « choisir un jour » / « choisir un niveau ». */
+.massifs-ecran .massifs-jours {
+  padding-inline: var(--gouttiere);
+}
+
+.massifs-ecran .massifs-jours__intitule {
+  display: block;
+  margin-block-end: var(--esp-xs);
+  font-weight: var(--poids-texte-fort);
+}
+
+.massifs-ecran .massifs-jours__liste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-xs);
+}
+
+/* §9.3 : cible ≥ 44 × 44 px. Le jour actif n'est pas distingué par une teinte :
+   il l'est par un aplat sombre (une différence de LUMINANCE, 12,66:1), par la
+   graisse du texte, et par l'`aria-current="page"` que le gabarit pose — trois
+   canaux, dont deux non chromatiques et un programmatique. */
+.massifs-ecran .massifs-jours__lien {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-block-size: var(--cible-min);
+  min-inline-size: var(--cible-min);
+  padding-block: var(--esp-xs);
+  padding-inline: var(--esp-s);
+  border: var(--bord-moyen);
+  border-radius: var(--r-0);
+  background-color: var(--c-calcaire);
+  color: var(--c-charbon);
+  line-height: var(--lh-dense);
+  text-decoration-line: none;
+}
+
+/* MASTER §9.2 : au survol, le fond passe à `--c-calcaire-ombre`. Aucune
+   transition : le changement est instantané. */
+.massifs-ecran .massifs-jours__lien:hover {
+  background-color: var(--c-calcaire-ombre);
+}
+
+.massifs-ecran .massifs-jours__lien[aria-current="page"] {
+  background-color: var(--c-mistral-nuit);
+  color: var(--c-calcaire);
+}
+
+.massifs-ecran .massifs-jours__libelle {
+  font-weight: var(--poids-texte-fort);
+}
+
+.massifs-ecran .massifs-jours__date {
+  font-size: var(--fs-200);
+}
+
+.massifs-ecran .massifs-jours__avertissement {
+  margin-block-start: var(--esp-s);
+  max-inline-size: var(--mesure);
+  font-size: var(--fs-200);
+  color: var(--c-charbon-doux);
+}
+
+
+/* ═══ 8. Pré-remplissage ═════════════════════════════════════════════════ */
+
+/* [R-1] Le pré-remplissage vit dans un `<form>` FRÈRE du formulaire principal,
+   et c'est une correction de sécurité, pas de mise en page : réunis, la
+   soumission implicite de HTML (`Entrée` frappé sur un radio) déclenchait le
+   premier bouton du formulaire, donc « Tout autoriser », et écrasait les 25
+   choix du gestionnaire.
+   Le dessin, lui, ne bouge pas d'un pixel — et cette règle est ce qui le
+   garantit. Le formulaire frère est un enfant direct de `.massifs-ecran` : il
+   reçoit donc l'écart de 32 px de l'oeil du §4, puis en RENDRAIT un second au
+   formulaire principal qui le suit. L'écart entre les boutons de
+   pré-remplissage et le titre de la liste passerait de 16 px (le seul
+   `padding-block-end` du bloc, comme lorsque les deux vivaient dans un même
+   formulaire) à 48 px. Le second écart est donc annulé : la frontière entre les
+   deux formulaires est structurelle, elle n'est pas un rythme.
+   Le formulaire frère ne porte lui-même AUCUNE peinture : il est transparent,
+   sans marge et sans retrait propres ; tout est sur `.massifs-preremplissage`,
+   exactement comme avant la scission. */
+.massifs-ecran > .massifs-preremplissage__formulaire + * {
+  margin-block-start: 0;
+}
+
+.massifs-ecran .massifs-preremplissage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-s);
+  padding-block: var(--esp-m);
+  padding-inline: var(--gouttiere);
+  border-block-start: var(--bord-fin);
+}
+
+.massifs-ecran .massifs-preremplissage__intitule {
+  font-weight: var(--poids-texte-fort);
+}
+
+
+/* ═══ 9. Liste et lignes ═════════════════════════════════════════════════ */
+
+.massifs-ecran .massifs-liste__titre {
+  margin-block: 0 var(--esp-m);
+  padding-inline: var(--gouttiere);
+  font-family: var(--police-texte);
+  font-weight: var(--poids-texte-fort);
+  font-size: var(--fs-600);
+  line-height: var(--lh-titre);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--c-charbon);
+}
+
+/* `padding-block-end` généreux : la barre d'action est collante et occupe le
+   bas de la fenêtre. Sans cette réserve, la dernière ligne serait recouverte au
+   bout du défilement. C'est le pendant du `scroll-padding-block-end` du §4. */
+.massifs-ecran .massifs-liste {
+  padding-block-end: var(--esp-4xl);
+  padding-inline: var(--gouttiere);
+}
+
+/* Le `<li>` porte l'ancre `#massif-<code>` visée par les liens du
+   récapitulatif, et un `tabindex="-1"` pour que le saut y pose le focus. */
+.massifs-ecran .massifs-liste__element {
+  padding-block: var(--esp-m);
+  border-block-start: var(--bord-fin);
+}
+
+/* COLONNES ALIGNÉES SANS `<table>` (déviation D-1). Le `grid-template-columns`
+   est IDENTIQUE sur chaque `<fieldset>` : les pistes s'alignent donc d'une
+   ligne à l'autre sans qu'aucune structure de tableau n'existe. Les unités `fr`
+   sont des RATIOS SANS UNITÉ — elles ne sont pas des longueurs et sortent du
+   champ du §12.
+   Le `<legend>` n'est pas un élément de grille : les moteurs le rendent
+   au-dessus de la boîte de contenu anonyme. Le nom du massif coiffe donc ses
+   pistes, ce qui est exactement la lecture voulue à 360 px.
+   Base mobile : UNE piste. Quatre pistes à partir de --bp-s (§14). */
+.massifs-ecran .massifs-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--esp-s);
+  align-items: start;
+}
+
+/* MASTER §7.2, règle de portée typographique : le TABLEAU du portail est en
+   famille de texte. Le nom du massif est ici le nom d'un GROUPE de saisie, pas
+   un titre de statut au sens du §5.1 — il ne porte donc ni la famille
+   d'affichage, ni les capitales, ni le repère (§3.3 : jamais sur un champ de
+   formulaire ; §3.2 : la liste des sept emplacements est fermée). */
+.massifs-ecran .massifs-ligne__nom {
+  margin-block-end: var(--esp-xs);
+  font-family: var(--police-texte);
+  font-weight: var(--poids-texte-fort);
+  font-size: var(--fs-400);
+  line-height: var(--lh-sous);
+  color: var(--c-charbon);
+}
+
+/* Les quatre cellules : trois données en lecture seule et le groupe de choix.
+   Elles partagent la même mise en page — étiquette au-dessus, valeur en
+   dessous — parce qu'elles occupent les mêmes pistes. */
+.massifs-ecran .massifs-ligne__donnee,
+.massifs-ecran .massifs-ligne__choix {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: var(--esp-2xs);
+  min-inline-size: 0;
+}
+
+/* Motif S-2 du contrat #28, appliqué du premier coup : l'étiquette est un
+   élément RÉEL du DOM, jamais un `::before` en contenu généré.
+   Borne (a) de la règle de portée (§5.1, §7.2) : les étiquettes `--fs-250`
+   restent en famille d'AFFICHAGE partout, y compris dans le portail, capitales
+   et `--ls-etiquette` comprises — ce sont elles qui portent les chaînes
+   officielles reproduites verbatim (§11.4), `Niveau d'Accès` en tête.
+   Les capitales viennent du CSS, jamais du HTML (§16).
+   --poids-titre est OBLIGATOIRE : l'axe `wght` de Big Shoulders Display retombe
+   à 100 sans déclaration de poids. */
+.massifs-ecran .massifs-ligne__etiquette {
+  font-family: var(--police-titre);
+  font-weight: var(--poids-titre);
+  font-size: var(--fs-250);
+  line-height: var(--lh-sous);
+  letter-spacing: var(--ls-etiquette);
+  text-transform: uppercase;
+  color: var(--c-charbon-doux);
+}
+
+/* La valeur peut être une marque de statut, une phrase, ou un auteur suivi d'un
+   horodatage : les trois s'empilent proprement. */
+.massifs-ecran .massifs-ligne__valeur {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: var(--esp-2xs);
+  min-inline-size: 0;
+}
+
+.massifs-ecran .massifs-ligne__auteur,
+.massifs-ecran .massifs-ligne__instant {
+  font-size: var(--fs-200);
+  line-height: var(--lh-dense);
+  color: var(--c-charbon-doux);
+}
+
+/* Le refus est logé DANS la cellule de choix, juste avant la paire segmentée,
+   et il est référencé par l'`aria-describedby` des deux radios.
+   Aucune couleur sémantique : MASTER §2.1 interdit le message d'erreur rouge —
+   la bande rouge est celle de « Accès au massif interdit », et elle seule.
+   L'erreur est portée par un slab, un filet, la graisse du texte et une phrase
+   explicite servie par le serveur (§7 du contrat). */
+.massifs-ecran .massifs-ligne__erreur {
+  align-self: stretch;
+  padding-block: var(--esp-xs);
+  padding-inline: var(--esp-s);
+  background-color: var(--c-calcaire-ombre);
+  border-inline-start: var(--bord-moyen);
+  font-weight: var(--poids-texte-fort);
+  color: var(--c-charbon);
+}
+
+
+/* ═══ 10. Paire segmentée ════════════════════════════════════════════════ */
+
+/* Déviation D-5 : sous --bp-s les deux options s'empilent PLEINE LARGEUR, pas
+   côte à côte. Précédent mesuré, contrat #22 arbitrage 9 : un libellé officiel
+   long empile trois lignes sur ≈ 140 px. Le §10.6 règle 6 — aucun libellé
+   tronqué, aucun défilement horizontal — l'emporte sur un croquis. */
+.massifs-ecran .massifs-segmentee {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--esp-xs);
+  align-self: stretch;
+}
+
+/* Le `<label>` EST la cible (§9.3 : ≥ 44 × 44 px), pas le radio.
+   La gouttière du repère est RÉSERVÉE EN PERMANENCE sur les deux options : sans
+   cette réserve, cocher déplacerait le contenu de la boîte et la ligne
+   sauterait sous le doigt. Le repère lui-même n'est peint qu'à l'état coché
+   (§2 de cette feuille).
+   Liseré au repos `--bord-moyen` (les 2 px `--c-charbon` du §7.2), sur la BOÎTE
+   D'OPTION — l'aplat de statut, lui, garde son propre liseré, posé par
+   `composants.css`, qui n'est jamais touché ici. */
+.massifs-ecran .massifs-segmentee__option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-xs);
+  min-block-size: var(--cible-min);
+  padding-block: var(--esp-xs);
+  padding-inline: var(--esp-m) var(--esp-s);
+  border: var(--bord-moyen);
+  border-radius: var(--r-0);
+  background-color: var(--c-calcaire);
+  cursor: pointer;
+}
+
+/* MASTER §9.2 : au survol, le fond de la boîte passe à `--c-calcaire-ombre`.
+   RÈGLE ABSOLUE du §9.2, respectée à la lettre : aucun état d'interaction ne
+   modifie la TEINTE d'un aplat de statut. Le survol agit sur la boîte, jamais
+   sur le pigment officiel — le liseré charbon de la pastille tient 12,79:1 sur
+   `--c-calcaire-ombre`, et l'encre de son motif 6,33:1. */
+.massifs-ecran .massifs-segmentee__option:hover {
+  background-color: var(--c-calcaire-ombre);
+}
+
+/* Sélection. TROIS marqueurs non chromatiques simultanés : le point du radio
+   natif, le liseré porté de 2 à 4 px, et le repère. Le quatrième canal est le
+   libellé officiel, toujours présent à côté de l'aplat.
+   `:has(:checked)` est le seul mécanisme sans JavaScript capable de peindre le
+   PARENT d'un contrôle coché. Là où `:has()` manque, cette règle et les quatre
+   pseudo-éléments du §2 sont invalides et simplement ignorés : le radio natif
+   reste visible et coché, l'option reste lisible, rien n'est perdu que
+   l'emphase. C'est précisément pourquoi le contrôle natif n'est jamais masqué. */
+.massifs-ecran .massifs-segmentee__option:has(:checked) {
+  border: var(--bord-fort);
+  border-color: var(--c-mistral-nuit);
+}
+
+
+/* ═══ 11. Barre d'action et boutons ══════════════════════════════════════ */
+
+/* Déviation D-3 : `sticky`, jamais `fixed`. Elle cesse de flotter à la fin de
+   son conteneur, donc ne masque jamais le dernier massif ; elle est le dernier
+   enfant du formulaire, donc la dernière dans l'ordre de tabulation et jamais
+   un piège ; et à 200 % de zoom elle défile simplement au lieu de couvrir un
+   tiers de la fenêtre — ce qui évite une requête média de hauteur, donc un
+   littéral de longueur sans source dans MASTER.
+   Elle porte le repère : emplacement 7 de la liste fermée du §3.2. Son aplat et
+   son encre viennent de `.sur-sombre` (§3). */
+.massifs-ecran .massifs-barre-action {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: var(--z-barre-action);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-m);
+  padding-block: var(--esp-m);
+  padding-inline: var(--gouttiere);
+  border-block-start: var(--bord-moyen);
+  border-radius: var(--r-0);
+}
+
+.massifs-ecran .massifs-barre-action__compteur {
+  font-weight: var(--poids-texte-fort);
+}
+
+/* §9.3 : cible ≥ 44 × 44 px. §6.2 : `--r-1` est toléré sur les boutons, et
+   uniquement pour éviter l'aliasing des coins. Aucun bouton n'est jamais
+   `disabled` (§9.2, interdit 11 du contrat) : cette feuille ne prévoit donc
+   aucun état désactivé, et n'en dessine aucun. */
+.massifs-ecran .massifs-bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-2xs);
+  min-block-size: var(--cible-min);
+  min-inline-size: var(--cible-min);
+  padding-block: var(--esp-xs);
+  padding-inline: var(--esp-m);
+  border: var(--bord-moyen);
+  border-radius: var(--r-1);
+  background-color: var(--c-calcaire);
+  color: var(--c-charbon);
+  font-family: var(--police-texte);
+  font-weight: var(--poids-texte-fort);
+  font-size: var(--fs-300);
+  line-height: var(--lh-dense);
+  text-align: center;
+}
+
+.massifs-ecran .massifs-bouton:hover {
+  background-color: var(--c-calcaire-ombre);
+}
+
+/* Bouton principal, posé sur la barre sombre. `--bord-moyen` code `--c-charbon`
+   en dur : sur mistral-nuit il tomberait à 1,16:1 et la limite du bouton
+   disparaîtrait. Seule sa COULEUR est reprise, en calcaire — 12,66:1 contre la
+   barre, très au-dessus du seuil de 3:1 du WCAG 1.4.11. Le jeton n'est pas
+   redéfini : il est consommé puis recoloré, comme `print.css` le fait déjà.
+   Encre calcaire sur `--c-mistral` : 6,81:1, conforme AA en texte normal. */
+.massifs-ecran .massifs-bouton--principal {
+  background-color: var(--c-mistral);
+  border-color: var(--c-calcaire);
+  color: var(--c-calcaire);
+}
+
+/* Le survol ne peut pas éclaircir vers `--c-calcaire-ombre` ici : le texte
+   calcaire y tomberait à 1,15:1. Il assombrit donc vers le ton de la barre,
+   dont le bord calcaire garde la limite lisible et sur lequel le texte calcaire
+   tient 12,66:1. */
+.massifs-ecran .massifs-bouton--principal:hover {
+  background-color: var(--c-mistral-nuit);
+}
+
+.massifs-ecran .massifs-bouton--secondaire {
+  background-color: var(--c-calcaire);
+  color: var(--c-charbon);
+}
+
+
+/* ═══ 12. Anneau de focus (MASTER §9.1) ══════════════════════════════════ */
+
+/* Spécification §9.1 reprise TELLE QUELLE. Seul changement, imposé par le
+   terrain : `:where()` est remplacé par `:is()`. `:where()` vaut zéro de
+   spécificité et perdrait contre les règles de focus de `wp-admin`
+   (`a:focus` 0,1,1 ; `input[type="radio"]:focus` 0,1,1) ; `:is()` prend la
+   spécificité de son argument le plus fort (`[tabindex]`, 0,1,0) et l'anneau
+   gagne à 0,3,0, sans `!important` et sans sélecteur d'ID.
+   `:focus-visible` uniquement : pas de halo à la souris.
+   Ratios du §10.5 : le trait mistral-nuit tient 12,66:1 sur `--c-calcaire` et
+   10,99:1 sur `--c-calcaire-ombre` ; sur le chrome sombre, le trait bascule en
+   calcaire, 12,66:1 contre mistral-nuit. Le halo est un confort visuel, jamais
+   le porteur du contraste. */
+.massifs-ecran :is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--focus-epaisseur) solid var(--focus-trait);
+  outline-offset: var(--focus-ecart);
+  box-shadow: 0 0 0 var(--focus-halo-epaisseur) var(--focus-halo);
+}
+
+.massifs-ecran .sur-sombre :is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline-color: var(--focus-trait-inverse);
+  box-shadow: 0 0 0 var(--focus-halo-epaisseur) var(--c-mistral);
+}
+
+/* Exception explicitement prévue par le §9.1 (« sauf … où le focus
+   programmatique doit rester visible »), appliquée aux DEUX cibles de saut de
+   l'écran : le récapitulatif, porteur du mécanisme d'annonce du §5 du contrat,
+   et chaque ligne de massif, cible des liens « massifs restés sans niveau ».
+   Le focus n'y est ni clavier ni souris — il vient d'une navigation vers un
+   fragment sur un conteneur `tabindex="-1"` —, et `:focus-visible` peut ne pas
+   s'appliquer selon l'heuristique du moteur. Sans cette règle, le point
+   d'arrivée du saut serait invisible. */
+.massifs-ecran .massifs-recapitulatif:focus,
+.massifs-ecran .massifs-liste__element:focus {
+  outline: var(--focus-epaisseur) solid var(--focus-trait);
+  outline-offset: var(--focus-ecart);
+}
+
+
+/* ═══ 13. Couleurs forcées ═══════════════════════════════════════════════ */
+
+/* MASTER §3.4 : en couleurs forcées, les deux peintures du repère survivent en
+   COULEURS SYSTÈME. `CanvasText` et `GrayText` sont des mots-clés, pas des
+   littéraux de couleur.
+   Rien d'autre n'est nécessaire ici : les motifs des pastilles sont
+   reconstruits par `composants.css` (son §12), le radio est natif donc peint
+   par le système, et les liserés de boîte sont des `border-color` que l'agent
+   utilisateur force lui-même en `CanvasText` — l'opposition 2 px / 4 px, qui
+   est une ÉPAISSEUR, survit intacte et continue de porter l'état sélectionné.
+   Et dans tous les cas le libellé officiel reste le porteur de sens (§10.8). */
+@media (forced-colors: active) {
+  .massifs-ecran .repere::after,
+  .massifs-ecran .massifs-segmentee__option:has(:checked)::after {
+    background-color: CanvasText;
+  }
+
+  .massifs-ecran .repere::before,
+  .massifs-ecran .massifs-segmentee__option:has(:checked)::before {
+    background-color: GrayText;
+  }
+}
+
+
+/* ═══ 14. --bp-s : 37.5rem (600 px) ══════════════════════════════════════ */
+
+/* La valeur est recopiée en clair : `@media` n'accepte pas `var()`, et le §12
+   le prévoit explicitement en qualifiant les points de rupture de
+   « documentaires ». La gouttière, elle, bascule toute seule — `tokens.css`
+   redéfinit `--gouttiere` au même point, il n'y a rien à dupliquer. */
+@media (min-width: 37.5rem) {
+
+  /* MASTER §3.4 : le retrait du repère repasse à --esp-l. La gouttière des
+     options suit le même retrait et reste réservée sur les DEUX, cochée ou
+     non — sinon cocher décalerait la ligne. */
+  .massifs-ecran .repere,
+  .massifs-ecran .massifs-segmentee__option {
+    padding-inline-start: var(--esp-l);
+  }
+
+  /* Les quatre pistes : référence · enregistré · `Niveau d'Accès` ·
+     dernière modification. Ratios, non longueurs : la piste du niveau reçoit le
+     double d'une colonne de lecture seule parce qu'elle porte deux libellés
+     officiels, deux aplats et deux contrôles, et celle de la modification une
+     fois et demie parce qu'elle porte un nom et un horodatage.
+     `minmax(0, …fr)` et non `…fr` : la taille minimale automatique d'un élément
+     de grille vaut `auto`, et un libellé officiel long ferait déborder la piste
+     au lieu de se replier — c'est ce qui garantit l'absence de défilement
+     horizontal quelle que soit la longueur du libellé. */
+  .massifs-ecran .massifs-ligne {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, 1fr)
+      minmax(0, 2fr)
+      minmax(0, 1.5fr);
+    column-gap: var(--esp-m);
+  }
+
+  /* Quand on édite « aujourd'hui », la colonne de référence redoublerait le jour
+     édité : le serveur lève `reference_redondante` et le gabarit ne l'émet pas
+     (arbitrage A-2). Le drapeau est de PAGE, jamais de ligne — toutes les lignes
+     perdent donc la même cellule, et les colonnes restent alignées. Sans cette
+     règle, les trois cellules restantes tomberaient dans les pistes 1, 2 et 3,
+     et le groupe de choix hériterait de la piste étroite au lieu de la large.
+     Là où `:has()` manque, la règle est ignorée : la mise en page reste alignée
+     et lisible, seule la répartition des largeurs est moins juste. */
+  .massifs-ecran .massifs-ligne:not(:has(.massifs-ligne__donnee--reference)) {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, 2fr)
+      minmax(0, 1.5fr);
+  }
+}
+
+
+/* ═══ 15. --bp-l : 80rem (1280 px) ═══════════════════════════════════════ */
+
+/* Les deux options reviennent CÔTE À CÔTE, et pas avant. La déviation D-5
+   n'imposait l'empilement que sous --bp-s ; il est prolongé jusqu'à --bp-l pour
+   la raison MESURÉE qui la fonde, et pour aucune autre.
+   Mesure, dans les quatre pistes du §14 : la piste du `Niveau d'Accès` vaut
+   2/5,5 de la largeur utile. Chaque option y consomme 24 px de gouttière de
+   repère, 12 px de retrait, 8 px de liseré, 26 px d'aplat et 4 px d'écart —
+   soit 74 px avant le premier caractère. Deux options côte à côte à 900 px ne
+   laissent que ≈ 62 px de libellé chacune, et « ACCÈS AU MASSIF AUTORISÉ »
+   s'y empile sur QUATRE lignes ; à 1280 px il en reste ≈ 122 et le libellé tient
+   sur deux. C'est exactement le constat de l'arbitrage 9 du contrat #22,
+   appliqué une piste plus loin.
+   §10.6 règle 6 — aucun libellé tronqué, aucune abréviation — l'emporte sur la
+   silhouette horizontale du croquis §7.2, qui n'est d'ailleurs jamais perdue :
+   elle est servie dès que la place existe. */
+@media (min-width: 80rem) {
+  .massifs-ecran .massifs-segmentee {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+/* ═══ 16. Impression ═════════════════════════════════════════════════════ */
+
+/* `print.css` du thème est enfilée en `media="print"` AVANT cette feuille : les
+   pastilles y gardent déjà leurs motifs (`print-color-adjust: exact`) et leur
+   liseré charbon, et le §13 de MASTER y convertit les surfaces sombres en blanc
+   avec un filet `--bord-fort` en tête.
+   Mais nos règles portent leurs aplats à 0,2,0 et 0,3,0, soit PLUS que les
+   `.sur-sombre` (0,1,0) et `.sur-sombre a` (0,1,1) de `print.css` : sans les
+   trois premières règles ci-dessous, la bande de tête et les bandeaux d'alerte
+   s'imprimeraient en texte calcaire sur papier blanc — 1,15:1 — et leurs liens
+   en mistral clair, 1,64:1. La conversion du §13 est donc rejouée ici, à notre
+   propre spécificité, jetons du §12 à l'appui.
+   Ce qui disparaît : le sélecteur de jour, le pré-remplissage et la barre
+   d'action — trois commandes, sans objet sur du papier.
+   Ce qui reste : le récapitulatif, les bandeaux, les noms de massif, les
+   étiquettes, les états (marque + motif + libellé officiel) et la dernière
+   modification. */
+@media print {
+
+  .massifs-ecran,
+  .massifs-ecran .massifs-recapitulatif,
+  .massifs-ecran .sur-sombre {
+    max-inline-size: none;
+    background-color: transparent;
+    color: var(--c-charbon);
+  }
+
+  .massifs-ecran .sur-sombre a {
+    color: var(--c-charbon);
+  }
+
+  /* §13 : « --c-mistral-nuit → blanc avec --bord-fort en haut et texte noir ».
+     `print.css` pose ce filet sur `.sur-sombre` ; la bande de tête n'en porte
+     pas la classe, elle reçoit donc le sien ici. */
+  .massifs-ecran .massifs-ecran__titre {
+    background-color: transparent;
+    border-block-start: var(--bord-fort);
+    color: var(--c-charbon);
+  }
+
+  .massifs-ecran .massifs-jours,
+  .massifs-ecran .massifs-preremplissage,
+  .massifs-ecran .massifs-barre-action {
+    display: none;
+  }
+
+  /* La réserve de 96 px n'a plus d'objet : la barre collante n'est pas
+     imprimée. */
+  .massifs-ecran .massifs-liste {
+    padding-block-end: 0;
+  }
+
+  /* La cible tactile n'a pas de sens sur du papier, et 25 massifs × 2 options
+     de 44 px coûteraient plusieurs pages pour du vide. Le libellé officiel et
+     l'aplat, eux, sont intégralement conservés. */
+  .massifs-ecran .massifs-segmentee__option {
+    min-block-size: 0;
+  }
+
+  /* La propriété moderne et son alias historique : les moteurs d'impression
+     déployés ne reconnaissent pas tous la première. */
+  .massifs-ecran .massifs-liste__element {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
