@@ -95,58 +95,35 @@ echo "==> Permaliens"
 $WP rewrite structure '/%postname%/' --hard
 $WP rewrite flush --hard
 
-echo "==> Rôle gestionnaire"
-if ! $WP role list --field=role 2>/dev/null | grep -qx gestionnaire; then
-	$WP role create gestionnaire "Gestionnaire" --clone=subscriber
-	echo "   rôle 'gestionnaire' créé (capacités minimales, calquées sur 'subscriber' : accès à l'administration, aucune capacité de contenu)."
-else
-	echo "   rôle 'gestionnaire' déjà présent."
+echo "==> Rôle massifs_gestionnaire (vocabulaire gelé par le contrat de l'issue #13)"
+# Ce rôle et ses trois capacités (massifs_publier_statuts, massifs_consulter_historique,
+# massifs_gerer_gestionnaires) sont installés par l'extension massifs-core elle-même,
+# à l'activation ci-dessus et réconciliés à chaque chargement
+# (wp-content/plugins/massifs-core/includes/security/roles/Installation.php, source
+# unique du vocabulaire : Capacites.php). Ce script ne le crée JAMAIS à la main : un
+# second exemplaire fabriqué ici divergerait au premier changement de capacités côté
+# extension, sans la moindre erreur pour le signaler. On se contente de vérifier qu'il
+# est bien là avant de rattacher le compte de démonstration.
+if ! $WP role list --field=role 2>/dev/null | grep -qx massifs_gestionnaire; then
+	echo "   !! rôle 'massifs_gestionnaire' absent après activation de massifs-core." >&2
+	echo "      L'extension est censée l'installer elle-même (includes/security/roles/module.php)." >&2
+	echo "      Vérifier son activation ci-dessus avant de poursuivre." >&2
+	exit 1
 fi
-
-echo "==> Purge des capacités de contenu du rôle gestionnaire"
-# Le rôle 'gestionnaire' ne doit porter AUCUNE capacité de contenu (brief §6 :
-# consulter/mettre à jour les statuts, voir l'historique — rien d'autre). Et
-# c'est le rôle du compte de démonstration dont le brief §6 impose de publier
-# les identifiants sur le site public : `unfiltered_html` sur ce compte serait
-# un XSS stocké offert à quiconque lit la page de démo du portail.
-# On énumère et retire explicitement les capacités éditoriales/administratives
-# à *chaque* provisionnement — idempotent (`wp cap remove` sur une capacité
-# déjà absente ne fait rien) — pour couvrir aussi bien un rôle fraîchement créé
-# que ce même rôle hérité d'un ancien clone d'`editor` sur une stack existante.
-# Les capacités métier du portail (mise à jour des statuts, lecture de
-# l'historique) sont ajoutées par l'extension massifs-core elle-même (chaîne
-# 'securite', épique 5) — jamais par ce script de provisionnement.
-# Inclut aussi les niveaux `level_1`…`level_10` : système de "user level"
-# historique de WordPress (antérieur aux capacités, WP < 3.0), déprécié mais
-# encore vérifié par du code ancien comme un proxy des droits d'édition —
-# un clone d'`editor` porte `level_7`. On ne garde que `level_0` (subscriber).
-CAPACITES_INTERDITES="edit_posts edit_others_posts edit_published_posts edit_private_posts \
-	publish_posts delete_posts delete_others_posts delete_published_posts delete_private_posts \
-	read_private_posts edit_pages edit_others_pages edit_published_pages edit_private_pages \
-	publish_pages delete_pages delete_others_pages delete_published_pages delete_private_pages \
-	read_private_pages manage_categories manage_links moderate_comments upload_files \
-	unfiltered_html unfiltered_upload edit_theme_options switch_themes edit_users delete_users \
-	create_users list_users promote_users remove_users manage_options activate_plugins \
-	edit_plugins delete_plugins install_plugins edit_themes delete_themes install_themes \
-	update_core update_plugins update_themes export import \
-	level_1 level_2 level_3 level_4 level_5 level_6 level_7 level_8 level_9 level_10"
-for cap in $CAPACITES_INTERDITES; do
-	$WP cap remove gestionnaire "$cap" >/dev/null 2>&1 || true
-done
-$WP cap add gestionnaire read >/dev/null 2>&1 || true
-echo "   capacités de contenu/administration retirées ; 'read' garanti (accès admin minimal)."
+echo "   rôle 'massifs_gestionnaire' présent (installé par l'extension, capacités non dupliquées ici)."
 
 echo "==> Compte gestionnaire de démonstration"
 MANAGER_USER="${WP_MANAGER_USER:-gestionnaire-demo}"
+MANAGER_ROLE="massifs_gestionnaire"
 if ! $WP user get "$MANAGER_USER" --field=ID >/dev/null 2>&1; then
 	$WP user create "$MANAGER_USER" "${WP_MANAGER_EMAIL:-gestionnaire@massifs.local}" \
-		--role=gestionnaire \
+		--role="$MANAGER_ROLE" \
 		--user_pass="${WP_MANAGER_PASSWORD:-gestionnaire}" \
 		--display_name="Gestionnaire (démo)"
-	echo "   compte '$MANAGER_USER' créé."
+	echo "   compte '$MANAGER_USER' créé avec le rôle '$MANAGER_ROLE'."
 else
-	$WP user set-role "$MANAGER_USER" gestionnaire || true
-	echo "   compte '$MANAGER_USER' déjà présent."
+	$WP user set-role "$MANAGER_USER" "$MANAGER_ROLE" || true
+	echo "   compte '$MANAGER_USER' déjà présent, rôle '$MANAGER_ROLE' réaffirmé."
 fi
 
 echo "==> Fixtures"

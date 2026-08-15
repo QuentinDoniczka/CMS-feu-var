@@ -97,7 +97,7 @@ docker compose run --rm wpcli sh /provision/provision.sh
 
 Le script (`docker/provision/provision.sh`) est **idempotent** : il vérifie
 l'état avant chaque action (WordPress déjà installé ? thème déjà actif ? rôle
-déjà créé ? compte déjà présent ?) et ne duplique jamais rien. Il peut être
+présent ? compte déjà présent ?) et ne duplique jamais rien. Il peut être
 rejoué à tout moment sur une stack déjà provisionnée.
 
 Il effectue, dans l'ordre :
@@ -106,43 +106,40 @@ Il effectue, dans l'ordre :
    domaine, qui fige déjà son fuseau (`Horloge.php` de l'extension), mais
    évite que l'administration affiche des heures UTC au gestionnaire sur un
    site dont tout le propos est le statut *du jour* ;
-3. activation du thème `massifs` et de l'extension `massifs-core` ;
+3. activation du thème `massifs` et de l'extension `massifs-core` — **avant**
+   toute étape suivante : c'est cette activation qui installe le rôle du
+   portail (voir ci-dessous) ;
 4. suppression des thèmes par défaut (`Twenty*`) et extensions tierces
    (`akismet`, `hello dolly`) — surface tierce réduite à zéro (brief §3, §9) ;
 5. réglage des permaliens en structure `/%postname%/` (routes REST et pages
    propres) ;
-6. création du rôle `gestionnaire` **à capacités minimales** (voir
-   « Rôle `gestionnaire` » ci-dessous) et d'un compte de démonstration
-   (`WP_MANAGER_USER` dans `.env`) ;
+6. vérification du rôle `massifs_gestionnaire` (voir « Rôle
+   `massifs_gestionnaire` » ci-dessous) et rattachement d'un compte de
+   démonstration (`WP_MANAGER_USER` dans `.env`) ;
 7. rejeu des fixtures si `docker/provision/fixtures/seed.php` existe (voir
    `docker/provision/fixtures/README.md` — vide pour l'instant, câblé pour les
    chaînes fonctionnelles).
 
-### Rôle `gestionnaire` — volontairement minimal
+### Rôle `massifs_gestionnaire` — propriété exclusive de l'extension
 
-Le rôle est créé à partir de `subscriber` (capacité `read` seule : accès à
-l'administration, aucune capacité de contenu), puis, à **chaque**
-provisionnement, une liste explicite de capacités éditoriales/administratives
-(`edit_posts`, `upload_files`, `unfiltered_html`, `manage_options`,
-`edit_users`, etc. — voir `CAPACITES_INTERDITES` dans
-`docker/provision/provision.sh`) est retirée si elle est présente. Ce n'est
-pas cosmétique : c'est le rôle du **compte de démonstration dont le brief §6
-impose de publier les identifiants** sur le site public. `unfiltered_html`
-(offert par défaut par un clone d'`editor`, utilisé ici avant correction) sur
-un compte dont les identifiants sont publics est un XSS stocké prêt à
-l'emploi — inoffensif tant que rien n'est déployé publiquement, critique au
-premier déploiement de `demo.[DOMAINE]`.
+Le rôle et ses capacités (`massifs_publier_statuts`,
+`massifs_consulter_historique`, `massifs_gerer_gestionnaires`) sont le
+vocabulaire **gelé par le contrat de l'issue #13** — seul point de couplage
+entre les chaînes #13, #14 et #15. Ce script ne les crée **jamais** à la
+main : ils sont installés et réconciliés par l'extension elle-même
+(`wp-content/plugins/massifs-core/includes/security/roles/Installation.php`,
+source du vocabulaire : `Capacites.php`), à chaque activation et à chaque
+chargement (`massifs_core_installation`). Un rôle fabriqué en double ici
+divergerait silencieusement au premier changement de capacités côté
+extension — c'est précisément ce qu'un précédent provisionnement faisait
+(rôle `gestionnaire` cloné de `subscriber`, sans aucune des trois capacités
+du portail : le compte de démonstration ne pouvait ni publier, ni consulter
+l'historique).
 
-La purge est rejouée à chaque provisionnement (pas seulement à la création du
-rôle) précisément pour corriger aussi une stack existante dont le volume
-porte encore l'ancien rôle cloné d'`editor` — `wp cap remove` sur une
-capacité déjà absente ne fait rien, donc rejouable sans risque.
-
-**L'ajout de capacités passe par l'extension, jamais par le provisionnement.**
-Les capacités métier du portail (mettre à jour un statut, consulter
-l'historique) seront ajoutées par le code de `massifs-core`
-(`includes/security/`, chaîne `securite`, épique 5) — ce script ne connaît et
-ne doit connaître qu'un principe : zéro capacité de contenu par défaut.
+Le script se contente de vérifier, après l'activation de `massifs-core`, que
+`massifs_gestionnaire` existe (`wp role list`) — il échoue bruyamment sinon,
+plutôt que d'improviser un rôle de repli — puis rattache le compte de
+démonstration à ce rôle (`--role=massifs_gestionnaire`).
 
 ## Utiliser WP-CLI directement
 
