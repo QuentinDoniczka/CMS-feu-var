@@ -1,6 +1,6 @@
 # MASSIFS — Design System
 
-**Version 2.4** · **Date** 14 août 2026 · **Auteur** `lead-design-cms`
+**Version 2.5** · **Date** 15 août 2026 · **Auteur** `lead-design-cms`
 **Statut** source de vérité visuelle. Tout travail d'intégration (`dev-ux-cms`, `dev-front-cms`) et toute
 relecture (`review-cms`) s'y réfèrent. Livrable §11 du brief (« plan de design »).
 
@@ -20,6 +20,8 @@ relecture (`review-cms`) s'y réfèrent. Livrable §11 du brief (« plan de desi
 | **2.3** | 12 août 2026 | **Application normative du recadrage typographique, règle de portée écrite, retrait de la frise — par ajout et correction ciblée, jamais par réécriture.** (a) **D-26 est appliqué** : « capitales » est retiré des lignes `--fs-600` et `--fs-700` du **§5.1**, la « Règle de hiérarchie » est réécrite (capitales **réservées aux étiquettes `--fs-250`** ; `h1`, `h2` et `h3` en **casse normale**), le **§7.3** passe le `h2` éditorial en **famille de texte, casse normale, sans repère**, le **§8.4** ligne 1 perd « capitales » — le nom du massif **reste** en famille d'affichage et **garde son repère**, c'est un titre de statut —, le **§14.3 entrée 5 (b)** est réduit aux **seules** étiquettes `--fs-250`, le **§16** reçoit l'interdit « `h1` ou `h2` rendu en capitales » sans lequel la borne dure de D-26 n'aurait aucun mécanisme de revue, et le **croquis du §7.1** repasse son `h1` en casse normale, annotation « caps » retirée, largeur de ligne préservée au caractère près. **La contradiction transitoire que la v2.2 avait déclarée deux fois est close.** Les bornes qui **survivent** à D-26 sont intactes, mot pour mot : §5.1 ligne `--fs-250`, §14.3 entrée 5 (a), §16 « libellé officiel saisi en capitales dans le HTML » ; l'entrée 5 (c) n'est **pas** réécrite, une note `[v2.3]` constate seulement que son **exemple** est caduc et que sa **règle** vise désormais `Niveau d'Accès` et les quatre libellés officiels. Le §2, ligne « Panneaux DFCI », reçoit un **renvoi** — la table d'ancrage se consulte sans le §15. **Motif de D-26, non déformé : le déplacement de la cible de réception, jamais l'accessibilité.** (b) **La règle de portée typographique** est reproduite au **§5.1** telle que gelée par `docs/contracts/issue-23.md`, avec ses **deux bornes** (étiquettes `--fs-250` en famille d'affichage partout, y compris dans le portail ; défaut du sélecteur nu `h1, h2, h3` en famille d'affichage, règle **normative et non portée par la cascade**), et répercutée aux **§7.2** et **§7.3**. Le **§3.2** est **formellement amendé** en son emplacement n° 2 : le repère ne précède que les `h2` **en portée** de la famille d'affichage. **La liste reste fermée et compte toujours sept emplacements** — l'amendement **restreint** un emplacement, il n'en ajoute ni n'en retire aucun. (c) **Deux plafonds de consommation** entrent au §5.1 : `--fs-700` (`h1`) → **`3rem`**, `--fs-800` (chiffre du jour) → **`5.75rem`**. Ce sont les **milieux exacts** des `clamp` correspondants — **dérivés, pas choisis** —, posés **en consommation** (les jetons du §12 ne bougent pas) et **en `rem`, jamais en `px`** : un plafond en `rem` recule quand l'utilisateur grossit son texte, un plafond en `px` plafonnerait la réponse au zoom (WCAG 1.4.4). Le terme médian `rem + vw` reste **intact** (§14.3 entrée 2 honorée). `--fs-600` n'est pas bridé. (d) **§6.3** : le `--bord-fort` devient **l'unique 4 px du chrome nominal** et va à la **tête de bande carte**, l'entrée du héros ; le bas de la carte et le bandeau de non-officialité passent en `--bord-moyen` ; la règle de quantité est reformulée en « une occurrence dans le chrome nominal ; le bandeau d'alerte, état exceptionnel, porte le sien », **parce qu'une règle qui ment un jour sur trois n'est pas une règle**. Le **§6.1** reçoit le **rythme vertical asymétrique** (`padding-block` **start > end**, et pourquoi c'est ce sens-là), le croquis **§7.1** est mis en accord au caractère près. (e) **D-27 — la frise des 25 marques est retirée**, **abandonnée et non différée** ; ses prescriptions vivantes disparaissent des §1, §3.3, §4.1.d, §6.1, §7.1, §8.2, §9.3, §9.4, §10.6, §13 et §16. **Les archives §14.2 et §15 D-19 ne sont ni réécrites ni annotées**, et **les §10.1 / §10.2 conservent leurs mesures** — seul le mot disparaît, la mesure couvrant désormais la barre d'action du portail. (f) **§12.1** enregistre une rubrique nouvelle, les **jetons déclarés et consommés par personne** — `--ombre-decalee`, `--ombre-decalee-sombre`, `--frise-l`, `--frise-h` —, sous la règle générale de projet **« on ne supprime pas un jeton : on cesse de le consommer »** (sha256 de `tokens.css` épinglé, 111 propriétés, invariant du contrat #4). En conséquence, le **§8.5** cesse de prescrire au présent une ombre que personne ne pose ; le **§6.4** garde le jeton et sa description, le **§9.2** est signalé sans être modifié. (g) **§17, nouveau**, enregistre **neuf divergences** entre ce document et un code **déjà commité**, dont **six héritées du contrat #22** que la chaîne #21 a laissées orphelines en se fermant sans posséder ce fichier. Ce ne sont pas des défauts : c'est ce qui empêche `review-cms` de les compter deux fois. La **neuvième** est propre au §8.2 : le mot qui remplace le chiffre du jour en cas d'indisponibilité **n'est pas rendu par le thème**, le `h1` portant à sa place la chaîne du §11.3 (chaîne #5, arbitrage A-5) — la prescription est **assouplie comme celle du §8.5**, elle décrit ce qui est autorisé, pas ce qui est livré. Et ce mot **s'écrit désormais en casse normale, « Indisponible »** : composé au corps du `h1` et à la place du chiffre, il est le seul endroit du document où des capitales subsistaient hors des étiquettes `--fs-250`. Le compte de propriétés de `tokens.css` est **vérifié au shell** et écrit sans réserve : **111 dans `:root`, 120 dans le fichier entier**. (h) **Correction factuelle** au §5.1 : à 360 px, `--fs-800` vaut **59 px**, `--fs-700` **37,12 px** et `--fs-600` **28,88 px** ; les valeurs de la v2.0 étaient les **planchers** des `clamp`, atteints **sous ≈ 320 px** — 320 px pour `--fs-800`, 325 px pour `--fs-700`, 311 px pour `--fs-600`, conformément au §5.1. Une correction de mesure n'est pas une réécriture de décision, et le plancher de 28 px sous lequel aucun titre ne descend reste exact. (i) **§14.4** ouvre une passe d'autocritique dont la nature diffère des trois précédentes : elle porte sur un **choix déjà fait et défendu**, et le motif de son renversement est le **déplacement de la cible de réception**, jamais un gain d'accessibilité. (j) **§7.3** reçoit la **convention de pied du web public** écrite comme une **convention de menu administrable** — trois entrées affectées à l'emplacement `pied` le jour où les pages existent, **aucun lien codé en dur**, **aucun taux ni qualificatif de conformité RGAA** (aucun audit n'a été mené, et ces qualificatifs sont eux-mêmes des résultats d'audit) ; la phrase « zéro cookie » du croquis §7.1 est consignée **`OUVERT`**, faute de chaîne normative au §11.3, dont la liste est fermée. Le **§16** reçoit les lignes de revue correspondantes, plus une sur la **quantité de `--bord-fort`** et une sur le **repère posé devant un `h2` hors portée**. **Le §12 n'est pas touché — aucun jeton renommé, aucune valeur modifiée, aucune section réécrite.** | `docs/contracts/issue-23.md` (chaîne #23), arbitrages A-1 à A-13 |
 
 | **2.4** | 14 août 2026 | **Le traitement « sélectionné » de la carte est refait, et les épaisseurs de trait de la carte deviennent fonction du palier de zoom — par correction ciblée, jamais par réécriture.** Déclencheur : un **défaut reproduit à l'écran**, dans Chrome sur la stack Docker locale, aux zooms 9 et 10. Sur le massif de **Regagnas** — boîte englobante **94 × 55 px au zoom 9**, un enchevêtrement de languettes de quelques pixels de large —, la règle « liseré 4 px + repère » du §9.2 remplissait toute la boîte englobante de calcaire et l'encadrait de charbon : le massif sélectionné ne se lisait plus comme un massif, mais comme **un rectangle blanc posé sur la carte**. (a) **§9.2 est refait** : la sélection devient le **cerne**, un anneau posé **entièrement hors du polygone**, dans un pane placé **sous** celui des massifs — l'aplat de statut et son motif ne sont **jamais** recouverts. (b) **§9.2.a, nouveau** : trois **paliers de zoom** — `département` (z ≤ 9), `massif` (z 10), `abords` (z ≥ 11) — portés par une **classe sur la racine de la carte**, avec des valeurs chiffrées pour le liseré, le survol et le cerne. Motif : **le liseré est centré sur le tracé, donc il consomme la moitié de son épaisseur dans l'aplat** ; une épaisseur constante ne peut pas servir un département vu en entier et un massif vu de près. (c) **D-28 — le repère est retiré de la carte.** La **liste fermée du §3.2 passe de sept à six emplacements** ; l'emplacement 5 disparaît. (d) **§10.2 est amendé et complété** : le plancher « jamais sous 2 px » devient **« jamais sous 1,5 px, et 1,5 px au seul palier département »**, sur une **mesure** — un trait de 1,5 px garantit 75 % de couverture au pire alignement sous-pixel, soit **3,18:1 sur le rouge officiel** ; à 1,25 px il tombe à **2,66:1** et à 1 px à **2,18:1**. Le plancher exact est **1,42 px** : il est **dérivé, pas choisi**. (e) **Le §12 est ouvert** — pour la première fois depuis la v2.0 — et reçoit **cinq jetons** (`--carte-lisere`, `--carte-survol`, `--carte-cerne`, `--carte-cerne-clair`, `--bord-selection`) plus une **exception documentée n° 3** (redéfinition par classe de palier). **Conséquence déclarée, non subie** : le sha256 épinglé de `tokens.css` et l'invariant « 111 propriétés dans `:root` » du contrat #4 **tombent** ; ils sont remplacés par **116 dans `:root` / 133 dans le fichier**. Aucun jeton n'est **supprimé** ni renommé, aucune valeur de couleur n'est touchée. (f) **§14.5** ouvre la passe 2 quinquies, **§15** enregistre **D-28** et **D-29**, **§16** reçoit quatre lignes de revue et en amende une, **§17.1** liste ce que la révision **ouvre en aval** — dont la clause **A-9 du contrat gelé `docs/contracts/issue-7.md`**, qui reprend l'ancienne règle et **doit être amendée par sa chaîne**, jamais par ce document. | Défaut constaté à l'écran (Chrome, Docker local, z9/z10) ; direction du propriétaire |
+
+| **2.5** | 15 août 2026 | **Révision d'enregistrement — aucun choix visuel n'est repensé. Le §12 et toute déclaration de jeton sont GELÉS et n'ont pas été ouverts.** (a) **§11.3 — sa portée est écrite** : la liste fermée borne le **rendu public**, **pas le portail**, dont la micro-rédaction relève du §7 du brief et du §11.1 (**D-30**, arbitrage du propriétaire sur la question Q-2 du contrat #14). Quatre bornes restent opposables — §11.1/§11.2 s'appliquent au portail, les libellés officiels y restent verbatim, les chaînes de portail restent regroupées en un fichier, et toute chaîne qui **paraît en public** retombe sous la liste. (b) **Contradiction interne levée — la flèche** : le §7.2 imposait `→` en caractère, le §5, **D-25** et le §16 l'interdisaient et en faisaient un **défaut bloquant**. **D-25 l'emporte** — U+2192 est hors du sous-ensemble `latin` et absent des deux polices, il afficherait un rectangle vide ; le §7.2 est mis en cohérence (SVG en ligne, `aria-hidden`, texte « remplacé par » en `screen-reader-text`). La contradiction avait été rencontrée **en production** : le contrat #15 avait gelé la version §7.2, `dev-ux-cms` a refusé de l'appliquer, le contrat a dû être re-gelé (`CORRECTIF-1`). **Aucune décision nouvelle au §15** : c'est l'application de D-25. (c) **§17 — quinze divergences enregistrées, la table passe de neuf à vingt-quatre** : #14 `ea74b4d` (**D-1 à D-9**, **D-5 bis**, plus **A-19**), #15 `56ea7bd` (**`ARBITRAGE-CSS`**, deux copies de la géométrie de pastille), #50 `609eaef` (zoom fractionnaire lu par `floor`, cerne recouvert par un massif voisin contigu) et le **survol du bouton primaire**. La numérotation `D-n` propre à chaque contrat est **conservée en clair**. (d) **§17.1 mis en cohérence** : ses six lignes sont **closes** par la chaîne #50 et **son périmètre d'amendement était sous-dimensionné** — il n'amendait qu'A-9 et A-16 du contrat #7, alors que **A-19, la table de classes du §8.2, les exigences 2, 5, 6, 15 du §8.4 et l'interdit 7** restataient la même règle obsolète. La liste réelle est écrite, avec une **leçon de méthode** opposable. Les lignes sont **marquées closes, pas supprimées** : les supprimer effacerait la leçon. (e) **D-31 — l'emplacement 4 du §3.2 est retiré**, la liste fermée passe de six à **cinq** (1, 2, 3, 6, 7) : il ne pouvait se déclencher **nulle part par construction**, le `h2` du nom du massif gagnant **toujours** l'arbitrage du §3.3. **Solde la dette ouverte par A-15 du contrat #7**, que la v2.4 avait bornée par une note constatant la vacance. **Rien ne change à l'écran.** Le §16 est amendé en conséquence. (f) **§18, nouveau — « à traiter à la prochaine révision »** : cinq manques **du document**, chiffrés et argumentés — le repère sur l'option sélectionnée du portail (acte formel sur liste fermée), le survol qui efface l'étiquette du bouton primaire (**1,15:1** prescrit contre **12,66:1** livré), l'**absence d'échelle typographique de portail** (deux chaînes ont improvisé le **même** contournement sans se voir), le **focus SVG en rectangle englobant** (V-50.1, 94 × 55 px sur Regagnas à z9), et la **dette de duplication du chrome de portail**. **Aucune n'est corrigée ici** : deux exigeraient des jetons, et le §12 est gelé — une recette tournait pendant l'écriture de cette révision. | Clôture du lot Épic 5 ; direction du propriétaire ; escalades des contrats #14 (§14 point 2, Q-2, A-19), #15 (`ARBITRAGE-CSS`) et #50 (A-50.5, V-50.1) |
 
 **Ce que la v1.0 avait raison de faire, et qui est conservé sans changement** : le pari du fond de carte
 monochrome (§1), la signature « le repère » (§3), les deux familles typographiques et le budget de 2
@@ -188,6 +190,15 @@ l'état, quelle que soit la cardinalité de la légende. C'est précisément le 
 .sur-sombre .repere::after  { background: var(--c-calcaire); }
 ```
 
+> **[v2.5] « Une seule implémentation » connaît aujourd'hui une exception, et elle est enregistrée.**
+> `layout.css` est **inchargeable dans `wp-admin`** : l'écran de publication (#14, **D-4**) **reproduit ce
+> bloc, scopé**, dans la feuille de l'extension, faute de quoi les emplacements **6 et 7** du §3.2 —
+> tous deux des emplacements de portail — ne seraient pas rendus. **Ce n'est pas une seconde façon de
+> dessiner le repère** : c'est la même géométrie, les mêmes jetons, recopiés. La règle « une seule
+> implémentation » reste entière **en intention** et la dette est nommée : §17 lignes **13** et **21**,
+> résorption proposée au **§18, recommandation 5**. **Conséquence opérationnelle immédiate : toute
+> modification de ce bloc touche trois fichiers**, pas un.
+
 `--repere-couleur` est la **première** des deux seules custom properties que les composants ont le droit de
 redéfinir localement (la seconde est le groupe `--statut-lisere` / `--statut-*-encre` sous `.sur-sombre`,
 §12) : elle prend la couleur officielle de l'état quand le repère précède une information de statut.
@@ -199,9 +210,8 @@ redéfinir localement (la seconde est le groupe `--statut-lisere` / `--statut-*-
    jour, légende, titres de statut (couleur `--c-mistral-nuit`). **Les `h2` du chrome, des pages
    éditoriales et du portail ne portent pas de repère.**
 3. Devant **chaque puce de statut** dans la légende et dans la liste du jour (couleur = état officiel).
-4. Sur le **bord gauche du panneau massif** (version `--bloc`, couleur = état du massif sélectionné).
-   *(Vacant sur le panneau de carte : le `h2` du nom du massif est plus proche de l'information de statut
-   et gagne l'arbitrage du §3.3 — contrat #7, A-15.)*
+4. **[v2.5 — RETIRÉ par D-31]** Sur le **bord gauche du panneau massif**. Cet emplacement n'existe plus.
+   Le panneau massif porte le repère **sur le `h2` de son nom** (emplacement 2), et là seulement.
 5. **[v2.4 — RETIRÉ par D-28]** Sur le **massif sélectionné dans la carte**. Cet emplacement n'existe plus.
    Le massif sélectionné porte le **cerne** (§9.2), qui n'est pas le repère et ne s'en réclame pas.
 6. Sur le **bord gauche du bandeau d'alerte** (péremption, source indisponible, hors-saison).
@@ -210,6 +220,31 @@ redéfinir localement (la seconde est le groupe `--statut-lisere` / `--statut-*-
 **Décision de révision** : les **jalons ZAPEF** (§8.1) n'entrent **pas** dans cette liste. Un décalage de
 3–4 px sur un marqueur de 18 px détruirait sa silhouette et diluerait la signature dans un objet trop petit
 pour la porter. La discipline l'emporte sur la cohérence de façade.
+
+> **[v2.5] Troisième amendement formel — second retrait, et la dette la plus ancienne de cette liste est
+> soldée.** L'**emplacement 4** est retiré. **La liste compte cinq emplacements** : 1, 2, 3, 6, 7.
+> **Les numéros 4 et 5 sont barrés, jamais réutilisés, et 6 et 7 ne bougent toujours pas** — tout renvoi
+> existant reste juste, y compris ceux des contrats gelés (#14 D-4 renvoie aux « emplacements 6 et 7 »).
+>
+> **Avant** : « Sur le **bord gauche du panneau massif** (version `--bloc`, couleur = état du massif
+> sélectionné). » **Après** : plus rien.
+>
+> **Motif : cet emplacement ne pouvait plus se déclencher nulle part, et ce n'était pas une circonstance,
+> c'était une construction.** Le §8.4 ligne 1 donne au `h2` du nom du massif son repère — la v2.3 l'a
+> **réaffirmé** en y maintenant la famille d'affichage et le repère après D-26. Le §3.3 interdit **plus
+> d'un repère par bloc visuel** et tranche lui-même : « le plus proche de l'information de statut gagne ».
+> Le `h2` est plus proche que le bord du panneau ; il gagne **toujours**, dans le seul panneau massif qui
+> existe. Un emplacement qui perd systématiquement son propre arbitrage n'est pas un emplacement vacant,
+> c'est **une prescription que personne ne doit appliquer** — et le document a déjà écrit, en D-27, qu'une
+> telle ligne est « un piège, pas une archive ».
+>
+> **Ce qui est soldé.** L'arbitrage **A-15 du contrat `docs/contracts/issue-7.md`** demandait de « retirer
+> l'emplacement 4 de la liste fermée, **ou** l'y maintenir en excluant explicitement le panneau de carte ».
+> La v2.4 avait choisi une **troisième voie qui n'était offerte ni par A-15 ni par la nature d'une liste
+> fermée** : une note parenthétique constatant la vacance. Une note constate ; elle ne borne pas. La
+> seconde branche d'A-15 est écartée pour la raison ci-dessus : exclure le panneau de carte reviendrait à
+> maintenir un emplacement qui ne s'applique **à rien**. **Rien ne change à l'écran** — le code livré ne
+> posait déjà pas ce repère (#7, A-15) —, et c'est bien pourquoi ce retrait est un acte d'écriture.
 
 > **[v2.4] Second amendement formel de la liste fermée — un retrait, et il s'écrit comme tel.**
 > La v2.3 avait **restreint** un emplacement en écrivant qu'un amendement « n'en ajoute ni n'en retire
@@ -635,6 +670,16 @@ le jeton.
   redevient une donnée dans une bande d'information, il cesse d'être une affiche.** C'est l'objet même du
   recadrage.
 
+> **[v2.5] Manque constaté : cette échelle n'a pas de branche « portail ».** Elle est calibrée pour le web
+> public ; la règle de portée ci-dessus range le chrome du portail en famille de texte **sans rien dire de
+> ses tailles**. Conséquence observée : les chaînes **#14** et **#15** ont écrit **le même**
+> `min(var(--fs-700), 3rem)` sur leur `h1` de portail **sans se voir**, en empruntant le plafond du `h1`
+> public ; et **rien ne plafonne `--fs-600`**, employé pour les `h2` de portail, qui monte donc à
+> **2,5rem (40 px)** sur un écran d'outil. Deux improvisations convergentes signalent une règle manquante.
+> **Non corrigé dans cette révision** — proposition chiffrée au **§18, recommandation 3** (option
+> recommandée : **zéro jeton**, une table de rôles et un plafond `--fs-600` → **`2.125rem`**, milieu exact
+> du `clamp`, par la même dérivation que les deux plafonds ci-dessus).
+
 **Mesure de ligne** : `--mesure: 68ch` sur le corps éditorial, `--mesure-etroite: 46ch` dans le panneau massif.
 
 **Comportement à 360 px — [v2.3], corrigé.** À 360 px (`1vw` = 3,6 px), `--fs-800` vaut **59 px**,
@@ -871,6 +916,11 @@ Même système, chrome plus dense — c'est un outil, pas une vitrine, mais il d
   4 px-là ne varient jamais : une paire segmentée ne change pas d'échelle, contrairement à un polygone de
   carte (§9.2.a). Navigation clavier par flèches (rôle `radiogroup`),
   `Tab` passe à la ligne suivante.
+  **[v2.5] Le repère de cette option est en contradiction ouverte** avec le §3.3 (« jamais sur les champs
+  de formulaire ») et avec la liste **fermée** du §3.2, qui ne comporte pas cet emplacement. Le §7.2
+  l'emporte **à titre conservatoire** (contrat #14, **A-19**), la divergence est enregistrée au **§17,
+  ligne 20**, et l'arbitrage définitif — amender la liste fermée ou retirer cette prescription — est
+  **versé au §18, recommandation 1**. Un ajout à une liste fermée n'est pas un arbitrage d'agent.
 - **Conséquence directe de la légende binaire** : deux cibles au lieu de cinq divisent par deux et demi le
   temps de saisie d'une ligne. L'objectif « mise à jour complète en moins d'une minute » (§6 du brief)
   pour les 25 massifs devient atteignable **sans raccourci de masse**. Un bouton « tout autoriser / tout
@@ -880,7 +930,24 @@ Même système, chrome plus dense — c'est un outil, pas une vitrine, mais il d
   modifiés » + bouton unique **« Publier les statuts »**. Aucune étape intermédiaire, aucune modale de
   confirmation *avant*, une confirmation *après* (annoncée en `aria-live="polite"`).
 - **Historique** : même tableau, filtres en ligne, export CSV. Les valeurs ancienne/nouvelle sont montrées
-  par deux pastilles séparées par une flèche typographique `→`, jamais par une couleur de diff.
+  par deux pastilles séparées par une **flèche rendue en SVG en ligne**, jamais par une couleur de diff.
+  La flèche est **décorative** (`aria-hidden="true"`, `focusable="false"`, `fill="currentColor"`) et
+  **doublée d'un texte « remplacé par » en `screen-reader-text`**, qui est ce qui porte le sens. Elle
+  n'apparaît pas sur une première publication, qui n'a qu'une pastille.
+
+> **[v2.5] Contradiction interne levée — la flèche s'écrit en SVG, jamais en caractère.** Jusqu'ici ce
+> paragraphe imposait « une flèche typographique `→` », pendant que le §5 et **D-25** l'interdisaient
+> nommément et que le §16 en faisait un **défaut bloquant**. Les deux textes se contredisaient depuis la
+> v2.1, et la contradiction a été rencontrée **en production** : le contrat `docs/contracts/issue-15.md` a
+> été gelé sur la rédaction de ce §7.2, `dev-ux-cms` a **refusé de l'appliquer**, et le contrat a dû être
+> re-gelé en cours de chaîne (`CORRECTIF-1`).
+>
+> **C'est D-25 qui l'emporte, et pour un fait, pas pour une préférence** : U+2192 est **hors du
+> sous-ensemble `latin`** et **absent des deux polices auto-hébergées** (§5). Écrit en caractère, il
+> afficherait un **rectangle vide** — ou serait emprunté à une police système, donc hors du design system.
+> Le mot « typographique » de la rédaction d'origine voulait dire **sobre et non décorative**, jamais
+> *caractère Unicode* ; il est retiré pour qu'on ne puisse plus le lire ainsi. **Le §5, D-25 et le §16 ne
+> changent pas d'un mot** : ce paragraphe les rejoint.
 - Aucun bouton désactivé : si une action est impossible, elle reste focusable et explique pourquoi (§9.2).
 
 ### 7.3 Pages éditoriales (La démarche, Accessibilité, Mentions légales)
@@ -1198,15 +1265,24 @@ visuelle avec les statuts.
   l'inverse qui menace (calcaire vs `--c-carte-fond` = 1,07:1) et c'est encore la moitié charbon qui
   sauve (13,79:1). **Le double contour garantit qu'au moins une de ses deux moitiés atteint 3:1 sur
   chacune des surfaces du système** — preuve complète au §10.5.
+- **[v2.5] Limite connue, non spécifiée : le focus sur un `<path>` SVG.** Sur une forme SVG, Chrome dessine
+  l'`outline` autour de la **boîte englobante** et **ne rend pas** le `box-shadow` du halo : sur Regagnas à
+  z9, l'anneau paraît comme un **rectangle de 94 × 55 px**, plus fort que le cerne vu à 1,5 px. C'est
+  **conforme** à ce qui est écrit ici et au contrat #7 A-16 — l'anneau est **conservé**, le retirer
+  exigerait un `outline: none` dont le seul remplaçant serait un tracé créé par le JS, et WCAG 2.4.7
+  tomberait si la duplication échouait. **Ce document ne spécifie aucun traitement de focus propre au
+  SVG** : le manque est enregistré (contrat #50, **V-50.1**) et la marche à suivre est au **§18,
+  recommandation 4**. Tant qu'il n'est pas comblé, **l'anneau générique reste la règle** ; l'améliorer sans
+  mesure serait rouvrir la carte sans regarder l'écran, ce que le §16 interdit.
 
 ### 9.2 Survol, actif, désactivé
 
 | État | Traitement | Règle |
 |---|---|---|
 | Repos | — | Les liens de contenu sont **soulignés en permanence** (`text-underline-offset: 0.18em`, épaisseur 1,5 px) |
-| Survol | Fond `--c-calcaire-ombre` (boutons, lignes) ; soulignement porté à 3 px (liens) ; **[v2.4]** sur la carte, liseré du massif porté à `--carte-survol`, soit **une fois et demie le liseré du palier courant** (§9.2.a) — **jamais un changement de teinte** | **Aucune information n'apparaît au survol.** Un contenu qui n'existe qu'au survol est un défaut bloquant (§5.2 du brief) |
+| Survol | Fond `--c-calcaire-ombre` (boutons, lignes) — **[v2.5] règle valable sur surface claire seulement** : appliquée telle quelle à une surface de chrome, elle efface l'étiquette (bouton primaire du portail, **1,15:1**). Écart livré et enregistré au **§17 ligne 24** ; borne à écrire au **§18, recommandation 2** — ; soulignement porté à 3 px (liens) ; **[v2.4]** sur la carte, liseré du massif porté à `--carte-survol`, soit **une fois et demie le liseré du palier courant** (§9.2.a) — **jamais un changement de teinte** | **Aucune information n'apparaît au survol.** Un contenu qui n'existe qu'au survol est un défaut bloquant (§5.2 du brief) |
 | Actif | `transform: translate(1px, 1px)` ; `--ombre-decalee` réduite à `2px 3px 0` | Le geste « la peinture s'enfonce » |
-| Sélectionné — **hors carte** | Liseré porté à `--bord-selection` (**4 px**) + repère à gauche | Jamais un simple changement de couleur de fond, **jamais un éclaircissement de l'aplat officiel** |
+| Sélectionné — **hors carte** | Liseré porté à `--bord-selection` (**4 px**) + repère à gauche — **[v2.5]** ce repère-là est en contradiction ouverte avec le §3.2 et le §3.3 (§17 ligne 20, §18 recommandation 1) | Jamais un simple changement de couleur de fond, **jamais un éclaircissement de l'aplat officiel** |
 | Sélectionné — **sur la carte** | **[v2.4] Le cerne** : un anneau posé **entièrement hors du polygone**, jamais dessus. Aucun repère (D-28), aucune duplication décalée, aucune épaisseur ajoutée au liseré du massif lui-même. Épaisseurs par palier : §9.2.a | **L'aplat de statut et son motif ne sont jamais recouverts, à aucun palier.** Un traitement de sélection qui mange l'aplat est un défaut **bloquant** |
 | Désactivé | **N'existe pas.** L'action reste focusable et explique la raison (« Publication impossible : aucun statut modifié. ») | Évite l'exception de contraste et le cul-de-sac clavier |
 
@@ -1780,6 +1856,28 @@ qui garantit que même un motif perdu ne rend aucun statut ambigu. À contrôler
 l'écran reproduit la formulation de la carte.
 
 ### 11.3 Chaînes fixes rédigées par le site (à reprendre mot pour mot)
+
+> **[v2.5] Portée de cette liste — tranchée par le propriétaire du projet, à ne plus rouvrir.**
+> **Le §11.3 borne le rendu PUBLIC, pas le portail.** C'est une **liste fermée** pour tout ce que voit le
+> visiteur : sur une page publique, aucune phrase hors de cette liste et hors du §11.4 n'est rédigée, parce
+> qu'une phrase inventée y passerait pour officielle. **Le portail gestionnaire n'est pas borné par elle** :
+> il est interne, il ne parle qu'à un gestionnaire authentifié, et sa micro-rédaction relève du **§7 du
+> brief** et des **règles de voix du §11.1**, qui s'y appliquent intégralement — voix active, libellé qui
+> nomme l'action, erreur qui dit quoi faire sans s'excuser, vocabulaire fixe du §11.2.
+>
+> **Ce qui a rendu l'arbitrage nécessaire** : l'écran de publication (#14) écrit une vingtaine de chaînes
+> de portail, et sa question Q-2 demandait si elles violaient une liste fermée. Elles ne la violent pas.
+> **Le §7.2 le corroborait déjà en rédigeant lui-même « Publier les statuts » et « 7 statuts modifiés »** —
+> deux chaînes de portail absentes de cette liste depuis la v1.0, qu'aucune revue n'a jamais comptées comme
+> des défauts. Une liste qui se contredirait ainsi dans son propre document ne serait pas fermée, elle
+> serait fausse.
+>
+> **Ce que la borne n'autorise pas pour autant, et qui reste opposable en revue** : (a) une chaîne de
+> portail **reste** soumise au §11.1 et au §11.2 — « Valider » ou « Oups » y sont des défauts comme
+> ailleurs ; (b) un **libellé officiel** affiché dans le portail reste reproduit **verbatim** (§11.4),
+> sans exception ; (c) une chaîne de portail **regroupée en un seul fichier** est la condition de sa
+> relecture — #14 la tient dans `messages.php` ; (d) toute chaîne qui **paraît sur une page publique**,
+> quelle que soit la chaîne d'agents qui l'écrit, retombe sous cette liste fermée.
 
 - Non-officialité (§5.6 du brief, obligatoire) : « Site d'information indépendant. Seules les publications
   de la préfecture des Bouches-du-Rhône font foi : [lien carte officielle]. »
@@ -2480,6 +2578,14 @@ n'est pas une décision, c'est une hypothèse.** Le §16 reçoit la ligne corres
 | **D-28** | **[v2.4] Le repère est retiré de la carte — l'emplacement 5 du §3.2 est supprimé, la liste fermée passe de sept à six.** Le traitement « sélectionné » de la carte devient **le cerne** : un anneau posé **entièrement hors du polygone**, rendu dans un pane placé **sous** celui des massifs, de sorte que l'aplat opaque du statut recouvre lui-même la moitié intérieure du trait. **L'aplat de statut et son motif ne sont recouverts à aucun palier.** Le numéro 5 est **barré, jamais réutilisé** ; 6 et 7 ne bougent pas | **Un défaut reproduit à l'écran, pas une préférence.** Chrome, stack Docker locale, zooms 9 et 10. Sur **Regagnas — boîte englobante 94 × 55 px au zoom 9**, un enchevêtrement de languettes de quelques pixels —, les deux contours de 4 px se recouvraient d'un filament au suivant : le halo calcaire **remplissait la boîte englobante**, la duplication charbon l'encadrait, et l'écran montrait **un rectangle blanc bordé de noir**. Ni massif, ni couleur, ni motif, ni repère. **Le document contenait déjà la règle qui l'interdisait** : le §3.3 refuse le repère sur « tout objet répété de moins de 20 px » — un massif filamenteux au zoom 9 **en est un**, ce que personne ne pouvait écrire avant que la géométrie ne soit rendue. **Rien n'est perdu de la signature** : la sélection **ouvre le panneau**, dont le `h2` porte le repère à l'échelle pour laquelle il est dessiné (§8.4, contrat #7 A-15). Ce qui est retiré, c'est **une seconde implémentation de la signature** — que le §3.1 n'admet qu'une fois | **Conditionner le repère à une taille minimale de massif** : exigerait que le JS mesure la boîte englobante et pose une classe — techniquement permis, mais cela **fait dépendre la signature d'un seuil arbitraire** et produit deux rendus de sélection dans la même carte, dont l'un apparaît et disparaît au zoom. Une signature intermittente n'est pas une signature. **Réduire le décalage à (1 px, 2 px)** : le repère est *une barre doublée d'une trace* ; à 1 px, la trace n'est plus une peinture ancienne, c'est un défaut d'impression. **Conserver le repère en le posant hors du polygone** : la duplication décalée pose de l'encre **des deux côtés** du tracé par construction — l'ordre des couches ne peut pas la sauver |
 | **D-29** | **[v2.4] Les épaisseurs de trait de la carte suivent le palier de zoom** — trois paliers nommés `département` (z ≤ 9), `massif` (z 10), `abords` (z ≥ 11), portés par une **classe sur la racine** et par des règles CSS, avec des valeurs chiffrées pour le liseré, le survol et le cerne (§9.2.a). **Plancher du liseré : 1,5 px, mesuré** (§10.2.a). Cinq jetons entrent au §12 ; l'invariant de compte du contrat #4 est **remplacé par écrit** (111 → 116 dans `:root`) | **Un trait SVG est centré : il consomme la moitié de son épaisseur dans l'aplat.** Une épaisseur constante ne peut donc pas servir à la fois le département vu en entier et un massif vu de près. Mesuré à l'écran : au zoom 9, le liseré de 2 px était **plus large que les languettes qu'il cerne** — la carte lisait globalement noir et la couleur de statut disparaissait **sous son propre contour** ; au zoom 11, le même 2 px devenait un filet ténu. **Le plancher est dérivé, pas choisi** : au pire alignement sous-pixel, un trait de 1,5 px garantit 75 % de couverture, soit **3,18:1 sur le rouge officiel** ; à 1,42 px il vaut exactement 3,00:1, à 1,25 px **2,66:1**, à 1 px **2,18:1**. **La séparation vert/rouge à 1,48:1 reste tenue à tous les paliers.** Le mécanisme est **imposé par le code** : le JS de la carte n'a pas le droit d'écrire un style, donc l'épaisseur variable ne peut se poser que par une classe et des règles — aucune invention | **Garder 2 px partout** : c'est le défaut constaté, et il coûte l'information à z9. **Faire varier l'épaisseur en JS** : interdit — le JS ne pose que des classes (contrat #7, interdit 24). **Exprimer l'épaisseur en unités cartographiques** (`vector-effect`, unités de projection) : le trait grossirait *avec* le massif au lieu de suivre l'écran, ce qui **inverse** le problème au lieu de le résoudre. **Descendre le liseré sous 1,5 px pour gagner encore** : refusé **par la mesure**, pas par le goût — 2,66:1 à 1,25 px est un échec AA sur l'aplat interdit. **Créer un palier par niveau de zoom** (z8…z12) : cinq jeux de valeurs pour trois comportements réels, et un document que personne ne vérifie en revue |
 
+| **D-30** | **[v2.5] Portée du §11.3 : la liste fermée borne le rendu PUBLIC, pas le portail gestionnaire.** Les chaînes du portail relèvent du §7 du brief et des règles de voix du §11.1 ; les libellés officiels y restent verbatim (§11.4) sans exception, et toute chaîne qui **paraît sur une page publique** retombe sous la liste fermée, quelle que soit la chaîne d'agents qui l'écrit | **Arbitrage du propriétaire du projet**, sur la question Q-2 du contrat #14. Le §11.3 protège **ce que voit le visiteur**, là où une phrase inventée pourrait passer pour officielle ; le portail est **interne** et ne s'adresse qu'à un gestionnaire authentifié. **Le §7.2 le corroborait déjà en rédigeant lui-même « Publier les statuts » et « 7 statuts modifiés »** — deux chaînes de portail hors liste depuis la v1.0, qu'aucune revue n'a jamais comptées comme des défauts : une liste qui se contredit ainsi n'est pas fermée, elle est fausse. Sans cet écrit, **chaque revue rouvre la question** — l'écran de publication en a écrit une vingtaine | **Étendre la liste fermée au portail** : il faudrait y faire entrer une vingtaine de chaînes d'outil, qui n'ont **aucun risque d'être prises pour officielles**, et rouvrir MASTER à chaque libellé de bouton — un document de design deviendrait un fichier de traduction. **Ne rien écrire** : c'est l'état qui a produit Q-2, et il se reproduirait à chaque écran d'administration |
+| **D-31** | **[v2.5] Retrait de l'emplacement 4 du §3.2 — le repère au bord gauche du panneau massif.** La liste fermée passe de six à **cinq** : 1, 2, 3, 6, 7. Les numéros **4 et 5 sont barrés, jamais réutilisés**. **Rien ne change à l'écran** : le code livré ne posait déjà pas ce repère | **L'emplacement ne pouvait se déclencher nulle part, par construction et non par circonstance.** Le §8.4 ligne 1 donne son repère au `h2` du nom du massif — la v2.3 l'a **réaffirmé** après D-26 — et le §3.3 interdit plus d'un repère par bloc en tranchant lui-même : « le plus proche de l'information de statut gagne ». Le `h2` gagne **toujours**, dans le seul panneau massif qui existe. **Solde la dette ouverte par A-15 du contrat #7**, que la v2.4 avait bornée par une note constatant la vacance : une note constate, elle ne borne pas. Une prescription que personne ne doit appliquer est « un piège, pas une archive » (D-27) | **La maintenir en excluant explicitement le panneau de carte** — seconde branche offerte par A-15 : elle conserverait un emplacement qui ne s'applique **à rien**, et déplacerait la même dette d'une révision à l'autre. **Retirer le repère du `h2` pour le rendre au bord du panneau** : ce serait retirer la signature du **titre de statut** pour la poser sur du chrome, exactement l'inverse de l'amendement de l'emplacement 2 en v2.3 |
+
+**Sur la flèche `→` : aucune décision nouvelle.** La mise en cohérence du §7.2 en v2.5 est **l'application
+de D-25**, qui n'a jamais changé et qui était mesurée. Ce n'est pas un arbitrage entre deux options : c'est
+un texte du document qui rejoint un fait établi par un autre. Aucune ligne de journal n'est donc ouverte
+pour elle — en ouvrir une laisserait croire que la question a été rouverte.
+
 ---
 
 ## 16. Interdits — liste de contrôle de revue
@@ -2501,9 +2607,14 @@ Tout élément ci-dessous constaté par `review-cms` est un **défaut bloquant**
 - `border-radius` > 2 px. Pilules, avatars ronds, boutons arrondis, **pastille de statut arrondie**.
 - Ombre floue (`blur-radius` ≠ 0), dégradé décoratif, verre dépoli, néomorphisme.
 - Ombre portée sur autre chose que le panneau massif et le bloc de légende.
-- **[v2.4]** Repère hors des **6** emplacements du §3.2, deux repères dans le même bloc, repère sur un
-  jalon — et **repère, duplication décalée ou ombre décalée sur la géométrie de la carte**, à quelque
-  palier de zoom que ce soit (D-28). L'emplacement 5 est **supprimé**, jamais réattribué.
+- **[v2.5, amendé]** Repère hors des **5** emplacements du §3.2 — **1, 2, 3, 6, 7** —, deux repères dans le
+  même bloc, repère sur un jalon — et **repère, duplication décalée ou ombre décalée sur la géométrie de la
+  carte**, à quelque palier de zoom que ce soit (D-28). Les emplacements **4** (D-31) et **5** (D-28) sont
+  **supprimés**, jamais réattribués. **Une seule exception, bornée et temporaire** : le repère de l'option
+  sélectionnée de la paire segmentée du portail, que le §7.2 prescrit et que la liste ne comporte pas —
+  contradiction interne enregistrée au **§17, ligne 20**, à trancher (**§18, recommandation 1**). Elle ne
+  se compte **pas** comme un défaut tant qu'elle n'est pas tranchée ; **aucun autre emplacement nouveau
+  n'est couvert par cette exception**.
 - **[v2.3]** Repère devant un `h2` **hors portée** de la famille d'affichage — chrome, page éditoriale,
   portail (§3.2 amendé, §5.1 règle de portée).
 - **[v2.1]** Poignée de la feuille du bas rendue en **pilule** ; **coins supérieurs arrondis** sur la
@@ -2630,7 +2741,36 @@ première chaîne à posséder ce document après #22 : elle les enregistre.
 | **8** | **Aucun filet de 4 px n'est rendu dans le chrome nominal** entre l'issue #23 et la chaîne « carte » | #23, arbitrage A-3 | Le filet de tête est porté par la **bande carte**, qui est **vide** tant que la carte n'est pas livrée, et la règle ne s'applique pas à une bande vide. **Aucune règle n'est violée dans l'intervalle** : le slab, le filet 2 px, le filet 1 px et le repère tiennent la composition, et le bandeau de non-officialité reste détaché (§6.3) |
 | **9** | Le §8.2 prescrit qu'en cas d'indisponibilité le chiffre du jour soit **remplacé par le mot « Indisponible » en `--fs-700`** ; **le thème ne rend pas ce mot.** Le `h1` porte à sa place la chaîne du §11.3 — « Information du jour non disponible. Consultez la carte officielle de la préfecture. » | #5, arbitrage A-5 (`front-page.php`, raison écrite dans le code) | **La raison est bonne** : rendre ce mot poserait un **second bloc `--fs-700` adjacent au `h1`**, qui dit déjà exactement cela — deux affiches pour une seule information, dans la bande même que cette révision recadre. La **règle de sécurité produit reste tenue par la structure** : le chiffre n'est émis que dans le bras `disponible`, donc aucune valeur de la veille ne peut survivre à l'état d'indisponibilité. **Le §8.2 est assoupli comme le §8.5 l'a été** : il décrit ce qui est **autorisé**, pas ce qui est **livré**. Le reste du comportement — disparition du chiffre, hachure `--c-mistral` à 12 %, lien passé en bouton primaire — **reste prescrit et n'est pas en cause** |
 
-**Ces neuf ne sont pas des défauts à corriger.** Aucune ne demande une modification de code, et la plupart
+> **[v2.5] Quinze lignes ajoutées — la table passe de neuf à vingt-quatre, et le §17 change d'échelle.**
+> Les lignes **10 à 24** enregistrent les écarts de trois chaînes **livrées et commitées** au lot Épic 5 :
+> l'écran de publication (#14, `ea74b4d`), l'historique (#15, `56ea7bd`) et la carte (#50, `609eaef`).
+> Elles sont écrites ici pour **exactement la même raison que les six héritées de #22** : le contrat #14
+> §14 point 2 le demande nommément — « sans enregistrement au §17 de MASTER, `review-cms` les comptera
+> comme de faux défauts, c'est exactement ce qui est arrivé entre les chaînes #22 et #21 ».
+> **La numérotation `D-n` propre à chaque contrat est conservée en clair** dans la colonne « Origine » :
+> deux contrats différents ont chacun leur `D-1`, et renuméroter effacerait la seule clé qui permet de
+> retrouver la justification d'origine. **Ces numéros de contrat n'ont aucun rapport avec les décisions
+> `D-01`…`D-29` du §15**, qui sont celles de ce document — le piège est signalé une fois, ici.
+
+| # | Divergence | Origine | Pourquoi c'est la bonne décision |
+|---|---|---|---|
+| **10** | L'écran de publication est bâti en **`<fieldset>`/`<legend>` par massif**, pas en `<table>` comme l'écrit le §7.2 (« un tableau, une ligne par massif ») | #14, **D-1** (`ea74b4d`) | Le **nom accessible du groupe est garanti** par `legend`, là où l'association en-tête ↔ cellule d'un tableau de saisie n'était pas mesurée. Et le repli à 360 px se fait **sans machinerie** de tableau responsive. §8 du brief est bloquant ; un croquis ne l'est pas |
+| **11** | Pas de `role="radiogroup"` explicite : `fieldset` + radios natives | #14, **D-2** | Le **comportement** que le §7.2 prescrit — navigation par flèches, `Tab` qui sort du groupe — est **natif**. Poser le rôle explicite remplacerait `group` et fragiliserait le nommage par `legend` : on perdrait un acquis pour redire ce que le navigateur fait déjà |
+| **12** | Barre d'action en `position: sticky`, pas `fixed` comme le suggère le §7.1 (« collée en bas ») | #14, **D-3** | Ne masque pas le dernier massif, ne piège pas le focus, ne casse pas à 200 %, et évite un **littéral de hauteur sans source**. C'est la lecture stricte de l'interdit §16 « barre d'action recouvrant la dernière ligne du tableau » (§14.3 entrée 4) : `sticky` la satisfait par construction |
+| **13** | Le bloc `.repere` du **§3.1** est **reproduit, scopé**, dans la feuille de l'extension, alors que le §3.1 dit « une seule implémentation, réutilisée partout » | #14, **D-4** | `layout.css` est **inchargeable dans `wp-admin`** ; ne pas rendre le repère violerait les **emplacements 6 et 7** du §3.2, qui sont des emplacements de portail. Entre deux règles du même document, celle qui porte l'information l'emporte sur celle qui porte la fabrication. **Dette nommée, pas subie** : voir §18, recommandation 4 |
+| **14** | Paire segmentée **sur une colonne** sous `--bp-s`, quand le §7.2 la décrit côte à côte | #14, **D-5** | Précédent **mesuré** : contrat #22 arbitrage 9, déjà enregistré en ligne 2 de cette table. Le §10.6 règle 6 — aucun libellé tronqué, aucun défilement horizontal — l'emporte sur un croquis |
+| **15** | La paire segmentée reste empilée **jusqu'à `--bp-l`**, pas seulement sous `--bp-s` | #14, **D-5 bis** (révision 1 du contrat) | **Mesuré** : dans la piste `Niveau d'Accès` (2/5,5 de la largeur utile), chaque option consomme **74 px de chrome avant le premier caractère** ; à 900 px il reste **≈ 62 px** de libellé et `Accès au massif autorisé` s'empile sur **quatre** lignes. D-5 n'interdisait rien au-dessus de `--bp-s` : c'est une **extension mesurée**, pas un revirement |
+| **16** | « Publication impossible : aucun statut modifié. » est rendue **après** soumission, alors que le §9.2 la donne comme l'explication d'une action au repos | #14, **D-6** | **Sans JavaScript, l'état « rien de modifié » n'est pas connu avant l'aller-retour.** L'afficher au chargement serait **faux** — et le §9.2 exige que l'action reste focusable et explique la raison, ce qu'elle fait. La contrainte 3 du `CLAUDE.md` décide ici, pas la mise en page |
+| **17** | Pas d'en-tête de portail séparé de **56 px** avec date de session et déconnexion (§7.2) : une bande interne à notre conteneur | #14, **D-7** | `wp-admin` **porte déjà ce chrome**. Le redoubler serait du chrome sur du chrome, et le `h1` s'en tient à « Mise à jour des statuts » sans redire « MASSIFS · », que l'écran d'administration affiche à côté (#14, A-11) |
+| **18** | L'**extension enfile quatre feuilles du thème**. Aucune section de ce document n'autorisait ce couplage | #14, **D-8** — précédent nouveau | Ratifié, et **borné à une liste fermée de quatre fichiers**. C'est le seul moyen de tenir les jetons du §12 et la géométrie du §8.1 **identiques** entre le public et le portail. Un couplage **borné et écrit** vaut mieux qu'une seconde palette qui dériverait en silence |
+| **19** | L'anneau de focus du portail s'écrit en **`:is()`**, pas en `:where()` comme le §9.1 | #14, **D-9** (révision 1) | `:where()` vaut **zéro** de spécificité : dans `wp-admin` il perd contre `a:focus` et `input[type="radio"]:focus` du cœur (0,1,1) et **l'anneau ne s'afficherait pas**. `:is()` monte à 0,3,0 **sans `!important`, sans sélecteur d'ID**. **Valeurs, jetons et géométrie inchangés** : c'est le sélecteur qui change, jamais le dessin — donc la preuve du §10.5 tient entière |
+| **20** | Le **repère est posé sur l'option sélectionnée** de la paire segmentée du portail : le §7.2 l'impose, le §3.3 interdit le repère « sur les champs de formulaire », et la liste fermée du §3.2 ne comporte pas cet emplacement | #14, **A-19** — **contradiction interne à ce document** | **Le §7.2 l'emporte à titre conservatoire** : plus spécifique, plus récent, et portant sur ce composant précis. La chaîne a eu raison de ne pas trancher elle-même une liste que ce document déclare fermée. **Ce n'est pas un défaut de code** : le code applique une prescription écrite. **Mais la contradiction reste ouverte dans le document** et appelle un acte formel — amender la liste fermée, ou retirer la prescription du §7.2. **Versée au §18, recommandation 1** ; jusqu'à cet arbitrage, la ligne de revue du §16 « repère hors des 6 emplacements » **ne s'applique pas à ce composant** |
+| **21** | Les règles de **pastille de statut** de `composants.css` sont **recopiées et scopées** dans la feuille de l'historique : **deux copies** de la géométrie normative du §8.1 coexistent (#14 et #15) | #15, **`ARBITRAGE-CSS`** (`56ea7bd`) | Le §12 interdit de **redéfinir un jeton** ; il n'interdit pas de **réécrire une règle de classe**, et **aucune empreinte du lot ne possédait de feuille de chrome de portail partagée**. Enfiler `composants.css` en administration y importerait `layout.css` et son `box-sizing` global. **Le coût est nommé, pas découvert : risque de dérive entre les deux copies.** Il est borné par une preuve — les pastilles portent les mêmes jetons et les mêmes `data-motif` — et par la recommandation 4 du §18 |
+| **22** | Le cadrage réel de la carte est **fractionnaire** — z 9,5 en desktop, z 8,75 à 360 px — alors que le §9.2.a écrit « cadrée sur l'emprise du référentiel (**z9**, vue département) » | #50, **D1**/**D2** (`609eaef`) | **Le « z9 » du §9.2.a est descriptif, jamais normatif** : il notait ce que produisait `fitBounds` en pas entier. `zoomSnap: 0.25` supprime **~184 px de bandes latérales vides**, et le fond monochrome **sans toponyme** ne floute rien à l'échelle fractionnaire. **La table des paliers reste exacte** : elle est lue par `Math.floor( getZoom() )`, partition **totale et sans trou sur les réels**, équivalente au tableau sur les entiers. **`floor`, jamais `round`** — à z 9,5, `round` basculerait au palier massif et poserait de la **peinture claire** à peine au-dessus de z9, précisément ce que la v2.4 existe pour empêcher |
+| **23** | Sur une **frontière partagée avec un massif voisin contigu**, la moitié extérieure du cerne passe **sous l'aplat du voisin** et disparaît : le schéma du §9.2.a suppose « fond de carte » à l'extérieur | #50, **D7** | **Structurellement inévitable** sous la règle « aucun état d'interaction ne recouvre un aplat de statut » : le cerne vit au pane 400, sous les massifs au pane 410 ; l'y remonter le ferait peindre **sur** l'aplat du massif sélectionné lui-même. Entre « le cerne s'interrompt le long d'une frontière » et « un aplat officiel est recouvert », le second est un défaut **bloquant** et le premier ne l'est pas. **Le cerne n'est jamais le seul canal** (§9.2.a) : panneau ouvert, nom, repère, état en toutes lettres, région live |
+| **24** | Le **bouton primaire du portail** n'éclaircit pas vers `--c-calcaire-ombre` au survol comme l'écrit le §9.2 : il **assombrit** vers `--c-mistral-nuit` | #14 (`ea74b4d`), écart documenté dans le code | **Mesuré, et le document a tort ici** : le bouton primaire est `--c-calcaire` sur `--c-mistral` (**6,81:1**) ; un fond porté à `--c-calcaire-ombre` ferait tomber son étiquette à **1,15:1** — elle **disparaîtrait**. L'assombrissement vers `--c-mistral-nuit` la porte à **12,66:1**, reste **dans la famille mistral**, ne touche **aucun** aplat de statut et n'introduit aucune teinte sémantique (§2.1). **Le défaut est dans ce document, pas dans le code** : le §9.2 énonce une règle de survol dérivée des surfaces claires et ne l'a jamais bornée. **Versée au §18, recommandation 2** |
+
+**Ces vingt-quatre ne sont pas des défauts à corriger.** Aucune ne demande une modification de code, et la plupart
 portent sur des fichiers **gelés** (`composants.css`, `print.css`, `tokens.css`). Elles sont écrites pour une seule raison : qu'une revue de
 lot ne les compte pas **deux fois** — une fois comme écart au document, une fois comme défaut de code.
 
@@ -2664,10 +2804,222 @@ reproche à une chaîne ; tout ce qui suit doit être **fait par la chaîne qui 
 sélection. L'homonymie de numéro entre deux contrats est un piège de relecture ; il est signalé une fois
 ici pour qu'aucune chaîne ne rouvre le mauvais fichier.
 
+> **[v2.5] Les six lignes sont closes — et le périmètre d'amendement était plus large que ce qu'elles
+> disaient.** La chaîne **#50** (`docs/contracts/issue-50.md`, commit **`609eaef`**) a exécuté les six
+> lignes le 15 août 2026. **Elles sont marquées closes, pas supprimées** : la règle de tenue du §17
+> demande qu'une ligne disparaisse quand le code rejoint le document, mais l'appliquer ici effacerait
+> **la leçon**, qui est que cette sous-section était **sous-dimensionnée**. On garde donc la trace, une
+> fois, et pour ce motif écrit.
+>
+> **Ce que les lignes 1 et 2 avaient manqué.** Elles n'amendaient que les clauses **A-9** et **A-16** du
+> contrat #7. Or **quatre autres endroits du même contrat restataient la même règle obsolète**, et les
+> laisser en l'état aurait fait lire l'implémentation conforme comme une infraction — c'est exactement le
+> motif de l'amendement, appliqué à moitié. La chaîne #50 a **élargi le périmètre de son côté**
+> (arbitrage **A-50.5**, signalé à `lead-design-cms`) ; **la liste réelle des amendements est celle-ci** :
+>
+> | Clause du contrat #7 | Ce qui portait l'ancienne règle | État au 15 août 2026 |
+> |---|---|---|
+> | **A-9** | « un seul contour rendu, à 4 px (L-12) », duplication décalée, renvoi à l'emplacement 5 | **Amendée.** Survit : « le contour suit le **focus**, pas le panneau » |
+> | **A-16** | renvoi à A-9 | **Renvoi mis en cohérence.** Le fond ne change pas : l'anneau générique **reste** sur le polygone |
+> | **A-19** | `z-index` explicite sur les deux panes, justifié par « la signature du §3.2 emplacement 5 » | **Amendée — et la règle devient plus critique** : ce n'est plus la signature qui en dépend, c'est **la conformité**. Panes 400 < 410 inversés, le cerne se peindrait **sur** l'aplat de statut |
+> | **§8.2**, table des classes | `.carte__contour` / `.carte__contour-trace`, pane `--repere` | **Amendée** : `.carte__cerne` / `.carte__cerne-separateur`, pane `--cerne`, plus les trois classes de palier sur la racine |
+> | **§8.4**, exigences **2, 5, 6, 15** | liseré « 2 px », survol « de 2 à 4 px », contour de sélection | **Amendées** : `--carte-lisere` par palier ; survol = **1,5 ×** le liseré du palier, un **rapport** et non trois nombres |
+> | **Interdit 7** (« aucun zoom en dur ») | contredisait « la borne du palier est un entier de zoom » (§9.2.a) | **Portée précisée** : l'interdit protège le **cadrage**, pas un seuil de présentation (#50, **A-50.3**). MASTER l'emporte ; l'amendement **précise, il n'affaiblit pas** |
+>
+> **Ligne 5 close également** : les cinq jetons sont dans `tokens.css` et l'invariant du contrat #4 est
+> remplacé — **116 propriétés dans `:root`, 133 dans le fichier**. La chaîne #50 signale (**A-50.6**) que
+> ces valeurs sont **aussi épinglées hors de son empreinte** — `tests/rendu/recette-rendu.mjs` et les
+> contrats #11, #21, #23 : leur reprise appartient à l'orchestrateur, jamais à ce document.
+> **Ligne 6 close par une preuve, pas par du code** : la recette de #50 exige la vue Regagnas à z 9,5 dans
+> **Chrome**, aplat et motif entiers, **aucun pixel calcaire** (`--carte-cerne-clair` calculé = `0`), halo
+> charbon ~2,25 px qui ne fusionne pas d'un filament au suivant.
+>
+> **Leçon de méthode, opposable à la prochaine révision.** Quand une révision déplace une règle, elle doit
+> lister **tous** les endroits qui la restatent — clauses d'arbitrage **et** tables de classes **et**
+> listes d'exigences **et** interdits — et pas seulement celui qui l'énonce le plus visiblement. Une règle
+> obsolète oubliée dans une exigence numérotée est **indiscernable** d'une règle en vigueur pour la chaîne
+> qui la lira.
+
 **Une ligne sort de cette sous-section quand le code rejoint le document** — et alors elle ne migre pas au
 §17 : elle disparaît. Le §17 est fait pour les écarts **assumés durablement** ; celui-ci pour les écarts
 **ouverts par une révision et destinés à se fermer**. Confondre les deux transformerait une dette en
 exception permanente.
+
+---
+
+## 18. [v2.5] À traiter à la prochaine révision — **manques du document, pas défauts du code**
+
+**Ce qu'est cette section, et pourquoi elle existe.** Le §17 enregistre des écarts **tranchés**. Le §17.1
+liste des corrections **à faire dans du code**. Celle-ci est la troisième catégorie, et la seule qui manquait :
+des **trous dans ce document** — des endroits où une chaîne d'intégration a dû décider seule parce que
+MASTER ne disait rien, ou disait quelque chose de faux. **Aucune ne se corrige dans un fichier de
+`wp-content/`** ; toutes se corrigent ici, à la révision suivante.
+
+> **Pourquoi rien n'est corrigé dans cette passe, et pourquoi ce n'est pas une dérobade.** Le §12 et
+> **toute déclaration de propriété personnalisée** sont **gelés** pour cette révision : `tokens.css` en est
+> la transcription **octet pour octet**, son **sha256** est épinglé et la recette du lot vérifie **116
+> propriétés dans `:root`, 133 dans le fichier** — une passe de recette tournait **pendant** l'écriture de
+> cette révision. **Un seul jeton ajouté, retiré ou renommé rendrait la recette rouge pour une raison
+> étrangère au code testé.** La contrainte est **temporaire et assumée par le propriétaire**. Les
+> recommandations ci-dessous sont donc **chiffrées et argumentées jusqu'au point de décision**, et
+> s'arrêtent là. **Une recommandation chiffrée qui attend une révision vaut mieux qu'un jeton posé dans une
+> fenêtre où personne ne peut le vérifier** — c'est la même discipline que le §17 divergences 3 et 6, où
+> deux jetons ont déjà été refusés pour ce motif.
+
+**Règle de tenue.** Chaque ligne indique **ce qui manque**, **ce que ça a coûté**, **ce qui est proposé** et
+**le coût en jetons**. Une ligne sort d'ici par une **section amendée** et une **décision au §15**, jamais
+par un simple oubli.
+
+### 18.1 · Recommandation 1 — trancher le repère sur l'option sélectionnée du portail
+
+**Coût en jetons : zéro. Coût réel : un acte formel sur une liste fermée, qui n'appartient pas à une passe
+d'enregistrement.**
+
+**Ce qui manque.** Le **§7.2** prescrit un repère sur l'option sélectionnée de la paire segmentée ; le
+**§3.3** interdit le repère « sur les boutons, les champs de formulaire » ; la liste **fermée** du §3.2 ne
+comporte pas cet emplacement. Trois textes, deux réponses. La chaîne #14 a arbitré en faveur du §7.2
+(**A-19**) — plus spécifique, plus récent, portant sur ce composant précis — et a eu **raison de ne pas
+amender elle-même** une liste que ce document déclare fermée. Enregistré au **§17, ligne 20**.
+
+**Ce que ça coûte aujourd'hui** : la ligne de revue du §16 « repère hors des emplacements du §3.2 » vise un
+composant livré et conforme à une prescription écrite. Elle est **neutralisée par écrit**, mais une
+neutralisation par exception est exactement ce qu'une liste fermée existe pour éviter.
+
+**Les deux sorties, et elles seules.**
+
+- **(a) Amender la liste fermée** — premier **ajout** depuis sa création : un huitième numéro, **8**, « sur
+  l'option sélectionnée d'une paire segmentée de statut ». **Argument pour** : ce n'est pas un champ de
+  formulaire quelconque, c'est une **option de statut** portant un **libellé officiel verbatim** en
+  famille d'affichage (§5.1, borne (a)) — le repère y signale ce qu'il signale partout ailleurs. **Argument
+  contre** : le §3.3 devrait être rouvert au même moment, et la formule « jamais sur les champs de
+  formulaire » devenir « jamais sur les champs de formulaire, **hors option de statut sélectionnée** ».
+- **(b) Retirer la prescription du §7.2.** La sélection y est déjà portée par **trois** marqueurs non
+  chromatiques simultanés — point du radio natif, liseré porté de 2 px à `--bord-selection` (4 px), et le
+  libellé officiel toujours présent à côté de l'aplat. **Le repère est le quatrième, et il est le seul
+  redondant.** Coût : une modification de CSS dans une empreinte d'extension, donc **une ligne au §17.1**,
+  pas une correction gratuite.
+
+**Recommandation motivée : (a).** Le §3.2 emplacement 3 place déjà le repère devant **chaque puce de statut**
+de la légende et de la liste du jour ; une option de statut sélectionnée est le même objet, dans un écran
+d'outil. Retenir (b) créerait une **asymétrie** entre public et portail sur la signature du site, alors que
+la borne (a) du §5.1 vient précisément d'établir l'inverse pour la typographie des mêmes libellés.
+**Le propriétaire tranche : un ajout à une liste fermée n'est pas un arbitrage d'agent.**
+
+### 18.2 · Recommandation 2 — borner la règle de survol du §9.2 aux surfaces claires
+
+**Coût en jetons : zéro. Défaut du document, mesuré.**
+
+**Ce qui manque.** Le §9.2 écrit, sans borne : « Survol → fond `--c-calcaire-ombre` (boutons, lignes) ».
+Appliquée **à la lettre** au bouton primaire du portail, la règle **efface son étiquette** :
+
+| Élément | Repos | Survol prescrit par le §9.2 | Contraste au survol | Verdict |
+|---|---|---|---|---|
+| Bouton primaire (`--c-calcaire` sur `--c-mistral`) | **6,81:1** conforme | fond → `--c-calcaire-ombre` | **1,15:1** | **échec — l'étiquette disparaît** |
+| Le même, contournement livré | 6,81:1 | fond → `--c-mistral-nuit` | **12,66:1** | conforme |
+
+**Ce que ça a coûté** : `dev-ux-cms` a dû contourner et **documenter l'écart dans le code**. Le
+contournement est bon — il reste dans la **famille mistral**, ne touche aucun aplat de statut, n'introduit
+aucune teinte sémantique (§2.1) et **améliore** le contraste. Enregistré au **§17, ligne 24**.
+
+**Ce qui est proposé, à écrire tel quel au §9.2.** Une règle en deux branches, **dérivée et non choisie** :
+
+> Le survol **déplace la surface d'un cran dans sa propre famille, dans le sens qui éloigne du texte**.
+> Sur une surface **claire** (`--c-calcaire`), le cran est `--c-calcaire-ombre` — le texte est sombre,
+> assombrir le fond le rapprocherait. Sur une surface **de chrome** (`--c-mistral`), le cran est
+> `--c-mistral-nuit` — le texte est clair, éclaircir le fond le ferait disparaître.
+
+**Aucun jeton n'est nécessaire** : les quatre valeurs existent déjà au §12. **Ce n'est pourtant pas une
+correction de rédaction** — c'est une règle d'interaction nouvelle, applicable à tout le site, et elle doit
+être vérifiée sur chaque surface du §10.5 avant d'être écrite au présent. C'est une révision, pas une passe
+d'enregistrement.
+
+### 18.3 · Recommandation 3 — une échelle typographique propre au portail
+
+**Coût en jetons : zéro pour l'option A recommandée ; deux jetons pour l'option B.**
+
+**Ce qui manque.** Le §5.1 donne **une seule** échelle, calibrée pour le **web public**, et la règle de
+portée du §5.1 range le chrome du portail « en famille de texte » **sans rien dire de ses tailles**. Le
+portail n'est pourtant pas une page publique : il vit dans `wp-admin`, dont la base est **13 px**, sur des
+écrans larges, et il n'a **aucune affiche**.
+
+**Ce que ça a coûté** : les chaînes #14 et #15 ont dû improviser, chacune de son côté, et elles ont abouti
+au même contournement **sans se voir** — `font-size: min(var(--fs-700), 3rem)` sur le `h1` de portail, dans
+`ecran-publication.css` **et** dans `historique.css`. Elles ont emprunté le **plafond de consommation** que
+le §5.1 réserve au `h1` **public**. Deux improvisations convergentes sont une **règle manquante**, pas une
+coïncidence — et rien n'a plafonné `--fs-600`, employé pour les `h2` de portail : il monte à **2,5rem
+(40 px)** sur un écran d'outil, pour un titre en famille de **texte**.
+
+**Option A — recommandée, zéro jeton : une table de rôles et deux plafonds de consommation, au §5.1.**
+
+| Rôle de portail | Jeton | Plafond de consommation | D'où vient la valeur |
+|---|---|---|---|
+| `h1` d'écran | `--fs-700` | **`3rem`** | plafond public **déjà** écrit au §5.1 — il est simplement **étendu au portail**, ce que les deux chaînes ont fait spontanément |
+| `h2` de section | `--fs-600` | **`2.125rem`** (34 px) | **milieu exact** de `1.75rem`–`2.5rem`, par la **même règle de dérivation** que `--fs-700` → `3rem` et `--fs-800` → `5.75rem`. Dérivé, pas choisi |
+| Corps, cellules, libellés d'option | `--fs-300` | — | déjà en service, aucun changement |
+| Méta, en-têtes de colonne, pagination | `--fs-200` | — | déjà en service |
+| Étiquette de statut | `--fs-250` | — | **famille d'affichage**, borne (a) du §5.1 — ne change pas |
+
+**Pourquoi A plutôt qu'une échelle dédiée** : le portail partage les jetons du public par **D-8/§17 ligne
+18** (l'extension enfile quatre feuilles du thème) ; lui donner sa propre échelle **doublerait** la surface
+à prouver au §10 pour un écran qui n'a que **cinq rôles typographiques**. Et un plafond de consommation
+**ne touche pas le jeton** : c'est le mécanisme que la v2.3 a déjà validé, en `rem` et jamais en `px`, donc
+sans plafonner la réponse au zoom (WCAG 1.4.4).
+
+**Option B — deux jetons, non recommandée** : `--fs-portail-titre` et `--fs-portail-section`, valeurs fixes
+`1.75rem` / `1.375rem`, sans `clamp` (un écran d'outil n'a pas besoin de fluidité). **Coût : +2 propriétés
+dans `:root`**, donc **118 / 135**, donc **sha256, invariant du contrat #4 et recette du lot à reprendre** —
+pour un gain que l'option A obtient sans toucher un octet de `tokens.css`.
+
+### 18.4 · Recommandation 4 — un traitement de focus propre au SVG (V-50.1)
+
+**Coût en jetons : zéro pour la piste recommandée ; à confirmer par mesure avant écriture.**
+
+**Ce qui manque.** MASTER ne spécifie **aucun** traitement de focus propre au SVG. Le §9.1 pose un anneau
+générique par `outline` + `box-shadow` ; sur un `<path>`, Chrome dessine l'`outline` autour de la **boîte
+englobante** et **ne rend pas** le `box-shadow`. Sur **Regagnas à z9**, l'anneau paraît donc comme un
+**rectangle de 94 × 55 px** posé sur une forme filamenteuse — visuellement **plus fort que le cerne**, qui
+n'est vu qu'à **1,5 px** à ce palier.
+
+**Ce n'est pas le défaut de l'issue #50** — `:focus-visible` ne s'arme pas au clic souris, et le cadre noir
+observé alors était le contour charbon décalé, supprimé depuis. C'est **conforme à A-16** et **volontairement
+non corrigé** par la chaîne #50 : retirer l'anneau imposerait un `outline: none` dont le seul remplaçant
+serait **un tracé créé par le JS** — si la duplication échoue, le focus devient invisible et **WCAG 2.4.7
+tombe**. Le raisonnement est bon ; c'est **la spécification qui manque**.
+
+**Ce qu'il faudra trancher, et l'ordre dans lequel le mesurer** :
+
+1. **Un rectangle englobant est-il un indicateur de focus acceptable sur une forme filamenteuse ?** WCAG
+   2.4.7 exige un focus **visible**, pas un focus **ajusté à la forme** : la réponse est probablement oui,
+   et alors **il n'y a rien à écrire d'autre que cette phrase**, ce qui fermerait la question à coût nul.
+2. Si la réponse est non : la seule voie sans JS est un **troisième tracé CSS** sur le polygone focusé —
+   c'est-à-dire une **quatrième couche** après cerne, séparateur et liseré, à chiffrer par palier comme
+   l'a fait le §9.2.a, et à mesurer contre le rappel du §9.1 (calcaire **2,42:1** sur le vert officiel,
+   charbon **6,10:1** ; sur le fond de carte, calcaire **1,07:1**, charbon **13,79:1**). **Coût probable :
+   deux jetons d'épaisseur**, plus deux valeurs dans chacun des deux blocs de palier — **et donc la
+   recette à reprendre**. C'est précisément pourquoi la question n'est pas ouverte dans cette passe.
+3. **À vérifier dans le navigateur avant toute écriture**, aux zooms 9 et 11, sur un massif filamenteux
+   **et** sur un massif compact. C'est la règle du §16 issue de la passe 2 quinquies, et elle s'applique
+   d'abord à ce document.
+
+### 18.5 · Recommandation 5 — la dette de duplication du chrome de portail
+
+**Coût en jetons : zéro. Coût réel : une issue d'intégration, hors de ce document.**
+
+**Ce qui manque** : aucune **feuille de chrome de portail partagée** n'existe. Conséquence enregistrée deux
+fois au §17 — lignes **13** et **21** : le bloc `.repere` du §3.1 est **reproduit** dans la feuille de #14, et
+les règles de pastille de `composants.css` sont **recopiées et scopées** dans celle de #15. **Deux copies
+d'une géométrie normative** (§8.1) et **deux implémentations de l'élément signature** (§3.1, qui n'en admet
+**qu'une**) coexistent aujourd'hui.
+
+**Ce que ça coûte** : rien à l'écran aujourd'hui — les copies sont fidèles et portent les mêmes jetons.
+**Le risque est la dérive** : le jour où le §8.1 ou le §3.1 change, trois fichiers doivent changer, et rien
+dans le code ne le rappelle. C'est exactement le motif pour lequel le §3.1 dit « une seule implémentation ».
+
+**Ce qui est proposé** : une issue d'intégration extrayant `.repere` et les marques de statut dans une
+feuille **consommable par le thème et par `wp-admin`** — ce qui **lèverait la ligne 13** et **la ligne 21**
+d'un même geste. **Ce document ne la crée pas et ne la porte pas** : il en enregistre le besoin et le
+motif. Tant qu'elle n'existe pas, **toute modification du §3.1 ou du §8.1 doit être annoncée comme touchant
+trois fichiers**, et cette phrase-ci est l'endroit où on s'en souviendra.
 
 
 
