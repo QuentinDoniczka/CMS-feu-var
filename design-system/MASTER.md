@@ -1,6 +1,6 @@
 # MASSIFS — Design System
 
-**Version 2.3** · **Date** 12 août 2026 · **Auteur** `lead-design-cms`
+**Version 2.4** · **Date** 14 août 2026 · **Auteur** `lead-design-cms`
 **Statut** source de vérité visuelle. Tout travail d'intégration (`dev-ux-cms`, `dev-front-cms`) et toute
 relecture (`review-cms`) s'y réfèrent. Livrable §11 du brief (« plan de design »).
 
@@ -18,6 +18,8 @@ relecture (`review-cms`) s'y réfèrent. Livrable §11 du brief (« plan de desi
 | **2.1** | 12 août 2026 | **Révision d'artefacts — par ajout et correction ciblée, jamais par réécriture.** Les polices sont vendorisées (`latin` seul, D-20), avec `tokens.css`, `fonts.css` (D-21), les deux licences OFL et `PROVENANCE.md`. **§5** : les deux `OUVERT` typographiques sont **clos** (variable d'Atkinson confirmée sous OFL 1.1, repli `Public Sans` retiré ; capitales accentuées vérifiées), sous-ensemble corrigé en `latin`, **`size-adjust` retiré** au profit de `font-display: optional` + preload (D-22), repli `Arial Narrow` documenté comme absent d'Android/ChromeOS/Linux. **§8.2** : la promesse `tabular-nums` est corrigée — `tnum` absent de la police de titrage, largeur du chiffre désormais **réservée**. **§10.5** : six corrections mesurées, **aucun verdict ne bascule**. Ajouts : **§4.1.d règle 8** (ordre des couches), **§10.7** (paires non mesurées), **§10.8** (`forced-colors` reporté aux chaînes d'intégration), **§14.3** (passe 2 ter, motifs de mise en page et d'interaction), **dix lignes au §16**, **D-20 à D-25**. **Le §12 n'est pas touché — aucun jeton renommé, aucune valeur de couleur modifiée, aucune section réécrite.** | `docs/contracts/issue-4.md` (chaîne #4), arbitrages A-1 à A-6 |
 | **2.2** | 12 août 2026 | **Cible de réception consignée, compte corrigé, parti typographique levé — par correction ciblée, jamais par réécriture.** (a) Le **destinataire du rendu** est désormais écrit : un **décideur communal**, l'élu ou le directeur général des services qui évalue une offre (§7 du brief, `CLAUDE.md` n°4). (b) **Le compte de massifs passe de 27 à 25** — §1, §3.3, §7.1, §7.2, §8.2, §11.1, §14.3 — **y compris dans les sections d'archive §14.2 et §15 D-19**. Le référentiel réglementaire porte **25** massifs ; les **27** identifiants sont ceux du **flux préfectoral**, et les deux affirmations ne doivent jamais être confondues. Les archives sont corrigées parce qu'**une correction de compte n'est pas une réécriture de décision** : D-19 a décidé « une frise, une marque par massif », et cette décision reste vraie — seul le cardinal était faux. La correction est **déclarée ici**, non faite en silence. Au passage, deux citations apocryphes du §6 du brief (§7.2, §14.3 entrée 4) sont **recoupées sur ses mots réels**, le compte sortant des guillemets. (c) Le **renoncement aux capitales condensées sur `h1`/`h2`** est consigné en **D-26** ; **son application normative — §5.1, §7.3, §14.3 entrée 5 (b), §16 — appartient à l'issue #23**, et jusque-là ces sections restent en vigueur. (d) Quatre « 17 h » passent en **espace insécable** (§7.1, §11.1 règles 1 et 6, §11.3), le document se conformant enfin à sa propre règle 6 ; **aucun fichier de gabarit n'est touché — le code portait déjà l'insécable.** **Le §12 n'est pas touché — aucun jeton renommé, aucune valeur modifiée, aucune section réécrite.** | `docs/contracts/issue-21.md` (chaîne #21), arbitrages A-1 à A-6 |
 | **2.3** | 12 août 2026 | **Application normative du recadrage typographique, règle de portée écrite, retrait de la frise — par ajout et correction ciblée, jamais par réécriture.** (a) **D-26 est appliqué** : « capitales » est retiré des lignes `--fs-600` et `--fs-700` du **§5.1**, la « Règle de hiérarchie » est réécrite (capitales **réservées aux étiquettes `--fs-250`** ; `h1`, `h2` et `h3` en **casse normale**), le **§7.3** passe le `h2` éditorial en **famille de texte, casse normale, sans repère**, le **§8.4** ligne 1 perd « capitales » — le nom du massif **reste** en famille d'affichage et **garde son repère**, c'est un titre de statut —, le **§14.3 entrée 5 (b)** est réduit aux **seules** étiquettes `--fs-250`, le **§16** reçoit l'interdit « `h1` ou `h2` rendu en capitales » sans lequel la borne dure de D-26 n'aurait aucun mécanisme de revue, et le **croquis du §7.1** repasse son `h1` en casse normale, annotation « caps » retirée, largeur de ligne préservée au caractère près. **La contradiction transitoire que la v2.2 avait déclarée deux fois est close.** Les bornes qui **survivent** à D-26 sont intactes, mot pour mot : §5.1 ligne `--fs-250`, §14.3 entrée 5 (a), §16 « libellé officiel saisi en capitales dans le HTML » ; l'entrée 5 (c) n'est **pas** réécrite, une note `[v2.3]` constate seulement que son **exemple** est caduc et que sa **règle** vise désormais `Niveau d'Accès` et les quatre libellés officiels. Le §2, ligne « Panneaux DFCI », reçoit un **renvoi** — la table d'ancrage se consulte sans le §15. **Motif de D-26, non déformé : le déplacement de la cible de réception, jamais l'accessibilité.** (b) **La règle de portée typographique** est reproduite au **§5.1** telle que gelée par `docs/contracts/issue-23.md`, avec ses **deux bornes** (étiquettes `--fs-250` en famille d'affichage partout, y compris dans le portail ; défaut du sélecteur nu `h1, h2, h3` en famille d'affichage, règle **normative et non portée par la cascade**), et répercutée aux **§7.2** et **§7.3**. Le **§3.2** est **formellement amendé** en son emplacement n° 2 : le repère ne précède que les `h2` **en portée** de la famille d'affichage. **La liste reste fermée et compte toujours sept emplacements** — l'amendement **restreint** un emplacement, il n'en ajoute ni n'en retire aucun. (c) **Deux plafonds de consommation** entrent au §5.1 : `--fs-700` (`h1`) → **`3rem`**, `--fs-800` (chiffre du jour) → **`5.75rem`**. Ce sont les **milieux exacts** des `clamp` correspondants — **dérivés, pas choisis** —, posés **en consommation** (les jetons du §12 ne bougent pas) et **en `rem`, jamais en `px`** : un plafond en `rem` recule quand l'utilisateur grossit son texte, un plafond en `px` plafonnerait la réponse au zoom (WCAG 1.4.4). Le terme médian `rem + vw` reste **intact** (§14.3 entrée 2 honorée). `--fs-600` n'est pas bridé. (d) **§6.3** : le `--bord-fort` devient **l'unique 4 px du chrome nominal** et va à la **tête de bande carte**, l'entrée du héros ; le bas de la carte et le bandeau de non-officialité passent en `--bord-moyen` ; la règle de quantité est reformulée en « une occurrence dans le chrome nominal ; le bandeau d'alerte, état exceptionnel, porte le sien », **parce qu'une règle qui ment un jour sur trois n'est pas une règle**. Le **§6.1** reçoit le **rythme vertical asymétrique** (`padding-block` **start > end**, et pourquoi c'est ce sens-là), le croquis **§7.1** est mis en accord au caractère près. (e) **D-27 — la frise des 25 marques est retirée**, **abandonnée et non différée** ; ses prescriptions vivantes disparaissent des §1, §3.3, §4.1.d, §6.1, §7.1, §8.2, §9.3, §9.4, §10.6, §13 et §16. **Les archives §14.2 et §15 D-19 ne sont ni réécrites ni annotées**, et **les §10.1 / §10.2 conservent leurs mesures** — seul le mot disparaît, la mesure couvrant désormais la barre d'action du portail. (f) **§12.1** enregistre une rubrique nouvelle, les **jetons déclarés et consommés par personne** — `--ombre-decalee`, `--ombre-decalee-sombre`, `--frise-l`, `--frise-h` —, sous la règle générale de projet **« on ne supprime pas un jeton : on cesse de le consommer »** (sha256 de `tokens.css` épinglé, 111 propriétés, invariant du contrat #4). En conséquence, le **§8.5** cesse de prescrire au présent une ombre que personne ne pose ; le **§6.4** garde le jeton et sa description, le **§9.2** est signalé sans être modifié. (g) **§17, nouveau**, enregistre **neuf divergences** entre ce document et un code **déjà commité**, dont **six héritées du contrat #22** que la chaîne #21 a laissées orphelines en se fermant sans posséder ce fichier. Ce ne sont pas des défauts : c'est ce qui empêche `review-cms` de les compter deux fois. La **neuvième** est propre au §8.2 : le mot qui remplace le chiffre du jour en cas d'indisponibilité **n'est pas rendu par le thème**, le `h1` portant à sa place la chaîne du §11.3 (chaîne #5, arbitrage A-5) — la prescription est **assouplie comme celle du §8.5**, elle décrit ce qui est autorisé, pas ce qui est livré. Et ce mot **s'écrit désormais en casse normale, « Indisponible »** : composé au corps du `h1` et à la place du chiffre, il est le seul endroit du document où des capitales subsistaient hors des étiquettes `--fs-250`. Le compte de propriétés de `tokens.css` est **vérifié au shell** et écrit sans réserve : **111 dans `:root`, 120 dans le fichier entier**. (h) **Correction factuelle** au §5.1 : à 360 px, `--fs-800` vaut **59 px**, `--fs-700` **37,12 px** et `--fs-600` **28,88 px** ; les valeurs de la v2.0 étaient les **planchers** des `clamp`, atteints **sous ≈ 320 px** — 320 px pour `--fs-800`, 325 px pour `--fs-700`, 311 px pour `--fs-600`, conformément au §5.1. Une correction de mesure n'est pas une réécriture de décision, et le plancher de 28 px sous lequel aucun titre ne descend reste exact. (i) **§14.4** ouvre une passe d'autocritique dont la nature diffère des trois précédentes : elle porte sur un **choix déjà fait et défendu**, et le motif de son renversement est le **déplacement de la cible de réception**, jamais un gain d'accessibilité. (j) **§7.3** reçoit la **convention de pied du web public** écrite comme une **convention de menu administrable** — trois entrées affectées à l'emplacement `pied` le jour où les pages existent, **aucun lien codé en dur**, **aucun taux ni qualificatif de conformité RGAA** (aucun audit n'a été mené, et ces qualificatifs sont eux-mêmes des résultats d'audit) ; la phrase « zéro cookie » du croquis §7.1 est consignée **`OUVERT`**, faute de chaîne normative au §11.3, dont la liste est fermée. Le **§16** reçoit les lignes de revue correspondantes, plus une sur la **quantité de `--bord-fort`** et une sur le **repère posé devant un `h2` hors portée**. **Le §12 n'est pas touché — aucun jeton renommé, aucune valeur modifiée, aucune section réécrite.** | `docs/contracts/issue-23.md` (chaîne #23), arbitrages A-1 à A-13 |
+
+| **2.4** | 14 août 2026 | **Le traitement « sélectionné » de la carte est refait, et les épaisseurs de trait de la carte deviennent fonction du palier de zoom — par correction ciblée, jamais par réécriture.** Déclencheur : un **défaut reproduit à l'écran**, dans Chrome sur la stack Docker locale, aux zooms 9 et 10. Sur le massif de **Regagnas** — boîte englobante **94 × 55 px au zoom 9**, un enchevêtrement de languettes de quelques pixels de large —, la règle « liseré 4 px + repère » du §9.2 remplissait toute la boîte englobante de calcaire et l'encadrait de charbon : le massif sélectionné ne se lisait plus comme un massif, mais comme **un rectangle blanc posé sur la carte**. (a) **§9.2 est refait** : la sélection devient le **cerne**, un anneau posé **entièrement hors du polygone**, dans un pane placé **sous** celui des massifs — l'aplat de statut et son motif ne sont **jamais** recouverts. (b) **§9.2.a, nouveau** : trois **paliers de zoom** — `département` (z ≤ 9), `massif` (z 10), `abords` (z ≥ 11) — portés par une **classe sur la racine de la carte**, avec des valeurs chiffrées pour le liseré, le survol et le cerne. Motif : **le liseré est centré sur le tracé, donc il consomme la moitié de son épaisseur dans l'aplat** ; une épaisseur constante ne peut pas servir un département vu en entier et un massif vu de près. (c) **D-28 — le repère est retiré de la carte.** La **liste fermée du §3.2 passe de sept à six emplacements** ; l'emplacement 5 disparaît. (d) **§10.2 est amendé et complété** : le plancher « jamais sous 2 px » devient **« jamais sous 1,5 px, et 1,5 px au seul palier département »**, sur une **mesure** — un trait de 1,5 px garantit 75 % de couverture au pire alignement sous-pixel, soit **3,18:1 sur le rouge officiel** ; à 1,25 px il tombe à **2,66:1** et à 1 px à **2,18:1**. Le plancher exact est **1,42 px** : il est **dérivé, pas choisi**. (e) **Le §12 est ouvert** — pour la première fois depuis la v2.0 — et reçoit **cinq jetons** (`--carte-lisere`, `--carte-survol`, `--carte-cerne`, `--carte-cerne-clair`, `--bord-selection`) plus une **exception documentée n° 3** (redéfinition par classe de palier). **Conséquence déclarée, non subie** : le sha256 épinglé de `tokens.css` et l'invariant « 111 propriétés dans `:root` » du contrat #4 **tombent** ; ils sont remplacés par **116 dans `:root` / 133 dans le fichier**. Aucun jeton n'est **supprimé** ni renommé, aucune valeur de couleur n'est touchée. (f) **§14.5** ouvre la passe 2 quinquies, **§15** enregistre **D-28** et **D-29**, **§16** reçoit quatre lignes de revue et en amende une, **§17.1** liste ce que la révision **ouvre en aval** — dont la clause **A-9 du contrat gelé `docs/contracts/issue-7.md`**, qui reprend l'ancienne règle et **doit être amendée par sa chaîne**, jamais par ce document. | Défaut constaté à l'écran (Chrome, Docker local, z9/z10) ; direction du propriétaire |
 
 **Ce que la v1.0 avait raison de faire, et qui est conservé sans changement** : le pari du fond de carte
 monochrome (§1), la signature « le repère » (§3), les deux familles typographiques et le budget de 2
@@ -198,15 +200,44 @@ redéfinir localement (la seconde est le groupe `--statut-lisere` / `--statut-*-
    éditoriales et du portail ne portent pas de repère.**
 3. Devant **chaque puce de statut** dans la légende et dans la liste du jour (couleur = état officiel).
 4. Sur le **bord gauche du panneau massif** (version `--bloc`, couleur = état du massif sélectionné).
-5. Sur le **massif sélectionné dans la carte** : contour `--c-calcaire` 4 px + contour `--c-charbon` 4 px
-   décalé de (3 px, 4 px), rendu par duplication du tracé dans un pane Leaflet dédié
-   `transform: translate(3px, 4px)` sous le pane des tracés.
+   *(Vacant sur le panneau de carte : le `h2` du nom du massif est plus proche de l'information de statut
+   et gagne l'arbitrage du §3.3 — contrat #7, A-15.)*
+5. **[v2.4 — RETIRÉ par D-28]** Sur le **massif sélectionné dans la carte**. Cet emplacement n'existe plus.
+   Le massif sélectionné porte le **cerne** (§9.2), qui n'est pas le repère et ne s'en réclame pas.
 6. Sur le **bord gauche du bandeau d'alerte** (péremption, source indisponible, hors-saison).
 7. Sur le **bord gauche de la barre d'action** du portail (« Publier les statuts »).
 
-**Décision de révision** : les **jalons ZAPEF** (§8.1) n'entrent **pas** dans cette liste et restent à sept
-emplacements. Un décalage de 3–4 px sur un marqueur de 18 px détruirait sa silhouette et diluerait la
-signature dans un objet trop petit pour la porter. La discipline l'emporte sur la cohérence de façade.
+**Décision de révision** : les **jalons ZAPEF** (§8.1) n'entrent **pas** dans cette liste. Un décalage de
+3–4 px sur un marqueur de 18 px détruirait sa silhouette et diluerait la signature dans un objet trop petit
+pour la porter. La discipline l'emporte sur la cohérence de façade.
+
+> **[v2.4] Second amendement formel de la liste fermée — un retrait, et il s'écrit comme tel.**
+> La v2.3 avait **restreint** un emplacement en écrivant qu'un amendement « n'en ajoute ni n'en retire
+> aucun ». Celui-ci en **retire un**. C'est un acte d'une autre portée, et il ne se glisse pas dans une
+> renumérotation : **l'emplacement 5 est barré, jamais réutilisé, et les numéros 6 et 7 ne bougent pas** —
+> tout renvoi existant à « l'emplacement 6 » ou « 7 » reste juste.
+>
+> **Avant** : « Sur le massif sélectionné dans la carte : contour `--c-calcaire` 4 px + contour
+> `--c-charbon` 4 px décalé de (3 px, 4 px), rendu par duplication du tracé dans un pane Leaflet dédié. »
+> **Après** : plus rien. **La liste compte six emplacements.**
+>
+> **Motif, mesuré et non supposé** (D-28). Trois raisons, dont la première suffit.
+> **(a) La géométrie réelle réfute la règle.** Le repère est *une barre peinte de 8 px doublée d'une trace
+> décalée*. Transposé à un polygone, il devient la **duplication du tracé entier**, décalée de (3 px, 4 px)
+> et tracée à 4 px — c'est-à-dire un objet dont la lisibilité dépend entièrement de la taille apparente de
+> la forme. Sur **Regagnas, boîte englobante 94 × 55 px au zoom 9**, faite de languettes de quelques pixels
+> de large, les deux contours de 4 px se recouvrent d'un filament au suivant : le halo calcaire **remplit
+> la boîte englobante**, la duplication charbon l'encadre, et le résultat lu à l'écran est **un rectangle
+> blanc bordé de noir**. Ni le massif, ni sa couleur, ni son motif, ni le repère.
+> **(b) Ce document avait déjà écrit la règle qui l'interdit.** Le §3.3 refuse le repère sur « **tout objet
+> répété de moins de 20 px** ». Un massif filamenteux au zoom 9 **est** un assemblage d'objets de moins de
+> 20 px ; il tombait sous cette interdiction sans que personne ne l'y range, parce que la géométrie n'était
+> pas connue quand l'emplacement 5 a été écrit. **La règle n'a pas changé ; le fait l'a rejointe.**
+> **(c) La signature ne perd rien, et c'est vérifiable.** Sélectionner un massif **ouvre le panneau**, dont
+> le `h2` — le nom du massif — porte le repère (§8.4, contrat #7 A-15). La signature est donc **présente à
+> l'écran au moment exact de la sélection**, sur un titre, à l'échelle pour laquelle elle est dessinée.
+> Ce qui est retiré n'est pas la signature : c'est **une seconde implémentation de la signature**, à une
+> échelle où elle ne fonctionne pas — exactement ce que le §3.1 n'admet qu'une fois.
 
 > **[v2.3] Amendement formel de la liste fermée — acte consigné comme tel.** Cette liste est **déclarée
 > fermée** ; l'amender n'est donc pas une retouche de rédaction, c'est un acte, et il s'écrit.
@@ -232,6 +263,11 @@ signature dans un objet trop petit pour la porter. La discipline l'emporte sur l
   silhouette. **[v2.3]** Cette ligne visait aussi les 25 marques retirées par D-27 ; elle vaut désormais
   pour **tout objet répété de moins de 20 px**, quel qu'il soit, et cette formulation la rend générale au
   lieu de la lier à un composant disparu.
+- **[v2.4] Sur la géométrie de la carte — polygones de massif, tracés, contours, cernes.** Aucune
+  duplication décalée, aucune ombre décalée, aucun second tracé, à aucun palier de zoom (D-28). La carte
+  est la seule surface du site dont **l'échelle des objets n'est pas décidée par le design** : elle est
+  décidée par la géographie et par le zoom. Un motif de signature dont la lisibilité dépend d'une taille
+  apparente qu'on ne maîtrise pas n'est pas une signature, c'est un pari.
 - **Plus d'une fois par bloc visuel** : deux repères adjacents cassent la métaphore (on ne repeint pas deux
   fois la même balise). Si deux candidats coexistent, le plus proche de l'information de statut gagne.
 - **Jamais animé.** La peinture ne bouge pas.
@@ -265,8 +301,8 @@ signature dans un objet trop petit pour la porter. La discipline l'emporte sur l
 
 | Clé | Libellé officiel *verbatim* | Couleur officielle | Sévérité | Motif obligatoire | Liseré obligatoire |
 |---|---|---|---|---|---|
-| `autorise` | `Accès au massif autorisé` | **`#22B14C`** | `10` | `aucun` (aplat nu) | `--c-charbon` 2 px |
-| `interdit` | `Accès au massif interdit` | **`#E63A3C`** | `20` | `hachure_croisee` | `--c-charbon` 2 px |
+| `autorise` | `Accès au massif autorisé` | **`#22B14C`** | `10` | `aucun` (aplat nu) | `--c-charbon` 2 px *(carte : §9.2.a)* |
+| `interdit` | `Accès au massif interdit` | **`#E63A3C`** | `20` | `hachure_croisee` | `--c-charbon` 2 px *(carte : §9.2.a)* |
 
 Les deux hex sont **relevés au pixel** sur les pastilles de légende publiées par la préfecture
 (`couleur_vert.png`, `couleur_rouge.png`). Le rendu de la carte officielle emploie par ailleurs les
@@ -316,11 +352,16 @@ couleur officielle : ils sont **à nous**, et la §11.3 fixe leurs phrases.
 1. **`fill-opacity: 1`** sur tous les polygones de massif. Aucune transparence : les ratios mesurés au §10
    ne tiennent que sur aplat opaque. C'est aussi ce qui donne à la carte son aspect « formes peintes »,
    et ce qui la rend lisible de loin. La source officielle peint à 50 % ; nous non, et c'est délibéré.
-2. **Liseré `--c-charbon` 2 px sur tout polygone de massif et tout jalon ZAPEF, sans exception.**
+2. **Liseré `--c-charbon` sur tout polygone de massif et tout jalon ZAPEF, sans exception.**
    Ce liseré n'est **pas décoratif** : il est le seul élément qui atteigne 3:1 (WCAG 1.4.11) sur toutes les
    surfaces, y compris **entre un massif vert et un massif rouge voisins, qui ne contrastent qu'à 1,48:1**
    (§10.2). Sans lui, on ne voit pas où s'arrête un massif autorisé et où commence un massif interdit.
    Un polygone sans liseré est un défaut **bloquant**, pas une variante esthétique.
+   **[v2.4] Son épaisseur est de 2 px partout, sauf sur la carte, où elle suit le palier de zoom** —
+   1,5 px / 2 px / 3 px (§9.2.a), plancher **mesuré** à 1,5 px (§10.2.a). Hors de la carte — pastilles,
+   jalons, légende, liste du jour, panneau, portail, impression — **rien ne varie : 2 px**. Ce qui varie,
+   c'est le rapport entre l'épaisseur du trait et la taille apparente de la forme, et il n'existe que sur
+   une carte.
 3. **Aucun texte n'est jamais posé sur un aplat de statut. Nulle part.** Ni sur la carte, ni dans la
    légende, ni dans la liste, ni dans le portail, ni à l'impression. Mesuré : `--c-charbon` sur `#E63A3C`
    plafonne à **4,11:1**, sous le seuil AA de 4,5:1 pour du texte normal ; le blanc pur n'y atteint que
@@ -679,6 +720,7 @@ est un arbitrage que ce document n'a pas rendu.
 | `--bord-champ` | `2px solid var(--c-garrigue)` | Champs de formulaire au repos (4,83:1 → limite ≥ 3:1 conforme) |
 | `--bord-moyen` | `2px solid var(--c-charbon)` | Boutons secondaires, **liseré des polygones, pastilles et jalons**, **[v2.3] filet de tête de bande** (bloc de légende), **bas de la bande carte**, **bandeau de non-officialité** |
 | `--bord-fort` | `4px solid var(--c-charbon)` | **[v2.3] Tête de la bande carte** — l'entrée du héros —, panneau massif, encart de consigne, bas du bandeau d'alerte |
+| `--bord-selection` | `4px` | **[v2.4] Une épaisseur seule, jamais une abréviation** : `border-width` de l'état **sélectionné** dans le chrome — bouton de jour de la carte, paire segmentée du portail (§7.2, §9.2). La couleur vient du composant. **Il ne compte pas dans la quantité de `--bord-fort`** ci-dessous : ce n'est pas le même jeton, ce n'est pas le même rôle, et un état d'interaction n'est pas un filet de composition. **Sans rapport avec les épaisseurs de la carte**, qui varient (§9.2.a) |
 
 **[v2.3] Répartition des filets — une seule occurrence forte, et elle est placée.** La v2.0 prescrivait
 trois `--bord-fort` sur l'accueil (haut **et** bas de la carte, bandeau de non-officialité). Ce n'est pas
@@ -825,7 +867,9 @@ Même système, chrome plus dense — c'est un outil, pas une vitrine, mais il d
 - **Le choix se fait entre deux options, pas cinq** : le groupe radio devient une **paire segmentée**
   `Accès au massif autorisé` / `Accès au massif interdit`, chacune ≥ 44 px de haut, pastille + motif +
   libellé **verbatim** posé à côté de l'aplat (jamais dessus), liseré `--c-charbon` 2 px, état sélectionné
-  = liseré 4 px `--c-mistral-nuit` + repère à gauche. Navigation clavier par flèches (rôle `radiogroup`),
+  = liseré `--bord-selection` (**4 px**, §12) en `--c-mistral-nuit` + repère à gauche. **[v2.4]** Ces
+  4 px-là ne varient jamais : une paire segmentée ne change pas d'échelle, contrairement à un polygone de
+  carte (§9.2.a). Navigation clavier par flèches (rôle `radiogroup`),
   `Tab` passe à la ligne suivante.
 - **Conséquence directe de la légende binaire** : deux cibles au lieu de cinq divisent par deux et demi le
   temps de saisie d'une ligne. L'objectif « mise à jour complète en moins d'une minute » (§6 du brief)
@@ -1145,7 +1189,11 @@ visuelle avec les statuts.
 - Jamais `outline: none` sans remplacement. `:focus-visible` uniquement (pas de halo à la souris),
   **sauf** sur la feuille du bas et le panneau massif, où le focus programmatique doit rester visible.
 - **Sur la carte**, un massif ou un jalon focusé reçoit un **double contour** : `--c-calcaire` 3 px **et**
-  `--c-charbon` 3 px décalés. Ce n'est pas un raffinement : sur l'aplat vert officiel, un anneau calcaire
+  `--c-charbon` 3 px. **[v2.4] Les deux moitiés sont concentriques, jamais décalées** — le décalage
+  appartenait au repère, retiré de la carte par D-28. Sur un polygone, ces deux moitiés sont **le cerne et
+  son séparateur** (§9.2.a), qui les rendent déjà : le focus et la sélection coïncidant toujours (contrat
+  #7, A-9), **aucun troisième tracé n'est ajouté**, et l'anneau générique de `layout.css` reste posé
+  par-dessus (A-16). Ce n'est pas un raffinement : sur l'aplat vert officiel, un anneau calcaire
   seul ne fait que **2,42:1** ; la moitié charbon monte à **6,10:1**. Sur le fond de carte clair, c'est
   l'inverse qui menace (calcaire vs `--c-carte-fond` = 1,07:1) et c'est encore la moitié charbon qui
   sauve (13,79:1). **Le double contour garantit qu'au moins une de ses deux moitiés atteint 3:1 sur
@@ -1156,15 +1204,166 @@ visuelle avec les statuts.
 | État | Traitement | Règle |
 |---|---|---|
 | Repos | — | Les liens de contenu sont **soulignés en permanence** (`text-underline-offset: 0.18em`, épaisseur 1,5 px) |
-| Survol | Fond `--c-calcaire-ombre` (boutons, lignes) ; soulignement porté à 3 px (liens) ; sur la carte, liseré du massif porté de 2 à 4 px — **jamais un changement de teinte** | **Aucune information n'apparaît au survol.** Un contenu qui n'existe qu'au survol est un défaut bloquant (§5.2 du brief) |
+| Survol | Fond `--c-calcaire-ombre` (boutons, lignes) ; soulignement porté à 3 px (liens) ; **[v2.4]** sur la carte, liseré du massif porté à `--carte-survol`, soit **une fois et demie le liseré du palier courant** (§9.2.a) — **jamais un changement de teinte** | **Aucune information n'apparaît au survol.** Un contenu qui n'existe qu'au survol est un défaut bloquant (§5.2 du brief) |
 | Actif | `transform: translate(1px, 1px)` ; `--ombre-decalee` réduite à `2px 3px 0` | Le geste « la peinture s'enfonce » |
-| Sélectionné | Liseré porté à 4 px + repère à gauche | Jamais un simple changement de couleur de fond, **jamais un éclaircissement de l'aplat officiel** |
+| Sélectionné — **hors carte** | Liseré porté à `--bord-selection` (**4 px**) + repère à gauche | Jamais un simple changement de couleur de fond, **jamais un éclaircissement de l'aplat officiel** |
+| Sélectionné — **sur la carte** | **[v2.4] Le cerne** : un anneau posé **entièrement hors du polygone**, jamais dessus. Aucun repère (D-28), aucune duplication décalée, aucune épaisseur ajoutée au liseré du massif lui-même. Épaisseurs par palier : §9.2.a | **L'aplat de statut et son motif ne sont jamais recouverts, à aucun palier.** Un traitement de sélection qui mange l'aplat est un défaut **bloquant** |
 | Désactivé | **N'existe pas.** L'action reste focusable et explique la raison (« Publication impossible : aucun statut modifié. ») | Évite l'exception de contraste et le cul-de-sac clavier |
 
 > **Règle absolue héritée du §4.1** : aucun état d'interaction ne modifie la **teinte** d'un aplat de
 > statut. Ni survol, ni focus, ni sélection, ni désactivation, ni opacité. Un vert éclairci au survol
 > serait une couleur officielle altérée. Les états d'interaction agissent sur le **liseré** et sur le
-> **repère**, jamais sur le pigment.
+> **cerne**, jamais sur le pigment.
+
+> **[v2.4] Règle nouvelle, de même force, et qui manquait : aucun état d'interaction ne recouvre un aplat
+> de statut.** La règle ci-dessus interdisait de *changer* le pigment ; elle n'interdisait pas de le
+> *cacher*, et c'est par ce trou que la v2.3 a fait peindre un massif entier en calcaire. Un trait posé sur
+> un tracé SVG est **centré** : il consomme la moitié de son épaisseur **à l'intérieur** de la forme. À 4 px
+> sur une languette de 3 px de large, la moitié intérieure suffit à tout recouvrir. **Cacher un aplat
+> officiel et l'altérer produisent exactement la même perte d'information** ; les deux sont désormais
+> interdits par écrit.
+
+### 9.2.a **[v2.4]** Le cerne — le traitement « sélectionné » de la carte
+
+> **Une phrase** : le massif sélectionné est **cerné par l'extérieur** — un anneau charbon, doublé d'un
+> séparateur calcaire dès qu'il y a la place, dessiné **sous** le polygone de sorte que l'aplat opaque du
+> statut recouvre lui-même la moitié intérieure du trait.
+
+**Le mécanisme, qui est aussi la preuve.** Le cerne est la **duplication du tracé courant**, rendue dans un
+pane Leaflet placé **sous** celui des massifs. Un trait SVG étant centré, sa moitié intérieure tombe sous
+le polygone — et le polygone est peint en `fill-opacity: 1` (§4.1.d règle 1). **La moitié intérieure est
+donc invisible par construction, pas par convention** : il n'y a aucune règle à respecter, aucun réglage à
+maintenir, aucune façon de se tromper. Seule la moitié extérieure paraît. C'est le même raisonnement que
+D-24 : sur une carte, quand la couleur ne peut pas trancher, **c'est l'ordre des couches qui tranche**.
+
+De la forme vers l'extérieur, un massif sélectionné donne donc :
+
+```
+ [ aplat de statut + motif ]  ← jamais touché, à aucun palier
+ [ son liseré charbon ]       ← moitié extérieure seulement
+ [ séparateur calcaire ]      ← absent au palier « département »
+ [ cerne charbon ]            ← ce qui dit « celui-ci »
+ [ fond de carte ]
+```
+
+**Pourquoi un séparateur clair, et pourquoi il ne porte rien.** Sans lui, le cerne et le liseré du massif
+sont la même encre et fusionnent en une bavure noire : on voit un trait épais, on ne voit pas un anneau.
+Le séparateur les décolle. Il est encadré de charbon **des deux côtés**, à **14,74:1** (§10.2.b) — c'est ce
+qui l'autorise à ne rien porter lui-même : mesuré, `--c-calcaire` ne fait que **1,07:1** sur le fond de
+carte et **2,42:1** sur le vert officiel. **Le séparateur est un intervalle, jamais un trait porteur.**
+Toute la conformité du cerne est portée par sa part **charbon**, comme celle du liseré (D-13).
+
+**Pourquoi il disparaît au palier « département », et c'est la décision centrale de cette révision.**
+Au zoom 9, les massifs filamenteux n'ont pas d'espace entre leurs languettes : chaque pixel d'encre posé
+**à l'extérieur** d'un filament est un pixel posé **dans le vide entre deux filaments**, et deux halos
+voisins se rejoignent. Le défaut constaté à l'écran n'est pas venu d'une mauvaise couleur, il est venu
+d'une **quantité de peinture claire** posée à une échelle qui ne pouvait pas l'absorber. D'où la règle,
+qui tient en une ligne et qui est vérifiable en revue :
+
+> **Au palier « département », aucune peinture claire n'est posée sur la carte.**
+
+À ce palier, la sélection se lit comme **un bord repeint plus lourd** — pas comme un anneau. C'est le
+palier où elle est la moins spectaculaire, et c'est **assumé** : c'est aussi celui où le panneau massif est
+ouvert, porte le nom du massif, son repère et son état en toutes lettres, et où la région live a annoncé la
+sélection. Le cerne n'est jamais le seul canal.
+
+#### L'échelle d'épaisseurs par palier de zoom
+
+La carte est cadrée sur l'emprise du référentiel (**z9**, vue département) et **plafonnée à z11** ; la
+pyramide de tuiles monte à z12, que la carte ne suit pas (contrat #7, F-11). Trois paliers, trois classes
+sur la **racine** de la carte, et **rien d'autre** :
+
+| Palier | Zoom | Classe sur la racine | `--carte-lisere` | `--carte-survol` | `--carte-cerne` (charbon) | `--carte-cerne-clair` (séparateur) |
+|---|---|---|---|---|---|---|
+| **département** | **z ≤ 9** | `.carte--echelle-departement` | **1,5 px** | 2,5 px | **4,5 px** | **0** |
+| **massif** | **z 10** | `.carte--echelle-massif` | **2 px** | 3 px | **9 px** | **5 px** |
+| **abords** | **z ≥ 11** | `.carte--echelle-abords` | **3 px** | 4,5 px | **13 px** | **7 px** |
+
+**Ces valeurs sont des `stroke-width`, pas des largeurs vues.** Un trait centré ne montre que sa moitié
+extérieure quand il est sous le polygone. Ce que l'œil reçoit, par palier :
+
+| Palier | Liseré vu (extérieur) | Séparateur vu | Cerne vu | Encre totale hors de la forme |
+|---|---|---|---|---|
+| **département** | 0,75 px | — | 1,5 px | **2,25 px** |
+| **massif** | 1 px | 1,5 px | 2 px | **4,5 px** |
+| **abords** | 1,5 px | 2 px | 3 px | **6,5 px** |
+
+*Lecture du calcul, pour qu'il soit refaisable.* Trois traits **centrés sur le même tracé**, empilés du
+plus large au plus étroit : le **cerne** charbon dessous, le **séparateur** calcaire par-dessus lui, puis
+le **polygone** — son aplat opaque et son propre liseré — qui recouvre tout ce qui tombe en deçà de
+`--carte-lisere` ÷ 2. D'où :
+
+- **liseré vu** = `--carte-lisere` ÷ 2 ;
+- **séparateur vu** = (`--carte-cerne-clair` − `--carte-lisere`) ÷ 2, nul quand `--carte-cerne-clair: 0` ;
+- **cerne vu** = (`--carte-cerne` − **le plus large des deux traits qui le couvrent**) ÷ 2, soit
+  (9 − 5) ÷ 2 = 2 px au palier massif, (13 − 7) ÷ 2 = 3 px au palier abords, et (4,5 − 1,5) ÷ 2 = 1,5 px au
+  palier département, où c'est le liseré qui le couvre ;
+- **encre totale hors de la forme** = `--carte-cerne` ÷ 2. C'est la seule valeur à surveiller en revue :
+  elle est le rayon du halo, et c'est lui qui fusionne d'un filament au suivant quand il est trop gros.
+
+Les valeurs de `stroke-width` sont donc **grandes et normales** : les trois quarts de leur épaisseur sont
+recouverts par construction. **On ne les lit jamais comme des largeurs vues** — c'est la ligne de lecture
+que la v2.3 avait manquée en écrivant « liseré 4 px » pour un trait dont 2 px tombaient dans l'aplat.
+
+**Comparaison avec ce que la v2.3 produisait**, sur le même massif au même zoom. Son contour calcaire de
+4 px était **centré et posé au-dessus** du polygone : **2 px hors de la forme et 2 px dedans**. Sa
+duplication charbon, également 4 px, était **décalée de (3 px, 4 px)** : son encre atteignait donc **jusqu'à
+6 px** du tracé d'un côté, et **recouvrait la forme** de l'autre. Sur une languette de 3 px de large, les
+2 px intérieurs du calcaire suffisaient à **effacer l'aplat entier** — et c'est bien ce qu'on voit à
+l'écran. **La v2.4 pose 2,25 px hors de la forme et zéro dessus.**
+
+**Trois règles de tenue, opposables en revue :**
+
+1. **Le survol vaut une fois et demie le liseré du même palier**, arrondi au demi-pixel supérieur
+   (1,5 → 2,5 · 2 → 3 · 3 → 4,5). Ce n'est pas une suite de trois nombres choisis : c'est un rapport, et il
+   se recalcule. Le survol reste **centré** sur le tracé — il est le seul état qui consomme de l'aplat, il
+   est **transitoire**, il ne concerne **que le pointeur** (`@media (hover: hover)`), et il **ne porte
+   aucune information** (§9.2). C'est pourquoi il a le droit de coûter, et pourquoi il a été réduit : la
+   v2.3 le portait à 4 px, soit le **double** du liseré ; une fois et demie suffit à le percevoir.
+2. **Le liseré ne descend jamais sous 1,5 px, et 1,5 px n'existe qu'au palier département.** Ce plancher
+   est **mesuré** (§10.2.a), pas conventionnel.
+3. **Le palier `massif` ne porte aucune règle CSS** : ses valeurs **sont** les valeurs nominales de `:root`.
+   Le milieu de l'échelle est le défaut du système ; les deux paliers extrêmes sont les seules exceptions
+   écrites. Une carte à laquelle aucune classe de palier n'a été posée — JS partiellement exécuté, classe
+   oubliée — se rend donc **au palier massif**, qui est conforme partout. **L'échec par défaut est un état
+   valide**, jamais un trait absent.
+
+#### Comment cela se pose, et ce que le JS n'a pas le droit de faire
+
+**Le JS de la carte ne pose aucun style.** Seuls `classList.add/remove/toggle` et l'attribut `hidden` lui
+sont permis (contrat #7, interdit 24). Une épaisseur fonction du zoom se pose donc **par une classe de
+palier sur la racine, et par des règles CSS** — il n'existe aucune autre voie, et aucune n'est à inventer :
+
+- au montage, puis sur `zoomend`, le JS **remplace** la classe de palier sur la racine `.carte`, en lisant
+  `carte.getZoom()` et **rien d'autre**. Trois classes, une table fermée, aucune valeur numérique de
+  présentation écrite en JS — la borne du palier est un entier de zoom, pas une épaisseur ;
+- `zoomend` est **déjà** écouté (garde de densité de motif, contrat #7 A-13) : aucun écouteur nouveau,
+  aucun coût de peinture ajouté ;
+- toutes les épaisseurs vivent au **§12**, dans `tokens.css`, et nulle part ailleurs. Un littéral
+  d'épaisseur écrit dans `carte.css` est un défaut (§16).
+
+**Ce que le cerne exige du DOM**, et qui existe déjà : deux couches GeoJSON non interactives portant le
+tracé courant, rendues dans un pane placé **sous** celui des massifs — le cerne charbon d'abord, le
+séparateur calcaire ensuite. C'est **le pane que la v2.3 utilisait pour la trace décalée** : il change de
+nom et de rôle, il ne s'ajoute pas. L'échelle interne de Leaflet est inchangée (cerne 400, massifs 410).
+
+**Ce que le cerne ne fait pas**, et qui doit rester vrai :
+
+- il ne remplace pas l'anneau de focus générique du §9.1, qui reste posé sur le polygone focusé (contrat #7,
+  A-16) — le supprimer exigerait un `outline: none` dont le seul remplaçant serait un tracé créé par le JS ;
+- il **survit à la fermeture du panneau** : après Échap, le curseur garde son indicateur visible (WCAG 2.4.7) ;
+- il ne s'anime pas, ne clignote pas, ne pulse pas, ne se dégrade pas en halo flou. **Aucune ombre, aucun
+  `blur`, aucune opacité** (§16).
+
+#### Dégradation
+
+- **Sans JS** : sans objet — il n'y a pas de carte, donc pas de sélection. Le repli statique et la liste du
+  jour portent l'information (§5.5 du brief).
+- **À 360 px** : inchangé. Les paliers sont des paliers de **zoom cartographique**, pas de largeur d'écran ;
+  ils ne croisent aucun point de rupture.
+- **`forced-colors: active`** : le cerne passe en `CanvasText`, le séparateur en `Canvas` — l'intervalle
+  reste un intervalle. La sémantique est celle du §3.4, la teinte n'y survit pas et n'a pas à y survivre.
+- **Impression** : sans objet, `print.css` masque la bande carte.
 
 ### 9.3 Clavier et pointeur
 
@@ -1252,10 +1451,12 @@ autorisé et où commence un massif interdit.
 Le §4.2 du brief impose néanmoins de **reproduire la légende officielle**. Ces deux exigences ne sont pas
 en conflit, parce que **ce n'est pas la teinte qui doit porter la conformité**.
 
-### 10.2 Ce qui porte la conformité, mesuré : le liseré charbon 2 px
+### 10.2 Ce qui porte la conformité, mesuré : le liseré charbon
 
-`--statut-lisere` = `--c-charbon` `#1A1C19`, épaisseur **2 px**, sur **tout** polygone, **toute** pastille,
-**tout** jalon, **sans exception**.
+`--statut-lisere` = `--c-charbon` `#1A1C19`, sur **tout** polygone, **toute** pastille, **tout** jalon,
+**sans exception**. Épaisseur **2 px** partout, **sauf sur la carte** où elle suit le palier de zoom
+(§9.2.a) : les ratios de ce tableau valent pour **2 px et au-delà** ; le cas de **1,5 px** est mesuré
+séparément au §10.2.a, parce qu'il ne se déduit pas de celui-ci.
 
 | Le liseré contre… | Ratio | Verdict (seuil 3:1) |
 |---|---|---|
@@ -1283,8 +1484,95 @@ familles de contexte.
 > `--c-mistral-nuit` portant des pastilles. **Le mot a disparu de ces sections ; la mesure y reste, parce
 > qu'elle reste nécessaire.**
 
-C'est pourquoi le liseré est déclaré **porteur d'accessibilité** et non décoratif : le supprimer, l'amincir
-sous 2 px, l'arrondir au point de le manger dans les angles (§6.2) ou le teinter est un défaut **bloquant**.
+C'est pourquoi le liseré est déclaré **porteur d'accessibilité** et non décoratif : le supprimer,
+**l'amincir sous son plancher mesuré (§10.2.a)**, l'arrondir au point de le manger dans les angles (§6.2)
+ou le teinter est un défaut **bloquant**.
+
+> **[v2.4] Amendement de la formule « jamais sous 2 px ».** Elle disait le vrai et le disait mal : elle
+> énonçait **une valeur** là où la mesure produit **un seuil**. Elle est remplacée par : **« jamais sous
+> 1,5 px, et 1,5 px au seul palier département de la carte ; 2 px partout ailleurs, sans exception. »**
+> L'ancienne formule est **conservée telle quelle pour tout ce qui n'est pas un polygone de carte** —
+> pastille, jalon, légende, liste, panneau, portail, impression : ces objets ont une taille fixe à l'écran,
+> le rapport trait/forme y est constant, et aucun problème d'échelle ne s'y pose. **Le seul objet qui
+> change d'échelle sous l'utilisateur est un polygone de carte.**
+
+#### 10.2.a **[v2.4]** Le plancher de 1,5 px — dérivé, pas choisi
+
+La question n'est pas « à partir de quelle épaisseur un trait est-il visible », c'est **« à partir de
+quelle épaisseur un trait garantit-il son ratio »**. Un trait SVG n'est pas aligné sur la grille de pixels :
+son tracé tombe où la projection le met. Au pire alignement sous-pixel, l'anticrénelage répartit l'encre
+sur deux rangées et **aucune n'est pleine** — le contraste effectif est celui du charbon **mélangé à
+l'aplat**, pas celui du charbon.
+
+Couverture maximale garantie d'une rangée de pixels, pour un trait centré d'épaisseur *w*, au pire
+alignement : *w* ≤ 1 → *w*/2 · *w* = 1,25 → 0,625 · *w* = 1,5 → 0,75 · ***w* ≥ 2 → 1,00**.
+C'est la seule raison pour laquelle 2 px a toujours été le bon chiffre : **à 2 px, il existe toujours au
+moins une rangée pleinement couverte, quel que soit l'alignement.** En dessous, il n'y en a plus, et il
+faut mesurer le mélange.
+
+Charbon `#1A1C19` mélangé à l'aplat officiel selon la couverture, contre l'aplat lui-même — seuil **3:1** :
+
+| Épaisseur | Couverture garantie | vs `#E63A3C` (interdit) | vs `#22B14C` (autorisé) | Verdict |
+|---|---|---|---|---|
+| **≥ 2 px** | 100 % | **4,11:1** | **6,10:1** | conforme — marge 37 % |
+| **1,5 px** | **75 %** | **3,18:1** | **4,07:1** | **conforme — marge 6 %** |
+| 1,42 px | 71 % | **3,00:1** | — | **le plancher exact** |
+| 1,25 px | 62,5 % | **2,66:1** | — | **ÉCHEC** |
+| 1 px | 50 % | **2,18:1** | **2,49:1** | **ÉCHEC** |
+
+**Le plancher tombe à 1,42 px. L'échelle du système travaille au demi-pixel. Donc 1,5 px, et rien entre les
+deux.** Aucun jugement d'œil n'entre dans ce chiffre ; il se recalcule et il se conteste par la mesure.
+
+Le liseré à 1,5 px contre les autres surfaces du système, à 75 % de couverture :
+
+| Le liseré à 1,5 px contre… | Ratio | Verdict (seuil 3:1) |
+|---|---|---|
+| `--c-calcaire` `#EDEEEC` | **7,37:1** | conforme |
+| `--c-carte-fond` `#E6E7E1` | **6,89:1** | conforme |
+| `--c-carte-terre` / `--statut-indisponible` `#DEDFD9` | **6,40:1** | conforme |
+| `--c-carte-vegetation` `#D6DBD3` | **6,10:1** | conforme |
+| `--c-carte-eau` `#CBD5D8` | **5,74:1** | conforme |
+| `#22B14C` (aplat autorisé) | **4,07:1** | conforme |
+| `#E63A3C` (aplat interdit) | **3,18:1** | conforme |
+| **Minimum au palier département** | **3,18:1** | **conforme, avec 6 % de marge** |
+
+**Le pire cas du §10.1 reste résolu**, y compris au palier le plus mince : entre un massif vert et un
+massif rouge voisins, le liseré interpose 4,07:1 d'un côté et 3,18:1 de l'autre, là où les deux aplats ne
+se distinguent qu'à 1,48:1. **La séparation tient.**
+
+**Le coût est écrit, il n'est pas minimisé.** La marge sur le pire cas passe de **37 % à 6 %**. C'est peu,
+et c'est pourquoi 1,5 px est **borné à un seul palier**, est **le plancher absolu du système**, et ne peut
+être atteint par aucun autre objet. Deux gardes en découlent, toutes deux au §16 : aucune valeur
+d'épaisseur de trait de carte hors des jetons du §12 ; et le palier département est le seul endroit du
+document où un ratio de statut passe sous 3,5:1 — s'il devait être encore réduit, c'est la mesure qui le
+refuserait, pas le goût.
+
+#### 10.2.b **[v2.4]** Le cerne et son séparateur
+
+Le **cerne** est du `--c-charbon`, vu à **1,5 px au plus mince** (palier département) et posé avec un
+`stroke-width` de **4,5 px au plus mince** — donc **toujours au-dessus du seuil de couverture pleine de
+2 px** du §10.2.a. Il reprend par conséquent **intégralement** les ratios du §10.2, minimum **4,11:1**
+contre le rouge officiel, et **aucun palier ne le met en dessous**. C'est voulu : le cerne est la partie du
+dispositif de sélection qui **porte**, et il ne travaille jamais dans la marge où travaille le liseré.
+
+Le **séparateur** `--c-calcaire` est mesuré, et le résultat est la raison pour laquelle il ne porte rien :
+
+| Le séparateur calcaire contre… | Ratio | Lecture |
+|---|---|---|
+| `--c-charbon` — le cerne, à l'extérieur | **14,74:1** | c'est **ce qui le rend visible** |
+| `--c-charbon` — le liseré du massif, à l'intérieur | **14,74:1** | idem, de l'autre côté |
+| `--c-carte-fond` `#E6E7E1` | **1,07:1** | **invisible** sur le fond de carte |
+| `--c-carte-vegetation` `#D6DBD3` | **1,21:1** | **invisible** |
+| `--c-carte-eau` `#CBD5D8` | **1,29:1** | **invisible** |
+| `#22B14C` (massif voisin autorisé) | **2,42:1** | **sous le seuil** |
+| `#E63A3C` (massif voisin interdit) | 3,58:1 | conforme, mais **sans emploi** |
+
+**Conclusion, à tenir en revue** : le séparateur est **encadré de charbon des deux côtés, à 14,74:1**, et
+c'est la seule raison de sa présence. Il n'est **jamais** le trait extérieur du cerne, il ne borde
+**jamais** directement le fond de carte ni un aplat voisin, et **aucune conformité ne repose sur lui**.
+Un cerne rendu séparateur à l'extérieur — l'ordre de la v2.3 — serait un anneau qui **disparaît sur le fond
+de carte à 1,07:1** : c'est littéralement le défaut constaté à l'écran, et l'inversion de l'ordre est ce
+qui le corrige.
 
 ### 10.3 Ce qui porte l'indépendance à la couleur : le motif obligatoire
 
@@ -1537,10 +1825,12 @@ couleur, d'espacement ou de durée n'apparaît ailleurs dans le CSS. Ce bloc est
 normative** attendue par la chaîne front.
 
 ```css
-/* MASSIFS — jetons du design system. Voir design-system/MASTER.md (v2.0).
+/* MASSIFS — jetons du design system. Voir design-system/MASTER.md (v2.4).
    Ne pas ajouter de valeur hors échelle. Ne pas redéfinir hors :root, sauf
-   les deux exceptions documentées : --repere-couleur (§3.1) et le groupe
-   liseré/encre sous .sur-sombre (fin de ce fichier). */
+   les TROIS exceptions documentées : --repere-couleur (§3.1), le groupe
+   liseré/encre sous .sur-sombre, et les épaisseurs de trait de la carte sous
+   les classes de palier de zoom (§9.2.a) — les deux dernières en fin de
+   fichier. */
 
 :root {
   /* ── Surfaces et encres ─────────────────────────────────── */
@@ -1595,11 +1885,37 @@ normative** attendue par la chaîne front.
   --statut-non-publie-encre:    var(--c-charbon-doux);
 
   /* Le liseré porte la conformité AA, pas la teinte (§10.2).
-     Minimum mesuré sur tout le système : 4,11:1 (charbon sur #E63A3C). */
+     Minimum mesuré sur tout le système : 4,11:1 (charbon sur #E63A3C).
+     [v2.4] --statut-lisere-epaisseur est l'épaisseur HORS CARTE : pastille,
+     jalon, légende, liste, panneau, portail, impression. Ces objets ont une
+     taille fixe à l'écran. Sur la carte, l'épaisseur suit le palier de zoom :
+     voir le bloc « Épaisseurs de trait de la carte » ci-dessous. */
   --statut-lisere:            var(--c-charbon);
   --statut-lisere-epaisseur:  2px;
   --statut-motif-trait:       2.5px;
   --statut-motif-pas:         10px;
+
+  /* ══ ÉPAISSEURS DE TRAIT DE LA CARTE — variables par palier de zoom ═══════
+     §9.2.a. Un trait SVG est CENTRÉ : la moitié de son épaisseur tombe dans
+     l'aplat. Une épaisseur constante ne peut donc pas servir à la fois le
+     département vu en entier (z9) et un massif vu de près (z11).
+     Les valeurs ci-dessous sont celles du palier « massif » (z10) : c'est le
+     MILIEU de l'échelle, et c'est délibérément le défaut — une carte sans
+     classe de palier se rend dans un état conforme, jamais sans trait.
+     Les deux paliers extrêmes sont en fin de fichier (exception n° 3).
+     PLANCHER MESURÉ, ne jamais descendre en dessous : 1.5px (§10.2.a).       */
+
+  --carte-lisere:       2px;   /* liseré de statut du polygone, centré        */
+  --carte-survol:       3px;   /* survol : 1,5 × le liseré du même palier     */
+  --carte-cerne:        9px;   /* cerne charbon, SOUS le polygone (§9.2.a)    */
+  --carte-cerne-clair:  5px;   /* séparateur calcaire, SOUS le polygone       */
+
+  /* Liseré de l'état « sélectionné » dans le CHROME — bouton de jour de la
+     carte, paire segmentée du portail (§7.2, §9.2). Sans rapport avec la
+     carte : ces objets ne changent pas d'échelle. Ce n'est pas --bord-fort,
+     qui est une abréviation « 4px solid … » plafonnée à une occurrence par
+     page (§6.3, §16) et inutilisable comme simple épaisseur. */
+  --bord-selection: 4px;
 
   /* ── Typographie ────────────────────────────────────────── */
   --police-titre: "Big Shoulders Display", "Arial Narrow", sans-serif;
@@ -1706,6 +2022,29 @@ normative** attendue par la chaîne front.
   --statut-zapef-interdit-encre:  var(--c-calcaire);
 }
 
+/* [v2.4] Exception documentée n° 3 : les épaisseurs de trait de la carte
+   suivent le PALIER DE ZOOM (§9.2.a). Le JS de la carte n'a pas le droit
+   d'écrire un style — seulement classList — donc une épaisseur fonction du
+   zoom se pose forcément par une classe de palier sur la racine et par des
+   règles CSS. Le JS lit carte.getZoom() et pose l'une de ces classes ; toutes
+   les valeurs sont ICI, aucune en JS, aucune en littéral dans carte.css.
+   Le palier « massif » (z10) ne porte AUCUNE règle : ses valeurs sont celles
+   de :root. Ne pas en écrire une vide — l'absence est la décision. */
+
+.carte--echelle-departement {   /* z ≤ 9 — le département entier */
+  --carte-lisere:       1.5px;  /* PLANCHER MESURÉ : 3,18:1 sur #E63A3C */
+  --carte-survol:       2.5px;
+  --carte-cerne:        4.5px;
+  --carte-cerne-clair:  0;      /* aucune peinture claire à ce palier */
+}
+
+.carte--echelle-abords {        /* z ≥ 11 — plafond de la carte */
+  --carte-lisere:       3px;
+  --carte-survol:       4.5px;
+  --carte-cerne:        13px;
+  --carte-cerne-clair:  7px;
+}
+
 @media (min-width: 37.5rem) { :root { --gouttiere: var(--esp-l); } }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1736,6 +2075,12 @@ ici, des jetons **conservés que plus aucune règle ne consomme**.
 | `--frise-l` | **D-27** — l'objet qu'il dimensionnait est retiré | **déclaré, orphelin** |
 | `--frise-h` | **D-27** — idem | **déclaré, orphelin** |
 
+> **[v2.4] Ce que la v2.4 fait à cette règle : rien. Elle n'en supprime aucun.** Les quatre jetons
+> orphelins ci-dessus **le restent** ; `--ombre-decalee` et `--ombre-decalee-sombre` en particulier ne sont
+> **pas** ressuscités par le cerne, qui n'est pas une ombre et n'en emprunte ni la forme ni le décalage.
+> La v2.4 **ajoute** cinq jetons et **n'en renomme aucun**. Lire la note de compte ci-dessous : la règle
+> « on ne supprime pas » n'a jamais dit « on n'ajoute jamais », et la différence est écrite plus bas.
+
 > **Règle générale du projet, énoncée ici une fois pour toutes : on ne supprime pas un jeton — on cesse de
 > le consommer.** Deux raisons, et la première suffit. **(a)** Le **sha256 de `tokens.css` est épinglé** et
 > son **compte de propriétés est un invariant du contrat #4**. Compte **vérifié au shell sur le fichier
@@ -1755,6 +2100,46 @@ ici, des jetons **conservés que plus aucune règle ne consomme**.
 > « `--ombre-decalee` réduite à `2px 3px 0` ». Cet état concerne des composants **qui n'existent pas
 > encore** ; la phrase n'est donc fausse sur rien de livré, et la réécrire aujourd'hui reviendrait à
 > arbitrer par avance le jour où une ombre reviendra. Elle est signalée, pas touchée.
+
+#### [v2.4] Le §12 est ouvert — cinq jetons ajoutés, un invariant remplacé, et pourquoi c'était la seule voie
+
+Depuis la v2.0, ce document n'avait **pas rouvert** le §12. Deux révisions s'en sont explicitement
+abstenues, et **elles avaient raison** : la v2.1, la v2.2 et la v2.3 auraient payé une préférence
+esthétique par un incident d'intégration chez des chaînes sœurs (§17, divergences 3 et 6 : deux jetons
+**non créés** pour cette raison exacte). **Ce cas-ci est d'une autre nature, et la différence doit être
+écrite, sinon la prochaine révision citera celle-ci pour ouvrir le §12 par confort.**
+
+| | Divergences 3 et 6 (jetons refusés) | v2.4 (jetons créés) |
+|---|---|---|
+| Ce qui manquait | Une échelle `pt` non vérifiée sur épreuve ; un interligne 1,2 | Une épaisseur de trait par palier de zoom |
+| Ce qu'on perdait sans | Une intention de composition | **Un aplat de statut recouvert à l'écran, et un massif illisible** |
+| Existe-t-il une autre voie ? | Oui : consommer un jeton voisin, ou ne rien faire | **Non.** Le JS ne peut pas écrire de style ; la valeur doit vivre en CSS et varier par classe |
+| Nature du défaut | Écart cosmétique | **Perte d'information cartographique, constatée en Chrome** |
+
+**Les cinq jetons** : `--carte-lisere`, `--carte-survol`, `--carte-cerne`, `--carte-cerne-clair`,
+`--bord-selection`. **Aucune valeur de couleur n'est touchée. Aucun jeton n'est supprimé ni renommé.
+Aucune section du §12 n'est réécrite** — les cinq déclarations et les deux classes de palier sont des
+**ajouts**, insérés à leur rubrique.
+
+**L'invariant de compte change, et il change en étant déclaré.** Il valait **111 déclarations dans
+`:root`** et **120 dans le fichier** (contrat #4). Il vaut désormais :
+
+| | Avant (v2.0 → v2.3) | Après (v2.4) |
+|---|---|---|
+| `:root` | 111 | **116** |
+| `.sur-sombre` | 5 | 5 |
+| `.carte--echelle-departement` | — | **4** |
+| `.carte--echelle-abords` | — | **4** |
+| Les deux `@media` | 4 | 4 |
+| **Fichier entier** | **120** | **133** |
+
+Le **sha256 épinglé de `tokens.css` tombe avec lui** : c'est la conséquence mécanique et **acceptée** de
+cette révision, pas un effet de bord découvert après coup. *(L'empreinte n'est pas recopiée ici : ce
+document ne duplique jamais un hachage — même règle qu'au §5 pour les polices. Le fichier et le contrat
+font foi.)* **Le contrat #4 doit être amendé par sa chaîne, jamais par ce document** : la liste complète de
+ce que la v2.4 ouvre en aval est au **§17.1**. Un compte modifié en silence serait exactement ce que la
+règle « on ne supprime pas un jeton » cherchait à éviter — l'incident d'intégration non annoncé. **Ici il
+est annoncé, chiffré et daté.**
 
 **Correspondance avec le contrat de l'issue #3 — [v2.1] corrigée.** L'extension émet **quatorze** noms de
 jetons, par les clés `jeton_css` / `jeton_encre_css` de `legende.config.php` : `--statut-autorise`,
@@ -2016,6 +2401,48 @@ nouveau. Une décision de registre renversée pour un motif de registre, une dé
 comme sa propre archive l'avait prévu, deux amplitudes bridées, une règle rendue vraie. Ce qui manquait
 n'était toujours pas du dessin : c'était de l'écrit — et, cette fois, de l'écrit **opposable en revue**.
 
+### 14.5 [v2.4] Passe 2 quinquies — la première fois que le rendu contredit le document
+
+**Ce qui distingue cette passe des quatre précédentes.** Les passes 2 et 2 bis interrogeaient des choix
+**sur le papier**. La passe 2 ter interrogeait des **motifs de mise en page**. La passe 2 quater renversait
+un choix juste parce que la **cible de réception** avait bougé. Celle-ci est la première où **le document
+avait raison en intention et tort en fait** : la règle « liseré 4 px + repère » était défendable, elle a
+été appliquée fidèlement, et **elle a produit à l'écran l'inverse de ce qu'elle décrivait**. Le déclencheur
+n'est ni une relecture, ni une direction, ni une mesure de contraste : c'est **un massif regardé dans un
+navigateur**.
+
+| Décision réexaminée | Question posée | Verdict | Ce qui a été fait |
+|---|---|---|---|
+| **Le repère sur le massif sélectionné** (§3.2, empl. 5) | L'aurais-je écrit pour n'importe quel site carto ? | **Non — et c'est précisément le problème.** Aucun site cartographique ne poserait une duplication décalée sur un polygone : c'était une idée **propre à ce site**, tenue jusque dans un endroit où elle ne pouvait pas fonctionner. L'audace unique était devenue une **obligation d'appliquer l'audace partout**, ce qui n'est pas la même chose | **Retiré** (D-28). La liste fermée du §3.2 passe de sept à **six** emplacements. La signature reste sur le `h2` du panneau, qui s'ouvre **au moment même** de la sélection |
+| **Le traitement « sélectionné » lui-même** | Le remplaçant est-il un effet générique de carto web ? | **À surveiller, et surveillé.** Le réflexe du domaine, ce serait un **glow**, une **ombre portée diffuse**, une **pulsation** ou un aplat éclairci. Tous les quatre sont interdits, nommément, et l'étaient déjà | **Le cerne** : un anneau à bords vifs, sans flou, sans opacité, sans mouvement, **posé sous la forme** pour ne rien recouvrir. C'est du **trait plat sur trait plat** — le même vocabulaire que le liseré, la pastille et le jalon. Aucun vocabulaire nouveau n'entre dans le système |
+| **Trois paliers de zoom** | Est-ce une troisième idée sans rapport, dispersée à côté des deux autres ? | **Non — c'est la même idée que D-24, appliquée une seconde fois.** D-24 : sur une carte, quand la couleur ne peut pas trancher, **c'est l'ordre des couches qui tranche**. Ici : quand l'épaisseur ne peut pas être constante, **c'est l'échelle qui tranche**. Dans les deux cas, la carte est traitée comme **le seul objet du site dont le design ne décide pas la taille** | **Écrit comme une règle générale** (§9.2.a), pas comme un correctif de zoom 9. Trois paliers, un rapport pour le survol, un plancher mesuré, aucune valeur devinée |
+| **Descendre le liseré à 1,5 px** | Est-ce que j'affaiblis l'élément qui porte à lui seul la conformité (D-13) ? | **Oui, de 37 % de marge à 6 %, et c'est écrit en toutes lettres.** La question n'était pas « puis-je le rendre plus fin » mais « **jusqu'où la mesure me laisse aller** ». Elle répond **1,42 px**. Toute autre valeur aurait été un jugement d'œil sur l'objet du site où le jugement d'œil est le moins admissible | **Plancher dérivé, borné à un seul palier** (§10.2.a), et **deux gardes** au §16. Le tableau publie aussi les épaisseurs **qui échouent** — 1,25 px et 1 px —, parce qu'un plancher sans son échec voisin n'est pas un plancher, c'est une préférence |
+| **Ouvrir le §12, gelé depuis la v2.0** | Trois révisions s'en sont abstenues. Suis-je en train de m'accorder ce qu'elles se sont refusé ? | **Non, et la différence est tabulée** (§12.1). Ce qu'elles refusaient de payer, c'était une **intention de composition**. Ce qui est payé ici, c'est **un aplat officiel recouvert à l'écran** | **Ouvert, chiffré, déclaré.** Cinq jetons, aucune suppression, aucun renommage, aucune couleur touchée. L'invariant de compte est **remplacé par écrit** (111 → 116) et l'amendement du contrat #4 est **délégué à sa chaîne** (§17.1), jamais commis d'ici |
+
+**Le tell le plus dangereux de cette passe, nommé.** Ce n'est ni le crème-et-serif ni le noir-et-accent-acide :
+c'est **le halo de sélection**. Sur une carte web, « l'élément choisi » se dit presque toujours par un
+rayonnement clair — c'est le geste par défaut de tous les kits cartographiques, et c'est **exactement ce
+que la v2.3 produisait sans l'avoir voulu**, puisque son contour calcaire de 4 px, sur un massif petit, ne
+se lisait plus que comme une **tache claire**. La v2.4 s'en éloigne par une contrainte, pas par un goût :
+**au palier département, aucune peinture claire n'est posée sur la carte.** Une règle qui se vérifie d'un
+coup d'œil sur une capture d'écran vaut mieux qu'une intention qui se vérifie en relisant un paragraphe.
+
+**Le risque symétrique, également nommé.** Cette passe **retire** un emplacement de signature — la
+précédente en avait retiré un composant entier. Deux révisions de suite qui allègent, et la pente est
+celle que la passe 2 quater avait déjà signalée : *vers le sage, donc vers le générique*. **Contre-mesure,
+vérifiée point par point** : le pari du fond monochrome est intact ; le rayon nul, l'absence d'ombre floue,
+les aplats opaques et la famille condensée sont intacts ; le repère est intact **dans sa forme et dans sa
+construction CSS** — il perd un emplacement où il ne se voyait pas, il n'en perd aucun où il se voit. Et
+cette révision **ajoute** un objet au système, le cerne, là où les deux précédentes n'en retiraient. **Le
+solde n'est pas un appauvrissement : c'est un déplacement du geste vers l'échelle où il fonctionne.**
+
+**Verdict global de la passe 2 quinquies.** Un emplacement de signature retiré parce que la géographie l'a
+réfuté, un traitement d'état refait pour cesser de recouvrir l'information qu'il désigne, une échelle
+d'épaisseurs là où il n'y avait qu'un nombre, un plancher dérivé d'une mesure et non d'un avis, un fichier
+gelé ouvert en déclarant ce qu'il en coûte. **Ce que cette passe apprend au document, et qu'aucune des
+quatre autres n'aurait pu lui apprendre : une prescription visuelle qui n'a jamais été regardée à l'écran
+n'est pas une décision, c'est une hypothèse.** Le §16 reçoit la ligne correspondante.
+
 ---
 
 ## 15. Journal des décisions (extrait pour le §11 du brief)
@@ -2050,6 +2477,9 @@ n'était toujours pas du dessin : c'était de l'écrit — et, cette fois, de l'
 | **D-26** | **[v2.2] Renoncement aux capitales condensées comme parti de titrage.** Borne dure : capitales admises **uniquement sur les étiquettes**, **interdites sur `h1` et `h2`**. Ce qui est perdu est nommé : le §2, ligne « Panneaux DFCI », tire de la signalétique **trois gestes** — capitales condensées, sérigraphie, rayon nul — et **le premier est abandonné**. Le §14.3 entrée 5 le **défendait explicitement** : « **Verdict : conservé** — c'est le langage du panneau DFCI, il est le sujet et non un effet ». Cette défense est **levée, elle n'est pas invalidée** : elle était juste sur la cible qu'elle connaissait. Restent la sérigraphie, le rayon nul, et la condensée elle-même, qui **demeure la famille de titrage** | **Le déplacement de la cible de réception, et lui seul.** Le rendu vise un **décideur communal** — l'élu ou le directeur général des services qui évalue une offre (§7 du brief, `CLAUDE.md` n°4). Pour ce destinataire, un `h1`/`h2` intégralement en capitales condensées lit comme de la signalétique ou de la campagne, pas comme un service. Le §1 l. 41-42 énonçait déjà la tension — « sobriété de service public, mais avec la brutalité graphique d'une signalétique de terrain » : l'arbitrage bascule vers le premier pôle **pour la typographie seule**, la couleur, les formes, le rayon nul, le repère et le fond monochrome restant au second. **Cette décision n'est pas motivée par l'accessibilité.** Le §14.3 entrée 5 avait déjà relevé le risque — « les capitales dégradent la vitesse de lecture », « certains lecteurs d'écran épellent » les chaînes courtes — et l'avait **borné**, donc tenu pour couvert : rien de neuf n'est apparu de ce côté. Le gain de lisibilité est un **effet secondaire, non recherché**, et **ne doit jamais être cité comme la raison** — ce serait attribuer à l'accessibilité un arbitrage de registre, et rendre D-26 illisible pour qui le relira. **Référence avant.** L'application normative — §5.1, §7.3, §14.3 entrée 5 (b), §16 — appartient à l'issue #23. Jusqu'à son exécution, ces sections restent en vigueur et cette contradiction est **connue et assumée** | Maintenir le parti de la v2.0/v2.1, capitales sur tout le titrage — conclusion de bonne foi du §14.3 entrée 5, prise sur une cible de réception qui n'était alors écrite nulle part ; ou abandonner la condensée elle-même, ce qui ferait tomber les deux autres gestes du §2 avec elle et viderait l'ancrage DFCI de sa substance typographique |
 | **D-27** | **[v2.3] Retrait de la frise des 25 marques de l'ardoise — abandon définitif, non différé.** La frise n'existait **nulle part dans le code** : aucun gabarit ne l'émettait, aucune règle CSS ne la stylisait. Elle n'était prescrite que par **ce document**, en **17 points d'ancrage** — §1, §3.3, §4.1.d, §6.1, §7.1 (croquis, texte, tableau des points de rupture), §8.2, §9.3, §9.4, §10.6, §13, §16. Ces prescriptions sont retirées. **Ce qui est perdu est nommé, pas minimisé** : la lecture de la **forme de la journée d'un coup d'œil, à quatre mètres** (§1, §14.2). Elle reste portée par le **chiffre du jour** et, en toutes lettres, par la **liste du jour** — qui portait déjà l'intégralité de cette information, la frise étant `aria-hidden` (§10.6 règle 2, dont l'unique exception tombe ici). **Ce qui n'est pas touché** : **D-19 n'est ni réécrite ni annotée**, et l'archive §14.2 non plus. Le document fournit lui-même le patron, en D-26 : « cette défense est **levée**, elle n'est pas invalidée ». **Ce qui reste dans `tokens.css`** : `--frise-l` et `--frise-h` **demeurent déclarés et orphelins** (§12.1) — sha256 épinglé et **111 déclarations dans `:root`** (120 dans le fichier entier), invariant du contrat #4 **vérifié**. **On ne supprime pas un jeton : on cesse de le consommer.** Même traitement que `--ombre-decalee`. **Conséquence à consigner, sans quoi elle se perdrait** : l'arbitrage 13 du contrat #22 (`print.css`, protection du liseré sous `.sur-sombre`) était justifié par « bloquant **le jour de la frise** ». Cette règle devient **définitivement latente — et non morte** : la **barre d'action du portail** (§7.2) est un chrome sombre portant des pastilles. Un refacto futur qui la supprimerait comme du code mort commettrait une régression d'accessibilité silencieuse | **Direction du propriétaire, dans le même recadrage que D-26** — et **D-19 avait elle-même prévu ce retrait comme sortie nominale** : la passe 2 bis écrit en toutes lettres « si un doute subsiste en revue, elle est le premier élément à retirer — et le système tient sans elle ». Ce n'est donc pas une infirmation : c'est l'exercice d'une sortie que la décision d'origine avait ménagée, et c'est la preuve que la borne posée en §14.2 servait à quelque chose. **Abandonnée et non différée**, parce qu'« en attente » maintiendrait **17 prescriptions vivantes** dans un document normatif et **inviterait une chaîne future à la construire** de bonne foi : un document qui décrit un composant que personne ne doit fabriquer est un piège, pas une archive | La **différer** — les 17 prescriptions restent, et la première chaîne « carte » ou « portail » qui lit le §8.2 la fabrique ; la **supprimer de `tokens.css`** avec ses deux jetons — casse le sha256 épinglé et le compte de 111 propriétés, c'est-à-dire une décision de design payée par un incident d'intégration chez des chaînes sœurs ; la **remplacer** par un autre indicateur de forme (jauge, anneau, barre de proportion) — deuxième audace, déjà refusée par D-19 elle-même |
 
+| **D-28** | **[v2.4] Le repère est retiré de la carte — l'emplacement 5 du §3.2 est supprimé, la liste fermée passe de sept à six.** Le traitement « sélectionné » de la carte devient **le cerne** : un anneau posé **entièrement hors du polygone**, rendu dans un pane placé **sous** celui des massifs, de sorte que l'aplat opaque du statut recouvre lui-même la moitié intérieure du trait. **L'aplat de statut et son motif ne sont recouverts à aucun palier.** Le numéro 5 est **barré, jamais réutilisé** ; 6 et 7 ne bougent pas | **Un défaut reproduit à l'écran, pas une préférence.** Chrome, stack Docker locale, zooms 9 et 10. Sur **Regagnas — boîte englobante 94 × 55 px au zoom 9**, un enchevêtrement de languettes de quelques pixels —, les deux contours de 4 px se recouvraient d'un filament au suivant : le halo calcaire **remplissait la boîte englobante**, la duplication charbon l'encadrait, et l'écran montrait **un rectangle blanc bordé de noir**. Ni massif, ni couleur, ni motif, ni repère. **Le document contenait déjà la règle qui l'interdisait** : le §3.3 refuse le repère sur « tout objet répété de moins de 20 px » — un massif filamenteux au zoom 9 **en est un**, ce que personne ne pouvait écrire avant que la géométrie ne soit rendue. **Rien n'est perdu de la signature** : la sélection **ouvre le panneau**, dont le `h2` porte le repère à l'échelle pour laquelle il est dessiné (§8.4, contrat #7 A-15). Ce qui est retiré, c'est **une seconde implémentation de la signature** — que le §3.1 n'admet qu'une fois | **Conditionner le repère à une taille minimale de massif** : exigerait que le JS mesure la boîte englobante et pose une classe — techniquement permis, mais cela **fait dépendre la signature d'un seuil arbitraire** et produit deux rendus de sélection dans la même carte, dont l'un apparaît et disparaît au zoom. Une signature intermittente n'est pas une signature. **Réduire le décalage à (1 px, 2 px)** : le repère est *une barre doublée d'une trace* ; à 1 px, la trace n'est plus une peinture ancienne, c'est un défaut d'impression. **Conserver le repère en le posant hors du polygone** : la duplication décalée pose de l'encre **des deux côtés** du tracé par construction — l'ordre des couches ne peut pas la sauver |
+| **D-29** | **[v2.4] Les épaisseurs de trait de la carte suivent le palier de zoom** — trois paliers nommés `département` (z ≤ 9), `massif` (z 10), `abords` (z ≥ 11), portés par une **classe sur la racine** et par des règles CSS, avec des valeurs chiffrées pour le liseré, le survol et le cerne (§9.2.a). **Plancher du liseré : 1,5 px, mesuré** (§10.2.a). Cinq jetons entrent au §12 ; l'invariant de compte du contrat #4 est **remplacé par écrit** (111 → 116 dans `:root`) | **Un trait SVG est centré : il consomme la moitié de son épaisseur dans l'aplat.** Une épaisseur constante ne peut donc pas servir à la fois le département vu en entier et un massif vu de près. Mesuré à l'écran : au zoom 9, le liseré de 2 px était **plus large que les languettes qu'il cerne** — la carte lisait globalement noir et la couleur de statut disparaissait **sous son propre contour** ; au zoom 11, le même 2 px devenait un filet ténu. **Le plancher est dérivé, pas choisi** : au pire alignement sous-pixel, un trait de 1,5 px garantit 75 % de couverture, soit **3,18:1 sur le rouge officiel** ; à 1,42 px il vaut exactement 3,00:1, à 1,25 px **2,66:1**, à 1 px **2,18:1**. **La séparation vert/rouge à 1,48:1 reste tenue à tous les paliers.** Le mécanisme est **imposé par le code** : le JS de la carte n'a pas le droit d'écrire un style, donc l'épaisseur variable ne peut se poser que par une classe et des règles — aucune invention | **Garder 2 px partout** : c'est le défaut constaté, et il coûte l'information à z9. **Faire varier l'épaisseur en JS** : interdit — le JS ne pose que des classes (contrat #7, interdit 24). **Exprimer l'épaisseur en unités cartographiques** (`vector-effect`, unités de projection) : le trait grossirait *avec* le massif au lieu de suivre l'écran, ce qui **inverse** le problème au lieu de le résoudre. **Descendre le liseré sous 1,5 px pour gagner encore** : refusé **par la mesure**, pas par le goût — 2,66:1 à 1,25 px est un échec AA sur l'aplat interdit. **Créer un palier par niveau de zoom** (z8…z12) : cinq jeux de valeurs pour trois comportements réels, et un document que personne ne vérifie en revue |
+
 ---
 
 ## 16. Interdits — liste de contrôle de revue
@@ -2071,7 +2501,9 @@ Tout élément ci-dessous constaté par `review-cms` est un **défaut bloquant**
 - `border-radius` > 2 px. Pilules, avatars ronds, boutons arrondis, **pastille de statut arrondie**.
 - Ombre floue (`blur-radius` ≠ 0), dégradé décoratif, verre dépoli, néomorphisme.
 - Ombre portée sur autre chose que le panneau massif et le bloc de légende.
-- Repère hors des 7 emplacements du §3.2, deux repères dans le même bloc, repère sur un jalon.
+- **[v2.4]** Repère hors des **6** emplacements du §3.2, deux repères dans le même bloc, repère sur un
+  jalon — et **repère, duplication décalée ou ombre décalée sur la géométrie de la carte**, à quelque
+  palier de zoom que ce soit (D-28). L'emplacement 5 est **supprimé**, jamais réattribué.
 - **[v2.3]** Repère devant un `h2` **hors portée** de la famille d'affichage — chrome, page éditoriale,
   portail (§3.2 amendé, §5.1 règle de portée).
 - **[v2.1]** Poignée de la feuille du bas rendue en **pilule** ; **coins supérieurs arrondis** sur la
@@ -2090,7 +2522,10 @@ Tout élément ci-dessous constaté par `review-cms` est un **défaut bloquant**
 - Toute couleur du site dans les bandes 95°–175°, 330°–25° ou 26°–94° au-delà de 12 % de saturation (§2.1).
 - **Jeton de statut numéroté** (`--statut-1`, `--statut-n2`, `--statut-niveau-3`…), sous quelque forme que ce soit.
 - Valeur hexadécimale de statut écrite ailleurs que dans `tokens.css`.
-- Polygone, pastille ou jalon **sans liseré 2 px**, ou avec un liseré aminci.
+- Polygone, pastille ou jalon **sans liseré**, ou avec un liseré aminci sous son plancher. **[v2.4]**
+  Hors carte : **2 px**, sans exception. Sur la carte : **1,5 / 2 / 3 px** selon le palier de zoom
+  (§9.2.a). **1,5 px est le plancher absolu du système** et n'existe **qu'au palier département** ; un
+  liseré de carte à 1,25 px ou moins est un **échec AA mesuré**, pas une variante (§10.2.a).
 - État `interdit` **sans motif** ; état `autorisé` **avec** un motif.
 - Statut encodé par la couleur seule, sans motif **et** sans libellé.
 - Texte posé sur un aplat de statut, où que ce soit, y compris à l'impression.
@@ -2128,6 +2563,22 @@ Tout élément ci-dessous constaté par `review-cms` est un **défaut bloquant**
 - Animation d'apparition au défilement, parallaxe, compteur animé, spinner, marqueur pulsant.
 - Mouvement subsistant sous `prefers-reduced-motion: reduce`, y compris côté Leaflet.
 - Motif de statut qui s'étire ou se densifie au zoom de la carte.
+- **[v2.4] Tout traitement d'état qui recouvre un aplat de statut sur la carte** — contour de sélection
+  tracé **au-dessus** du polygone, halo clair, aplat éclairci, calque de surbrillance. La sélection est
+  **le cerne**, posé **sous** la forme (§9.2.a). Un massif sélectionné dont on ne voit plus la couleur ou
+  le motif est un défaut **bloquant**, au même titre qu'un polygone sans liseré.
+- **[v2.4] Peinture claire posée sur la carte au palier « département »** (z ≤ 9) : `--carte-cerne-clair`
+  y vaut **0**, et aucune autre encre claire n'y est admise. C'est la règle qui empêche le retour du
+  rectangle blanc constaté en v2.3.
+- **[v2.4] Épaisseur de trait de carte écrite en littéral** dans `carte.css`, ou **écrite par le JS** sous
+  quelque forme que ce soit (`element.style`, `setProperty`, `setAttribute('stroke-width')`, option
+  Leaflet `weight`). Le JS pose **une classe de palier** et rien d'autre ; les valeurs vivent au §12.
+- **[v2.4] Cerne animé, flouté, en opacité, pulsant** ; cerne dont le **séparateur calcaire** borde le fond
+  de carte ou un massif voisin au lieu d'être encadré de charbon des deux côtés (§10.2.b, 1,07:1).
+- **[v2.4] Prescription visuelle nouvelle portant sur la carte qui n'a pas été regardée à l'écran**, aux
+  zooms 9 et 11, sur **un massif petit et filamenteux** autant que sur un grand massif compact. C'est la
+  leçon de la passe 2 quinquies (§14.5), et elle est ici pour être opposable : une règle de carte non
+  vérifiée sur un rendu est une **hypothèse**, et une hypothèse ne s'écrit pas au présent dans ce document.
 - **[v2.1]** Barre d'action collée **recouvrant la dernière ligne** du tableau du portail, ou restant
   collée quand la hauteur utile ne le permet plus (fenêtre basse, zoom 200 %) — elle doit alors revenir
   dans le flux, en fin de tableau (§14.3 entrée 4).
@@ -2187,6 +2638,36 @@ lot ne les compte pas **deux fois** — une fois comme écart au document, une f
 une correction silencieuse. Si le code rejoint le document, la ligne est retirée en le déclarant au journal
 de révision ; si le document rejoint le code, la section concernée est amendée et la ligne disparaît de la
 même façon. **Une divergence qu'on cesse simplement de mentionner redevient un faux défaut au lot suivant.**
+
+### 17.1 [v2.4] Ce que la révision v2.4 ouvre en aval — **à corriger, pas à enregistrer**
+
+**Cette sous-section est l'inverse de la précédente**, et c'est pourquoi elle en est séparée au lieu d'y
+ajouter des lignes. Le §17 liste des écarts **qui ne sont pas des défauts**. Celle-ci liste des écarts
+**qui en sont** depuis que ce document a changé : la v2.4 a déplacé la règle, le code livré applique
+encore l'ancienne, et il est **conforme à ce qu'on lui avait demandé**. Rien de ce qui suit n'est un
+reproche à une chaîne ; tout ce qui suit doit être **fait par la chaîne qui possède le fichier**.
+
+**Le périmètre d'écriture de cette révision est `design-system/MASTER.md` et lui seul.** Aucun fichier de
+`wp-content/`, aucun contrat de `docs/contracts/`, aucune issue n'a été touché.
+
+| # | Ce qui doit changer | Fichier / contrat | Qui | Nature |
+|---|---|---|---|---|
+| **1** | **Clause A-9 du contrat `docs/contracts/issue-7.md`** — « un seul contour rendu, à 4 px (L-12) » et « double contour de 4 px pour la sélection, §3.2 emplacement 5 » : **reprend l'ancienne règle du §9.2 et doit être amendée.** L'emplacement 5 n'existe plus (D-28), la sélection est **le cerne** (§9.2.a). La partie d'A-9 qui reste **vraie et doit survivre à l'amendement** : « le contour suit le focus, pas le panneau — après Échap, il reste » | `docs/contracts/issue-7.md` | chaîne propriétaire du contrat #7 | **Amendement de contrat gelé.** Ce document ne l'amende pas lui-même : un contrat gelé se rouvre par sa chaîne |
+| **2** | **Clause A-16 du même contrat** — l'anneau de focus générique **reste** posé sur le polygone. Rien à changer sur le fond ; la clause **renvoie à A-9** et sa lecture doit suivre l'amendement | `docs/contracts/issue-7.md` | idem | Mise en cohérence de renvoi |
+| **3** | **`carte.css`** — `.carte__contour` / `.carte__contour-trace` à 4 px avec le pane décalé, `stroke-width: 4px` en littéral au survol et sur `--courant`, et le littéral **L-12** de l'en-tête : tout cela applique la v2.3. À refaire selon §9.2.a, en **jetons** ; **L-12 disparaît de la liste des littéraux sans jeton** — les cinq jetons du §12 le remplacent, ainsi que `--bord-selection` pour la bordure du bouton de jour | `wp-content/themes/massifs/assets/css/carte.css` | chaîne « carte » à venir | Correction |
+| **4** | **`carte.js`** — poser la **classe de palier** sur la racine au montage puis sur `zoomend` (écouteur **déjà** présent, garde de densité A-13) ; renommer le pane du repère en pane du cerne et y rendre **les deux** couches de contour, **sous** le pane des massifs. Toujours **`classList` seul** : aucune valeur numérique de présentation en JS, la borne de palier est un **entier de zoom** | `wp-content/themes/massifs/assets/js/carte/carte.js` | idem | Correction |
+| **5** | **`tokens.css`** — cinq jetons ajoutés dans `:root`, deux classes de palier en fin de fichier (§12). **Le sha256 épinglé et l'invariant « 111 propriétés » du contrat #4 tombent** et deviennent **116 / 133** | `wp-content/themes/massifs/assets/css/tokens.css` et `docs/contracts/issue-4.md` | chaîne propriétaire du contrat #4 | **Invariant de contrat à remplacer**, déclaré ici, jamais modifié d'ici |
+| **6** | **Assertion de recette** : reproduire la vue z9 sur **Regagnas** — massif petit et filamenteux — et vérifier que l'**aplat de statut et son motif restent visibles** sur le massif sélectionné, que le halo ne fusionne pas d'un filament au suivant, et qu'aucune peinture claire n'apparaît à ce palier. À faire **dans le navigateur**, pas dans une suite de tests : c'est ce qui a manqué à la v2.3 | recette de la chaîne « carte » | idem | **Preuve, pas correction** |
+
+**Ce qui n'est pas dans cette liste, et qui doit le rester** : la clause **A-9 du contrat
+`docs/contracts/issue-9.md`** — celle-ci porte sur les **toponymes** et n'a **aucun rapport** avec la
+sélection. L'homonymie de numéro entre deux contrats est un piège de relecture ; il est signalé une fois
+ici pour qu'aucune chaîne ne rouvre le mauvais fichier.
+
+**Une ligne sort de cette sous-section quand le code rejoint le document** — et alors elle ne migre pas au
+§17 : elle disparaît. Le §17 est fait pour les écarts **assumés durablement** ; celui-ci pour les écarts
+**ouverts par une révision et destinés à se fermer**. Confondre les deux transformerait une dette en
+exception permanente.
 
 
 
