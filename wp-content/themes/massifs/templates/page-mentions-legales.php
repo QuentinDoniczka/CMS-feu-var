@@ -122,9 +122,16 @@ if ( have_posts() ) :
 					 * À reprendre VERBATIM. Une casse modifiée (« Ombru Studio »,
 					 * « OMBRUSTUDIO ») serait une altération d'un nom de société sur
 					 * la page qui l'engage juridiquement.
+					 *
+					 * Le terme est « Nom » et non « Éditeur » : la section s'intitule
+					 * déjà « Éditeur » deux lignes plus haut, et un <dt> qui répète
+					 * l'intitulé de sa propre section n'apprend rien — au lecteur qui
+					 * parcourt la page comme à celui qui l'entend au lecteur d'écran,
+					 * lequel annonce le titre puis le terme. Les trois autres termes
+					 * de cette liste nomment déjà chacun un fait distinct.
 					 */
 					?>
-					<dt>Éditeur</dt>
+					<dt>Nom</dt>
 					<dd>OmbruStudio</dd>
 
 					<dt>Directeur de la publication</dt>

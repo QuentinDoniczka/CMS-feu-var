@@ -19,6 +19,16 @@
 | **Outils** | `axe-core` et `playwright-core`, installés **hors dépôt** ; Chromium de Playwright |
 | **Scripts** | [`outils/recette.mjs`](outils/recette.mjs) et [`outils/captures.mjs`](outils/captures.mjs) |
 
+> **Ces relevés PRÉCÈDENT les corrections de revue du 16 août 2026** (contrat #18, arbitrage **A-16**
+> et corrections de copie). Ce qui a bougé depuis, et qui n'a **pas** été re-mesuré à l'instrument :
+> les poids transférés — trois phrases de copie ont changé sur « La démarche » et « Accessibilité »,
+> soit quelques dizaines d'octets sur ~118 Ko, très en deçà de toute marge de budget — et les captures
+> d'écran de [`captures/`](captures/), qui montrent l'ancien libellé de terme du bloc d'adresse.
+> Ce qui a été **re-vérifié en exécutant**, après correction : les quatre pages en 200, l'idempotence
+> de l'import rejoué deux fois, le plan de titres et les identifiants des trois pages (§2), et
+> l'absence de sous-ressource d'origine tierce (§3). Ce qui n'a **pas** été rejoué : la passe axe.
+> Elle n'est donc pas présentée comme couvrant l'état corrigé.
+
 ### 1.1 La dérogation `bypassCSP`, et pourquoi elle ne fausse rien
 
 Depuis le durcissement de l'issue #16, le site sert
@@ -70,9 +80,18 @@ dissimulées, et elles ne sont pas corrigées : corriger le balisage de `wp-logi
 modifier `functions.php`, hors de l'empreinte de cette issue.
 
 **Structure de titres**, relevée sur les trois pages éditoriales : un seul `h1` par page — le titre de
-la page —, hiérarchie du corps commençant à `h2`, **aucun identifiant en double** (17, 14 et 13
+la page —, hiérarchie du corps commençant à `h2`, **aucun identifiant en double** (17, 13 et 13
 identifiants respectivement, tous uniques). Aucune collision entre les ancres posées par le gabarit
-(`sources`, `editeur`, `signalement`) et celles posées par le contenu importé.
+(`sources`, `editeur`) et celles posées par le contenu importé (dont `signalement`).
+
+> **Relevé de titres repris le 16 août 2026, après la correction de revue** (contrat #18, arbitrage
+> **A-16**). Deux valeurs de ce paragraphe ont changé, et il vaut mieux dire laquelle que laisser
+> croire que rien n'a bougé :
+> - l'ancre `signalement` **n'est plus posée par le gabarit** mais par la copie, sur le `h2` « Signaler
+>   un obstacle » — c'est ce titre qui fait entrer l'adresse de signalement dans le plan de titres ;
+> - la page « Accessibilité » compte donc **13** identifiants et non 14, le `<dl>` du gabarit n'en
+>   portant plus. Le `uniq -d` reste vide sur les trois pages, et il l'est désormais **par
+>   construction** : une seule des deux sources émet l'ancre.
 
 Relevés bruts : [`releves/accueil-et-connexion.json`](releves/accueil-et-connexion.json) ·
 [`releves/pages-editoriales.json`](releves/pages-editoriales.json)

@@ -82,6 +82,26 @@ if ( have_posts() ) :
 				 * et partagé avec les mentions légales, et le recopier dans le
 				 * contenu le ferait diverger au premier changement d'adresse.
 				 *
+				 * QUI TITRE CETTE SECTION — arbitrage A-16, §5.2.a du contrat #18,
+				 * corrigé après revue. CE N'EST PAS CE GABARIT.
+				 * La règle du §5.2.a est « l'intitulé appartient à celui qui rend le
+				 * contenu de la section ». Ici la section « Signaler un obstacle »
+				 * est rendue AUX TROIS QUARTS par la copie — pourquoi il n'y a pas
+				 * de formulaire, quelles précisions donner, ce qui se passe ensuite.
+				 * Ce bloc n'en fournit que la dernière ligne, l'adresse.
+				 * Ce gabarit rend APRÈS the_content() : un <h2> émis ici arriverait
+				 * derrière la prose, qui retomberait alors sous « Ce qui n'a pas
+				 * encore été vérifié » — le mode d'emploi du signalement classé sous
+				 * un titre qui parle d'autre chose. C'est pourquoi le <h2 id=
+				 * "signalement"> est porté par la copie, immédiatement AVANT ce
+				 * bloc, et pourquoi ce bloc n'émet NI titre NI ancre : l'ancre
+				 * n'existe donc qu'à un seul endroit, et le doublon est impossible
+				 * par construction et non par chance.
+				 * Corollaire opposable : le <dt> ci-dessous nomme l'ADRESSE, jamais
+				 * la section — répéter « Signaler un problème d'accessibilité » sous
+				 * un titre qui le dit déjà donnerait deux libellés pour une seule
+				 * action.
+				 *
 				 * `antispambot()` est du cœur WordPress : il encode l'adresse en
 				 * entités HTML dans le TEXTE visible. Le `mailto:` reste en clair,
 				 * sans quoi le lien ne fonctionnerait pas. `esc_html()` ne
@@ -95,7 +115,7 @@ if ( have_posts() ) :
 				// le canal de signalement d'accessibilité : pire que son absence.
 				if ( defined( 'MASSIFS_CONTACT' ) && '' !== MASSIFS_CONTACT ) {
 					printf(
-						'<dl id="signalement"><dt>Signaler un problème d\'accessibilité</dt><dd><a href="%1$s">%2$s</a></dd></dl>',
+						'<dl><dt>Adresse de contact</dt><dd><a href="%1$s">%2$s</a></dd></dl>',
 						// `esc_url()` et non `esc_attr()` : c'est une URL, et la règle
 						// 2 du §1.1 du contrat #18 l'impose. Le schéma est concaténé
 						// AVANT l'échappement — `esc_url()` doit voir `mailto:…` en

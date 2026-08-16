@@ -43,11 +43,24 @@ le fait déjà `page.php`.
 
 | Fonction | Retour consommé, clé par clé | Consommateur |
 |---|---|---|
-| `massifs_attribution()` | `phrase:string` · `phrase_courte:string` · `lien_source:string` · `lien_licence:string` · `faits:array<string,string>` (dont `producteur`, `jeu_de_donnees`, `donnees_du_libelle`, `licence_nom`, `licence_version`, `licence_identifiant`, `base_reglementaire`) | Démarche (`faits`), Mentions légales (`phrase`, `lien_licence`) |
+| `massifs_attribution()` | `phrase:string` · `phrase_courte:string` · `lien_source:string` · `lien_licence:string` · `faits:array<string,string>` — **clés effectivement lues** : `producteur`, `jeu_de_donnees`, `couche`, `donnees_du_libelle`, `licence_nom`, `licence_version`, `base_reglementaire`, `dataset_id` | Démarche (`faits`), Mentions légales (`phrase`, `lien_licence`) |
 | `massifs_attribution_statuts()` | `texte:string` | Mentions légales |
 | `massifs_attribution_fond_de_carte()` | `phrase:string` · `lien_licence:string` · `faits:array<string,string>` | Démarche (`faits`), Mentions légales |
 | `massifs_attribution_zones_parcourues_par_le_feu()` | `phrase:string` · `faits:array<string,string>` (dont `producteur`, `service`, `methode`, `fenetre_jours`, `surface_minimale_ha`, `frequence_par_jour`, `connecteur`) | Démarche (`faits`), Mentions légales |
 | `massifs_meteo_du_jour()` | **uniquement** `attribution:array{texte:string,lien_licence:string,lien_source:string}` | Mentions légales, Démarche |
+
+> **Ce que ce tableau dit, et ce qu'il ne dit pas — précision apportée après revue.**
+> La colonne s'intitule « retour **consommé** » : elle énumère les clés que les trois gabarits lisent
+> réellement, et rien d'autre. Le retour de l'extension en porte davantage — `massifs_attribution()`
+> expose aussi `geoide_id`, `donnees_du`, `recupere_le`, `sha256_source`, `licence_identifiant`,
+> `crs_source`, `crs_publie`, qu'aucun gabarit ne lit. Une version antérieure listait
+> `licence_identifiant`, jamais lue, et omettait `couche` et `dataset_id`, lues toutes deux
+> (`page-la-demarche.php` l. 151 et l. 165) : le tableau décrivait donc une consommation qui n'était
+> pas la vraie, sur les deux bords à la fois.
+> **Source de vérité sur l'EXISTENCE d'une clé** : le type de retour déclaré par l'extension —
+> `includes/domain/massifs/attribution.php`, `includes/ingest/tuiles/attribution.php`,
+> `includes/ingest/effis/class-attribution.php`, `includes/ingest/meteo/api.php`. Ce tableau-ci ne fait foi
+> que sur ce que le thème lit.
 
 **Valeurs relevées sur la stack le 16 août 2026** — pour vérification, **jamais à recopier en dur** :
 
@@ -71,8 +84,10 @@ météo    Données Météo-France — Licence Etalab 2.0        (lien_licence :
 3. **`lien_licence` absent ou vide ⇒ aucun `<a>`.** Deux cas distincts, et le premier est un piège :
    la météo rend une **chaîne vide** (un `href=""` pointerait sur la page courante), tandis que
    `massifs_attribution_zones_parcourues_par_le_feu()` **n'a pas du tout la clé** — y accéder est un
-   warning PHP 8, pas une chaîne vide. Le tableau du §1 fait foi sur les clés existantes ; ne jamais
-   déduire une clé de la présence d'une autre. Dans les deux cas la phrase se rend **nue**.
+   warning PHP 8, pas une chaîne vide. Ne jamais déduire une clé de la présence d'une autre : sur
+   l'**existence** d'une clé, c'est le type de retour déclaré par l'extension qui fait foi, jamais le
+   tableau du §1, qui n'énumère que les clés **lues** (voir l'encadré du §1). Dans les deux cas la
+   phrase se rend **nue**.
 4. **Toute valeur vide ⇒ rien ne s'affiche**, et cela vaut pour **chaque clé**, pas seulement pour
    `phrase` et `texte`. `faits.couche` d'EFFIS vaut la chaîne vide **par conception**, et `couche` des
    périmètres peut l'être. Qui énumère un bloc `faits` sans rejouer la garde clé par clé produit un
@@ -82,7 +97,7 @@ météo    Données Météo-France — Licence Etalab 2.0        (lien_licence :
    Interdit d'y toucher sur ces trois pages.** Ces clés existent et appellent : un lien « carte
    officielle » posé là serait une **chaîne de statut** du §11.3 sur une page qui n'affiche aucun
    statut, exactement ce qu'interdit le corollaire du §3. Seule `texte` est lue.
-5. **`massifs_meteo_du_jour()` : seule la clé `attribution` est lue.** C'est une lecture **datée**
+6. **`massifs_meteo_du_jour()` : seule la clé `attribution` est lue.** C'est une lecture **datée**
    (`jour`, `releve_le`, `niveau`, `etat`…) employée pour obtenir une valeur **statique**. La fonction
    est **totale** — jamais d'exception, jamais de `null`, `attribution` toujours peuplée, y compris en
    état `indisponible`. **Aucune autre clé ne doit être lue, et surtout aucune date du retour ne doit
@@ -253,13 +268,51 @@ auteurs ne voit depuis son propre fichier.
 |---|---|---|
 | Sources et licences *(faits servis)* | **le gabarit** | `sources` |
 | Éditeur *(identité servie)* | **le gabarit** | `editeur` |
-| Signalement *(adresse servie)* | **le gabarit** | `signalement` |
+| Signaler un obstacle *(prose servie par la copie, adresse servie par le gabarit)* | **la copie** | `signalement`, posée par la copie |
 | Tout le reste — démarche, limites, zéro cookie, données personnelles, licence du code… | **la copie** | posée par le bloc `core/heading` |
 
-**La copie ne titre jamais une section rendue par le gabarit**, et réciproquement. Aujourd'hui la règle
-est tenue par des intitulés distincts ; elle est écrite ici pour ne plus dépendre de cette chance.
+**La copie ne titre jamais une section rendue par le gabarit**, et réciproquement. **Une seule des
+deux émet l'intitulé et l'ancre d'une section donnée** : le doublon devient impossible par
+construction, et non par la chance d'intitulés distincts.
+
+> **CORRECTION APRÈS REVUE — 16 août 2026. La ligne « Signalement » de ce tableau était fausse, et
+> c'est le contrat qui est corrigé, pas le code.**
+>
+> **Ce que le contrat gelait** : « Signalement *(adresse servie)* — `h2` émis par **le gabarit** —
+> ancre `signalement` ». **Ce que le code livrait** : aucun `h2`, un `<dl id="signalement">` dont le
+> `<dt>` valait « Signaler un problème d'accessibilité », pendant que la copie titrait la même section
+> `<h2 id="signaler-un-obstacle">Signaler un obstacle</h2>`. Deux libellés pour une seule action, et
+> une règle tenue par l'absence fortuite de doublon d'`id`.
+>
+> **Pourquoi le contrat avait tort.** Sa propre règle est « l'intitulé appartient à celui qui rend le
+> contenu de la section ». Le contenu de cette section, c'est la copie qui le rend presque
+> entièrement : pourquoi il n'y a pas de formulaire, quelles précisions donner, ce qui se passe
+> ensuite. Le gabarit n'en fournit que la dernière ligne — l'adresse.
+>
+> **Et l'autre répartition était inapplicable sans perte.** Le gabarit rend **après**
+> `the_content()` : un `h2` émis par lui arriverait derrière la prose de signalement, qui retomberait
+> alors sous le titre précédent, « Ce qui n'a pas encore été vérifié ». Aligner le code sur le contrat
+> aurait donc classé le mode d'emploi du signalement sous un titre qui parle d'autre chose — un défaut
+> de plan de titres créé pour en corriger un autre. Aucun réordonnancement ne l'évite : la prose est du
+> contenu, le contenu est un seul bloc, et il précède toujours le gabarit.
+>
+> **Ce qui est garanti dans tous les cas** — c'est l'exigence, le reste en est le moyen : **l'adresse
+> de signalement entre dans le plan de titres.** Elle est le canal exigé par le §8 du brief ; elle ne
+> peut pas être atteignable seulement par lecture linéaire. Elle l'est parce que le `<h2
+> id="signalement">Signaler un obstacle</h2>` de la copie précède immédiatement le bloc d'adresse du
+> gabarit, sans aucun titre intercalé — le bloc est la dernière chose que la page rend.
+>
+> **Conséquences sur le code, appliquées** : le `<dl>` du gabarit **n'émet plus d'`id`** (l'ancre
+> n'existe donc qu'à un seul endroit) et son `<dt>` nomme désormais l'**adresse** (`Adresse de
+> contact`) et non la section. La copie a renommé son ancre `signaler-un-obstacle` en `signalement`,
+> valeur que ce contrat gèle.
+
 **Vérification opposable** : `curl -s <page> | grep -o 'id="[^"]*"' | sort | uniq -d` doit ne rien
-rendre. Relevé le 16 août 2026 : **aucun doublon** sur les trois pages (17, 14 et 13 identifiants).
+rendre. Relevé le 16 août 2026, **après la correction A-16** : **aucun doublon** sur les trois pages
+(17, 13 et 13 identifiants — « Accessibilité » en perd un, le `<dl>` du gabarit n'en portant plus).
+**Seconde vérification opposable, ajoutée par la même correction** : sur `/accessibilite/`, le dernier
+`<h2>` du document est `id="signalement"` et **aucun titre ne s'intercale** entre lui et le bloc qui
+porte l'adresse.
 
 **Trois contraintes de structure, chacune avec sa raison :**
 
@@ -388,6 +441,7 @@ inclus trois fois — garde `function_exists()` et garde d'enregistrement.
 | **A-13** | `faits.extrait_le` du fond de carte est une date ISO `2026-08-13` **sans équivalent long**, là où les périmètres ont `donnees_du_libelle` | **Cette date n'est pas affichée** | Les deux issues sont fautives : la rendre brute viole le §11.1 règle 6 de `MASTER.md` (le thème ne compose ni n'affiche une date non mise en forme par le serveur), la formater viole le §6 de ce contrat. Ne rien afficher est la seule sortie propre. **Dette** : une clé `extrait_le_libelle` côté extension, hors empreinte |
 | **A-14** | Les trois `<meta name="description">` sont **rédigées dans un gabarit**, ce que A-1 interdit à la prose éditoriale | **Assumé, et livré non ratifié au titre de Q-2** | Une description doit être émise dans `<head>`, avant `wp_head()` ; la faire venir du contenu demanderait `functions.php`, hors empreinte. L'incohérence est réelle : elle est **nommée ici plutôt que laissée à la revue** |
 | **A-15** | Le §7.3 veut que la table des sources reprenne le tableau de la liste du jour | **Liste de définitions (`<dl>`) à la place** | Les classes `liste-statuts__*` portent une mise en page mobile en cartes, une règle `:empty` qui dépend des sauts de ligne du PHP, et du contenu généré par `data-etiquette` : les réemployer serait fragile et faux de sens. Les rendre correctement demanderait du CSS, hors empreinte. Une `<dl>` tient à 360 px sans une ligne de style — **et le zéro défilement horizontal est bloquant** (§8). Vérifié : 0 px de débordement |
+| **A-16** | *(ajouté après revue)* Le §5.2.a donnait au **gabarit** le `h2` de la section de signalement ; le code livré n'en émettait aucun et la copie titrait la section sous un autre libellé | **Le contrat est corrigé, pas le code** : l'intitulé et l'ancre `signalement` appartiennent à **la copie**, qui rend la section ; le gabarit n'émet plus d'ancre et son `<dt>` nomme l'adresse | La règle du §5.2.a est « l'intitulé appartient à celui qui rend le contenu » — et c'est la copie qui rend cette section. Le gabarit rendant **après** `the_content()`, un `h2` émis par lui aurait fait retomber la prose de signalement sous « Ce qui n'a pas encore été vérifié ». L'exigence tenue dans les deux cas — **l'adresse entre dans le plan de titres** — l'est par le titre de la copie, qui précède le bloc sans titre intercalé. Détail complet au §5.2.a |
 
 ---
 

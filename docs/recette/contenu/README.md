@@ -97,6 +97,14 @@ ce que la page tient.
   n'existe dans la copie, donc aucun lien mort. Les renvois d'une page à l'autre se font **par leur
   nom**, en toutes lettres, jamais par un `href` — un slug écrit en dur dans la base survivrait à un
   changement de slug et pointerait sur une 404.
+- **Une ancre est contractuelle et ne se renomme pas librement : `signalement`**, sur le `h2`
+  « Signaler un obstacle » d'`accessibilite.html`. Elle est **gelée par le §5.2.a du contrat #18**
+  (arbitrage **A-16**, correction après revue), et elle porte une exigence du **§8 du brief** : c'est
+  ce titre qui fait entrer **l'adresse de signalement dans le plan de titres**. Le gabarit
+  `page-accessibilite.php` rend le bloc d'adresse **immédiatement après** la fin du contenu et n'émet
+  ni titre ni ancre — donc **rien ne doit s'intercaler après ce `h2`** : il reste le dernier titre de
+  la page, et cette section reste la dernière du fichier. Ajouter une section après elle sortirait
+  l'adresse de son titre sans qu'aucun des deux fichiers ne le montre depuis chez lui.
 - **Aucun contenu protégé par mot de passe** : le formulaire du cœur pose un cookie `wp-postpass_`,
   contre le zéro-cookie public des §2 et §9 du brief.
 
