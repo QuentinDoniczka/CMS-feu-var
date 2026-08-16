@@ -25,8 +25,11 @@
  *   Le transient est le BON stockage ici, et pour la raison inverse de l'écluse : une
  *   éviction y fait échouer FERMÉ — l'utilisateur ressaisit son mot de passe.
  *
- *   Étape 2 — nonce, jeton, compteur de tentatives, code TOTP (anti-rejeu) ou code de
- *   secours, puis seulement `wp_set_auth_cookie`.
+ *   Étape 2 — nonce, jeton, VERROU DE L'ÉCLUSE, compteur de tentatives, code TOTP
+ *   (anti-rejeu) ou code de secours, puis seulement `wp_set_auth_cookie`. L'étape 2
+ *   ne traverse pas `authenticate` : elle est le SEUL chemin du module qui pose un
+ *   cookie sans que `Ecluse::barrer` ni `Ecluse::reaffirmer` ne s'exécutent, d'où la
+ *   reconsultation explicite du verrou — voir l'encadré de `traiter()`.
  *
  * CINQ TENTATIVES PAR JETON, puis le jeton est brûlé : un code à six chiffres se
  * force en un million d'essais, le verrouillage doit donc couvrir l'étape 2 comme il
@@ -196,10 +199,37 @@ final class Deuxfacteurs {
 	/**
 	 * Traite la soumission de l'étape 2.
 	 *
-	 * ORDRE NON NÉGOCIABLE : nonce, validité du jeton, compteur de tentatives, code
-	 * TOTP puis code de secours, et seulement alors le cookie d'authentification.
-	 * Intervertir le compteur et la vérification du code rendrait le plafond
-	 * inopérant.
+	 * ORDRE NON NÉGOCIABLE : nonce, validité du jeton, verrou de l'écluse, compteur de
+	 * tentatives, code TOTP puis code de secours, et seulement alors le cookie
+	 * d'authentification. Intervertir le compteur et la vérification du code rendrait
+	 * le plafond inopérant.
+	 *
+	 * ┌────────────────────────────────────────────────────────────────────────┐
+	 * │  POURQUOI LE VERROU EST RECONSULTÉ ICI, ET NULLE PART AILLEURS.        │
+	 * │                                                                        │
+	 * │  L'ÉTAPE 2 NE TRAVERSE PAS `authenticate`. Elle est atteinte par       │
+	 * │  `login_form_massifs_2fa`, hors de `wp_signon` : ni `Ecluse::barrer`   │
+	 * │  (priorité 1) ni `Ecluse::reaffirmer` (priorité 100) ne s'exécutent    │
+	 * │  sur ce chemin. Sans la vérification ci-dessous, UN JETON D'ÉTAPE 2    │
+	 * │  OBTENU AVANT LA POSE D'UN VERROU OUVRIRAIT ENCORE UNE SESSION         │
+	 * │  PENDANT CE VERROU, dans toute la fenêtre de 300 s du jeton — la       │
+	 * │  ceinture aurait un trou, sur le seul chemin qui pose un cookie.       │
+	 * └────────────────────────────────────────────────────────────────────────┘
+	 *
+	 * Le refus par verrou NE CONSOMME PAS DE TENTATIVE et n'alimente pas l'écluse :
+	 * une requête verrouillée n'est pas un code faux, et la compter permettrait à un
+	 * attaquant de maintenir indéfiniment un utilisateur légitime dehors. C'est
+	 * exactement le traitement que la chaîne `authenticate` réserve déjà à
+	 * `massifs_trop_de_tentatives`, jamais comptabilisé. Le jeton n'est pas brûlé non
+	 * plus : l'utilisateur légitime doit pouvoir reprendre une fois le verrou expiré,
+	 * et le TTL du jeton borne de toute façon cette fenêtre.
+	 *
+	 * PORTÉE HONNÊTE DU CORRECTIF : les clés de l'écluse sont l'IP hachée et le couple
+	 * (identifiant × IP hachée) — jamais l'identifiant seul (arbitrage A-13). Un
+	 * porteur de jeton qui change d'origine passe donc la vérification. C'est une
+	 * conséquence ASSUMÉE d'A-13 : verrouiller sur le seul identifiant permettrait à
+	 * n'importe quel visiteur de désactiver le compte de démonstration, dont les
+	 * identifiants sont publiés (§6).
 	 *
 	 * @param string $jeton Jeton d'étape 2.
 	 *
@@ -226,6 +256,12 @@ final class Deuxfacteurs {
 			delete_transient( $cle );
 
 			return 'Cette demande a expiré. Recommencez la connexion.';
+		}
+
+		$refus_ecluse = self::refus_ecluse( (string) $compte->user_login );
+
+		if ( '' !== $refus_ecluse ) {
+			return $refus_ecluse;
 		}
 
 		$essais = isset( $dossier['essais'] ) ? absint( $dossier['essais'] ) + 1 : 1;
@@ -287,6 +323,26 @@ final class Deuxfacteurs {
 		}
 
 		return SecretUtilisateur::consommer_code_secours( $user_id, $code );
+	}
+
+	/**
+	 * Message de refus si l'origine courante est verrouillée, chaîne vide sinon.
+	 *
+	 * La clé de verrouillage est celle de l'écluse : origine, et couple (identifiant ×
+	 * origine). D'où l'usage de l'identifiant RÉSOLU DEPUIS LE JETON — l'étape 2 ne
+	 * reçoit aucun identifiant de l'utilisateur, et en accepter un du formulaire
+	 * offrirait le choix de sa propre clé de comptage.
+	 *
+	 * @param string $identifiant Identifiant du compte porté par le jeton.
+	 */
+	private static function refus_ecluse( string $identifiant ): string {
+		if ( ! class_exists( Ecluse::class ) ) {
+			return '';
+		}
+
+		$attente = Ecluse::attente( $identifiant );
+
+		return $attente > 0 ? Ecluse::message( $attente ) : '';
 	}
 
 	/**

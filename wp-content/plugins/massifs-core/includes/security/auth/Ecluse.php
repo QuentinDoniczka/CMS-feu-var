@@ -781,9 +781,15 @@ final class Ecluse {
 	/**
 	 * Message de refus, portant le délai d'attente.
 	 *
+	 * PUBLIQUE parce que l'étape 2 du second facteur oppose le même verrou hors de la
+	 * chaîne `authenticate` (voir `Deuxfacteurs::traiter()`). Elle doit rendre le refus
+	 * AVEC LA MÊME PHRASE : deux formulations pour un seul mécanisme feraient croire à
+	 * l'utilisateur qu'il se heurte à deux protections distinctes, et le contrat de #13
+	 * exige un message indiquant le délai d'attente.
+	 *
 	 * @param int $attente Secondes restantes.
 	 */
-	private static function message( int $attente ): string {
+	public static function message( int $attente ): string {
 		$minutes = (int) ceil( $attente / 60 );
 
 		if ( $minutes <= 1 ) {
