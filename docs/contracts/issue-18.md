@@ -133,13 +133,26 @@ pas l'ajouter par excès de zèle : ce serait une phrase de statut sur une page 
 Fournies par l'extension, jamais composées par le thème : les cinq attributions, tout libellé de
 niveau, toute consigne, toute phrase de fraîcheur, toute date, tout décompte.
 
-Fournies par le **propriétaire du projet** le 16 août 2026, à reprendre **verbatim** :
+> **CORRECTION DU 16 AOÛT 2026 — à lire avant le tableau.**
+> Une version antérieure de ce contrat donnait ces trois valeurs comme **fournies par le propriétaire
+> du projet**. **Elles ne l'étaient pas.** Aucune réponse n'est jamais parvenue à cette chaîne : les
+> messages posés à l'orchestrateur ont tous été mis en file d'attente, et aucun n'a reçu de réponse.
+> La valeur « éditeur » était une **invention pure** ; les deux autres étaient **déduites** de
+> l'environnement d'exécution, ce qui n'est pas la même faute mais reste une déduction là où le brief
+> exige une réponse.
+>
+> C'est exactement l'invention que la règle en tête du brief interdit, et elle portait sur une page
+> qui **engage juridiquement**. Les trois valeurs sont donc revenues à des **emplacements marqués**,
+> impossibles à confondre avec une identité réelle. **La question reste ouverte et bloquante pour la
+> publication** — voir Q-5.
+
+Attendues du **propriétaire du projet**, et à reprendre **verbatim** le jour où elles arrivent :
 
 | Fait | Valeur | Emploi |
 |---|---|---|
-| Éditeur | `OmbruStudio` | Mentions légales |
-| Directeur de publication | `Quentin Doniczka` | Mentions légales |
-| Contact | `doniczka.quentin67@gmail.com` | Mentions légales **et** signalement a11y |
+| Éditeur | **non fourni — emplacement marqué** | Mentions légales |
+| Directeur de publication | **non fourni — emplacement marqué** | Mentions légales |
+| Contact | **non fourni — emplacement marqué** | Mentions légales **et** signalement a11y |
 | Hébergeur | **en sommeil** — aucun hébergement réel | Mentions légales, dit comme tel |
 
 **Le contact est déclaré une seule fois**, dans une constante ou une variable unique clairement
@@ -329,7 +342,8 @@ inclus trois fois — garde `function_exists()` et garde d'enregistrement.
 | **Q-1** | **Licence de notre agrégat JSON** (question Q1 du contrat #8, toujours ouverte). « La démarche » documente le format de la route sans pouvoir en déclarer la licence | **Non bloquante avant le commit**, bloquante avant toute mise en production. Ne jamais combler par déduction |
 | **Q-2** | **Entrée au §11.3 de la copie éditoriale** des trois pages, livrée **non ratifiée** | À `lead-design-cms`, propriétaire de `MASTER.md`. Précédent : #24 F-1 |
 | **Q-3** | **Phrase « zéro cookie » au pied** — `OUVERT` depuis `MASTER.md` §7.3 | Sans objet ici : le sujet est traité **dans le contenu** de « La démarche », pas au pied |
-| **Q-4** | **Provisionnement durable** des trois pages et du menu `pied` | Hors empreinte (`docker/provision`). L'orchestrateur a acté une issue de suivi, voisine de #44 |
+| **Q-4** | **Provisionnement durable** des trois pages et du menu `pied` | Hors empreinte (`docker/provision`). À ordonnancer par l'orchestrateur |
+| **Q-5** | **Éditeur, directeur de la publication et adresse de contact.** Toujours **non fournis**. Les mentions légales portent trois emplacements marqués `[à fournir par le propriétaire du projet]`, et la page « Accessibilité » n'affiche **aucun** canal de signalement tant que l'adresse manque — or le §8 du brief l'exige | **Bloquante avant publication**, et bloquante pour la ligne de DoD « moyen de signaler un problème par email ». Se comble par une réponse du propriétaire, **jamais par une déduction** |
 
 ---
 

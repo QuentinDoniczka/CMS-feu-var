@@ -91,7 +91,9 @@ if ( have_posts() ) :
 				 * Gardé : sans includes/seo-meta.php, la page rend son contenu au
 				 * lieu de tomber en erreur fatale.
 				 */
-				if ( defined( 'MASSIFS_CONTACT' ) ) {
+				// Vide ⇒ aucun lien. Un `mailto:` sans adresse est un lien mort sur
+				// le canal de signalement d'accessibilité : pire que son absence.
+				if ( defined( 'MASSIFS_CONTACT' ) && '' !== MASSIFS_CONTACT ) {
 					printf(
 						'<dl id="signalement"><dt>Signaler un problème d\'accessibilité</dt><dd><a href="mailto:%1$s">%2$s</a></dd></dl>',
 						esc_attr( MASSIFS_CONTACT ),

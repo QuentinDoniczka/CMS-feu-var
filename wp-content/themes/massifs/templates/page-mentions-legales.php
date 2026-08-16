@@ -111,11 +111,27 @@ if ( have_posts() ) :
 
 				<h2 id="editeur">Éditeur</h2>
 				<dl>
+					<?php
+					/*
+					 * EMPLACEMENTS À REMPLIR — ne pas combler par déduction.
+					 *
+					 * L'identité de l'éditeur et du directeur de la publication n'a
+					 * PAS été fournie par le propriétaire du projet. La question lui
+					 * est posée ; tant qu'elle n'a pas de réponse, ces deux lignes
+					 * restent des emplacements marqués.
+					 *
+					 * La formulation est volontairement IMPOSSIBLE à confondre avec
+					 * une identité réelle : un nom plausible laissé là serait publié
+					 * tel quel sur une page qui engage juridiquement, et personne ne
+					 * verrait qu'il a été inventé. Le contrat #18 §4 et la règle en
+					 * tête du brief l'interdisent l'un comme l'autre.
+					 */
+					?>
 					<dt>Éditeur</dt>
-					<dd>OmbruStudio</dd>
+					<dd><strong>[à fournir par le propriétaire du projet]</strong></dd>
 
 					<dt>Directeur de la publication</dt>
-					<dd>Quentin Doniczka</dd>
+					<dd><strong>[à fournir par le propriétaire du projet]</strong></dd>
 
 					<?php
 					// Adresse déclarée UNE SEULE FOIS dans includes/seo-meta.php,
@@ -127,12 +143,18 @@ if ( have_posts() ) :
 					// de ce fichier promet d'éviter. La garde couvre le <dt> AUTANT
 					// que le <dd> : un terme sans définition annoncerait un contact
 					// qu'on est incapable de donner.
-					if ( defined( 'MASSIFS_CONTACT' ) ) {
+					// Vide ⇒ emplacement marqué, jamais un lien mort.
+					if ( defined( 'MASSIFS_CONTACT' ) && '' !== MASSIFS_CONTACT ) {
 						printf(
 							'<dt>Contact</dt><dd><a href="mailto:%1$s">%2$s</a></dd>',
 							esc_attr( MASSIFS_CONTACT ),
 							esc_html( antispambot( MASSIFS_CONTACT ) )
 						);
+					} else {
+						// Sur une page de mentions légales, le contact est une ligne
+						// ATTENDUE : la faire disparaître ferait passer un manque
+						// pour un choix. L'emplacement reste visible et marqué.
+						print '<dt>Contact</dt><dd><strong>[à fournir par le propriétaire du projet]</strong></dd>';
 					}
 					?>
 

@@ -40,7 +40,20 @@ if ( ! defined( 'MASSIFS_CONTACT' ) ) {
 	 * Elle vit dans ce fichier faute d'autre fichier partagé par les trois
 	 * gabarits — l'empreinte de l'issue #18 n'en autorise pas un second.
 	 */
-	define( 'MASSIFS_CONTACT', 'doniczka.quentin67@gmail.com' );
+	/*
+	 * NON FOURNIE PAR LE PROPRIÉTAIRE DU PROJET — emplacement à remplir.
+	 *
+	 * Une adresse de contact publiée engage : elle paraît sur les mentions
+	 * légales ET sur la page « Accessibilité » comme canal de signalement. La
+	 * choisir à la place du propriétaire — fût-ce en reprenant une adresse
+	 * trouvée ailleurs dans le dépôt — publierait une adresse personnelle que
+	 * personne n'a accepté de rendre publique.
+	 *
+	 * La chaîne vide n'est PAS un oubli : les deux gabarits la testent et
+	 * n'affichent aucun lien tant qu'elle est vide, plutôt que d'émettre un
+	 * `mailto:` qui n'aboutit nulle part.
+	 */
+	define( 'MASSIFS_CONTACT', '' );
 }
 
 if ( ! function_exists( 'massifs_meta_description' ) ) {
