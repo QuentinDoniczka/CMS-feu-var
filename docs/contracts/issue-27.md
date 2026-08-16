@@ -1,6 +1,22 @@
 # Contrat d'interface — Issue #27 — Réconcilier la garde du `match()` de `front-page.php` avec l'arbitrage écran-blanc de la chaîne #6
 
-**Gelé le 13 août 2026** par `lead-issue-cms` (chaîne #27). Liant à partir de ce point.
+**Gelé le 13 août 2026** par `lead-issue-cms` (chaîne #27) · **Révision 1 — 17 août 2026, issue #31**.
+Liant à partir de ce point.
+
+> **Révision 1 — issue #31, correction d'une exigence mutuellement insatisfiable.** L'**assertion 4** de
+> la recette R-27 exigeait « aucun caractère `[0-9]` » dans `<section id="ardoise">` sans borner la
+> portée de la mesure, alors que l'**assertion 3** de la même table impose dans cette section un lien
+> vers `massifs_attribution_statuts()['carte_officielle_url']`, dont l'URL contient elle-même un chiffre
+> (« /13 », le département). Lues sur les **octets bruts** de la section, les deux assertions ne peuvent
+> pas être satisfaites en même temps, et un agent appliquant la lettre de l'assertion 4 **retirerait le
+> lien de secours** — contre le brief §4.2 (« information non disponible, consultez la carte officielle
+> **(lien)** ») et contre l'arbitrage **A-35**, c'est-à-dire contre l'objet même de #27. La révision
+> **aligne le texte du contrat sur le comportement livré** : la recette `tests/rendu/recette-rendu.mjs`
+> (l. 3876-3889) mesurait déjà le **contenu textuel** de la section, attributs exclus, et `tests/README.md`
+> (l. 170) décrivait déjà l'attendu comme « aucun chiffre **présenté** ». **Aucune exigence n'est
+> assouplie, aucun comportement ne change** : seule la portée de la mesure est écrite. Lignes touchées :
+> assertion 4 de la table « Attendus mesurables », et la précision de la phrase « provablement dépourvu
+> de chiffre » du §« La garantie structurelle du chiffre ». **Aucun octet de code n'est modifié par #31.**
 
 Ce contrat n'est **pas** une frontière front↔back : l'issue #27 ne touche **que le thème**, et n'écrit
 **aucune ligne d'extension**. `leaddev-back-cms` n'a donc pas été lancé, et **aucune demande nouvelle
@@ -144,7 +160,8 @@ possible sans écrire hors empreinte : #27 **généralise #6**, il ne renégocie
 « Le chiffre n'est écrit que dans le bras `disponible` » reste **vrai après #27**.
 `par_niveau['autorise']`, `partiel`, `disponibles` et `sans_donnee` restent lues **uniquement** à
 l'intérieur du bras `disponible`, et PHP continue de n'évaluer que le bras retenu. Le chemin de repli est
-**provablement dépourvu de chiffre** (assertion 4 de la recette R-27).
+**provablement dépourvu de chiffre présenté** (assertion 4 de la recette R-27, dont la révision 1 borne
+la portée au contenu textuel de la section : l'`href` officiel, lui, porte « /13 » et **doit** y rester).
 
 ---
 
@@ -360,7 +377,7 @@ unset( $massifs_synthese['etat_global'] );
 | 1 | Code HTTP = **200** | **500** |
 | 2 | Exactement **un** `<h1` dans le document, `id="titre-du-jour"` | aucun |
 | 3 | Texte du `h1` = `Information du jour non disponible. Consultez la carte officielle de la préfecture.` (§11.3 verbatim, un seul espace avant le lien, point final), contenant `<a href="…">la carte officielle de la préfecture</a>` dont le `href` est **non vide** et d'hôte **identique** à celui de `.bandeau-non-officialite__lien` (même source `massifs_attribution_statuts()`). **Ne pas coder l'URL en dur** comme source de vérité de l'assertion | absent |
-| 4 | `<section id="ardoise">` ne contient **aucun caractère `[0-9]`** — donc aucun `.ardoise__chiffre`, aucun `<time>` (`fraicheur => false`), aucune phrase de publication partielle | sans objet |
+| 4 | **[Révision 1, issue #31]** `<section id="ardoise">` ne contient **aucun caractère `[0-9]` dans son contenu textuel** — le `textContent` de la section, espaces normalisés, **attributs exclus** — et **zéro** `.ardoise__chiffre`, **zéro** `<time>` (`fraicheur => false`), **zéro** `.ardoise__publication-partielle`. **L'assertion ne porte pas sur les octets bruts de la section** : l'`href` officiel y contient « /13 », et l'assertion 3 l'exige. Mesurer les octets bruts rendrait les assertions 3 et 4 mutuellement insatisfiables et conduirait à retirer le lien de secours — interdit par le brief §4.2 et par A-35 | sans objet |
 | 5 | `<a href="#liste">` présent dans l'en-tête **et** `id="liste"` présent **exactement une fois** : l'ancre **résout** | sans objet |
 | 6 | Le corps ne contient **aucun** de : `Warning:`, `Notice:`, `Deprecated:`, `Fatal error`, `<b>Warning</b>`, `UnhandledMatchError`, `_doing_it_wrong`, `Erreur critique sur ce site` | `Erreur critique sur ce site` |
 | 7 | Document complet : exactement un `<main`, `</main>` et `</html>` présents | absents |
