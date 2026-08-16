@@ -17,6 +17,13 @@ il vise notre propre serveur (`http://wordpress/`), à l'intérieur de la stack.
 ```bash
 bash docker/up.sh          # la stack doit tourner
 
+# Les trois pages éditoriales de l'issue #18 ne sont PAS provisionnées : leur prose
+# est du contenu versionné. Sans cet import elles répondent 404 et les scénarios
+# `pages`, `tierce`, `structure`, `mobile` et `a11y` rougissent. `docker/reset.sh`
+# les perd — rejouer l'import après toute remise à zéro.
+MSYS_NO_PATHCONV=1 docker compose run --rm -v "$PWD/docs:/docs" wpcli \
+	sh /docs/recette/importer-pages.sh
+
 bash tests/run.sh          # tous les scénarios
 bash tests/run.sh 13       # un seul, par numéro
 bash tests/run.sh jointure # ou par mot-clé
@@ -27,6 +34,11 @@ bash tests/module-absent.sh   # tolérance du chargeur à un module frère absen
 
 node tests/rendu/recette-rendu.mjs            # recette de rendu, vrai navigateur
 node tests/rendu/recette-rendu.mjs --filtre=tierce
+
+# EN DERNIER, et jamais dans une suite : la commande ÉCRASE la base cible
+# (DROP/CREATE de toutes les tables) puis la restaure. C'est la seule preuve que
+# les archives ne mentent pas.
+docker compose run --rm wpcli wp massifs sauvegarde verifier
 
 docker compose down        # ne rien laisser tourner
 ```
@@ -117,6 +129,7 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 | `30` à `39` — **météo** | **issue #10** — la garde de vocabulaire qui tient « indisponible » tant que les libellés officiels des crans ne sont pas sourcés, un aller-retour HTTP **réel** intra-stack sans `pre_http_request`, les cinq couches de validation et ce qui n'est *pas* une aberration, la panne et son alerte unique sans chiffre dans le courriel, le coupe-circuit et la porte saisonnière (zéro octet sortant), le §4.2 appliqué au danger météo, l'état peuplé par la clé d'injection du gabarit, et l'indicateur **jamais fusionné** avec le statut réglementaire | chaîne des données, zéro requête tierce |
 | `40` à `47` — **zones parcourues** | **issue #11** — l'ingestion nominale où la charge simulée est une **origine** et non une branche, le lot vide qui est le cas nominal, **`42` et `47` C : `aucune_zone` contre `couche_effis_indisponible`**, tous deux `nombre === 0` et jamais le même rendu, la péremption dure appliquée à la **lecture** (les polygones restent en base), les charges aberrantes qui n'écrasent rien, les gardes de cadence, la route publique `/massifs/v1/zones-parcourues-par-le-feu`, et **`47` la jonction extension ↔ `panneau-feu.php`** | chaîne des données, couche EFFIS |
 | **`60-portail-journal-exact`** | **Épic 5 (#13, #14, #15)** — trois gestionnaires corrigent tour à tour le **même** couple (massif, jour), et le journal reste exact : ordre décroissant, **filtre par auteur**, **filtre par source**, **pagination à cheval sur une frontière** — les quatre façons dont la dérivation par parcours du lot 1 mentait (contrat #15 §0.2). Plus la matrice de capacités **à la négative** (23 capacités du cœur refusées au gestionnaire), la création de compte **refusée sans acteur**, la suspension qui retire les capacités **à chaud** et **détruit la session**, la suppression bloquée par `map_meta_cap`, le registre d'évènements de compte et son interdit 8 (ni secret, ni code, ni IP), l'écluse et son **arbitrage A-13** (verrou par ORIGINE, jamais par identifiant — la démonstration publique n'est pas éteignable), et la rampe 2FA qui **n'exige jamais un code qu'on ne peut pas produire** | portail, journal exact, force brute |
+| **`70-durcissement-et-sauvegardes`** | **issue #16** — le durcissement du §9 et le moteur de sauvegarde, en **HTTP réel** depuis le réseau de la stack. En tête, la **non-régression la plus importante du lot** : `GET /wp-json/massifs/v1/statuts` **200 en anonyme** — le réflexe naturel (`rest_authentication_errors`) aurait fermé toute l'API, donc l'open data du §5.4 et la carte publique. Puis les **quatre surfaces d'énumération**, les en-têtes relevés sur la réponse réelle (HSTS **absent** en HTTP, et c'est correct), la politique de mise à jour, l'**édition de code mesurée sur la CAPACITÉ** et non sur la constante, une **archive réellement créée puis tentée en téléchargement anonyme** (arbitrage A-5 : elle contient des hachages de mots de passe et des secrets TOTP), et la **rotation dont le seuil est franchi pour de bon** — un mécanisme de suppression jamais déclenché n'est pas un mécanisme vérifié | sauvegardes, énumération, zéro requête tierce |
 | `50` à `54` — **veille de fraîcheur** | **issue #12** — la veille planifiée **même quand le connecteur d'ingestion est désarmé** (le trou de la stack de développement), l'alerte de péremption émise **une fois par source et par jour de validité**, le silence total hors saison, la veille désarmée par constante puis par filtre, et le retrait du crochet `massifs_veille_fraicheur` à la désactivation de l'extension | fraîcheur, chaîne des données |
 
 ### Les scénarios de rendu (`tests/rendu/recette-rendu.mjs`)
@@ -144,7 +157,9 @@ scénario qui doit être armé **dès l'amorçage** (planification du cron sur `
 | `cartes` | mode cartes à 320 px, en-tête **déporté hors cadre et non retiré** (boîte de 2 px, aucun pixel de défilement, jamais focusable), étiquettes reprises de `data-etiquette`, et **le piège des cellules vides** : aucun champ étiqueté vide, aucun octet d'espace entre les balises | mobile réel |
 | `arbre` | l'arbre d'accessibilité réellement construit par le moteur (CDP), **aux deux largeurs** : comptes stricts par rôle, noms accessibles des quatre en-têtes, et le sous-ensemble tabulaire identique à 320 px et à 900 px — `cell` excepté (63 / 75) | accessibilité |
 | `partielle` | **journée de publication partielle (issue #26)** : huit journées posées par la fabrique — trois complètes (X = 0, 1, 20) et cinq partielles (X/Y/Z couvrant 0, 1 et pluriel sur les **trois** axes d'accord) — dont le dénominateur affiché, la phrase de synthèse mot pour mot, la présence *et l'absence* du `<p class="ardoise__publication-partielle">`, sa position entre le `h1` et la ligne de fraîcheur, la concordance de la liste textuelle avec les chiffres du domaine, axe-core et 360 px sur une journée partielle | statut périmé, utilisable sans JS, accessibilité, mobile |
-| `gravatar` | aucune empreinte d'e-mail composée ni servie — anonymement, sous `admin` et sous `gestionnaire-demo`, sur `/`, `/wp-admin/`, `profile.php`, `users.php` et les deux routes REST du cœur — où `avatar_urls` / `author_avatar_urls` ont disparu de la charge utile **et du schéma** (`OPTIONS`) ; la coupe tient **même sous `force_display`**, donc imprenable par une valeur en base | zéro requête tierce, donnée personnelle |
+| `gravatar` | aucune empreinte d'e-mail composée ni servie — anonymement, sous `admin` et sous `gestionnaire-demo`, sur `/`, `/wp-admin/`, `profile.php`, `users.php` et les routes REST du cœur — où `avatar_urls` / `author_avatar_urls` ont disparu de la charge utile **et du schéma** (`OPTIONS`) ; la coupe tient **même sous `force_display`**, donc imprenable par une valeur en base. **Depuis l'issue #16, ce scénario porte aussi la FERMETURE de l'énumération de comptes** : `wp/v2/users` et `wp/v2/users/<id>` en **404 `rest_no_route`** pour l'anonyme, `users/me` en **401 et jamais 404** (retrait littéral, jamais par préfixe), `?author=N` et `/author/<identifiant>/` en **404 sans en-tête `Location`** — la fuite réelle étant le 301 de `redirect_canonical`, pas le corps —, et l'index du plan de site sans fournisseur `users` | zéro requête tierce, donnée personnelle, énumération |
+| **`csp`** | **issue #16** — la CSP mesurée **dans** le navigateur, sans aucune dérogation : en-tête servi mot pour mot, `<script>` en ligne réellement refusé, et l'audit feuille par feuille de `document.styleSheets` — **seul juge**, voir A-13. Le **seul** style bloqué est le `<style id="wp-img-auto-sizes-contain-inline-css">` du cœur (A-12, couture S-11) ; aucune feuille du thème n'est emportée. **A-3 confirmé dans Chrome** : l'îlot `<script type="application/json">` survit à `script-src 'self'` et la carte se monte. Enfin A-2 : **aucune CSP sur le front en session**, affaiblissement borné et assumé | zéro requête tierce, accessibilité |
+| **`pages`** | **issue #18** — les trois pages du §5.1 servies **JavaScript coupé** : gabarit éditorial (et non le repli `page.php`), un `h1`, zéro `<script src>`, `<meta name="description">`, **aucun statut rendu** (donc aucun statut à périmer), les **cinq attributions du §9 verbatim** en mentions légales, le « zéro cookie » expliqué sur la démarche, le **point d'accès JSON documenté puis RÉELLEMENT SUIVI** (une page qui documente une route morte est pire qu'une page muette), et le moyen de signalement de la page Accessibilité | pages rédigées, attributions, sans JS, API publique |
 | **`carte`** | **issues #7 et #9** — la carte réellement montée dans un navigateur : `.carte--prete`, 25 tracés, repli statique retiré **après** montage et attribution OSM conservée, `attributionControl: false`, tuiles servies depuis notre origine et vérifiées **sur leur signature de fichier**, plafond de zoom 11 contre pyramide 12, bascule de jour (phrase de jour affichée, ensemble des polygones repeint, panneau daté du jour affiché, aucune persistance au rechargement), roving tabindex à **un seul** arrêt, `aria-label` composé de deux chaînes serveur, Entrée / Échap / retour du focus, et **le pas de hachure à l'écran mesuré à trois niveaux de zoom** (A-13) | zéro requête tierce, statut périmé, accessibilité |
 | **`carte-degradee`** | **issues #7 et #9, chemins d'échec** — Leaflet empêché de se charger : le repli statique **reste**, avec son image, son lien vers la liste et son attribution, la liste garde ses 25 statuts, et **aucune origine tierce n'est contactée sur le chemin dégradé** (le vrai piège de I-9.2). Puis tuiles renvoyées en 404 : la carte se monte quand même, les 25 massifs restent tracés, aucune erreur JavaScript | utilisable sans JS, zéro requête tierce |
 | **`bandes`** | **lot de l'Épic 4** — les trois bandes neuves mesurées **dans la page d'accueil servie**, JavaScript coupé : les huit `.bande--*` présentes une fois chacune et dans l'ordre du §7.1, la bande de péremption **au-dessus** de la carte et sa mention rendue **une seule fois** (`1 × .bandeau-alerte--peremption`, `0 × .ardoise__peremption`), la même bande à **hauteur zéro** le jour nominal, les deux `<section>` nommées `#meteo` et `#zones-parcourues` réellement peintes, météo **avant** zones et toutes deux après la liste, aucun libellé de niveau d'accès dans l'une ou l'autre, et aucun débordement à 360 px. Les scénarios PHP 30 à 54 rendent ces parties **isolément** ; c'est le seul contrôle qui prouve qu'elles sont **câblées** dans `front-page.php` | chaîne des données, utilisable sans JS, mobile réel |
@@ -243,10 +258,45 @@ en vigueur est sans exception :
    scénario rouge. Un rouge est soit un défaut du code — qui se rapporte —, soit une attente fausse —
    qui se corrige en disant pourquoi elle était fausse.
 
+## `bypassCSP` — où il est posé, et surtout où il ne l'est JAMAIS
+
+Depuis l'issue #16 le front public porte `script-src 'self'`. `page.addScriptTag()` est un script en
+ligne : Chrome le refuse, et les trois passes axe-core tombaient **en panne d'exécution** — un rouge
+qui se lisait comme un défaut d'accessibilité alors que c'était une panne de harnais.
+
+La dérogation appartient au **pilote de test**, jamais au site : elle ne retire aucun en-tête et ne
+change rien à ce que le serveur envoie. Elle est posée sur des **contextes dédiés**, et sur eux seuls :
+
+| Scénario | Contexte dérogatoire | Ce qui reste sans dérogation |
+|---|---|---|
+| `a11y` | le contexte de la passe axe | — |
+| `partielle` | le contexte de la passe axe | la mesure de débordement à 360 px, dans un contexte neuf |
+| `portail` | un contexte dédié, muni des cookies de la session | le contexte principal, qui mesure les origines contactées dans `wp-admin` |
+
+**Trois mesures ne la connaissent pas, et ne doivent jamais la connaître** : la preuve « zéro requête
+tierce » (`tierce`), la mesure de la CSP elle-même (`csp`), et les budgets (`budgets`). Poser
+`bypassCSP` sur l'une des trois la rendrait verte en n'ayant rien mesuré.
+
 ## Ce que cette suite ne couvre pas
 
-Elle ne remplace ni un contrôle humain au lecteur d'écran, ni un vrai téléphone à 360 px, ni une
-restauration de sauvegarde, ni HTTPS en production.
+Elle ne remplace ni un contrôle humain au lecteur d'écran, ni un vrai téléphone à 360 px, ni HTTPS en
+production.
+
+**Sauvegardes — ce qui est prouvé et ce qui ne l'est pas.** `70-durcissement-et-sauvegardes` crée de
+vraies archives, éprouve la rotation jusqu'à la suppression, et vérifie qu'aucune n'est téléchargeable
+par un visiteur anonyme. L'**aller-retour complet** — dump A, empreinte, restauration réelle par
+`DROP`/`CREATE`, re-dump B, comparaison — est porté par `wp massifs sauvegarde verifier`, qui n'est
+**pas** dans `tests/run.sh` : la commande écrase la base cible, et l'enchaîner aux autres scénarios
+rendrait leurs mesures ininterprétables. Elle se joue **en dernier, à la main**, et son vert est le
+seul fondement de la ligne « restauration testée » :
+
+```bash
+docker compose run --rm wpcli wp massifs sauvegarde verifier
+```
+
+Ce qui reste **non couvert** : la périodicité quotidienne (aucun déclencheur hôte), la copie hors
+hébergeur (en sommeil par décision du propriétaire), et une restauration sur une **autre** machine que
+celle qui a produit l'archive.
 
 Le scénario `impression` éprouve `print.css` **en média émulé**, à deux largeurs de contenu (A4 et A5).
 Ce n'est pas une sortie papier : la pagination réelle, les sauts de page, le rendu du moteur
@@ -269,13 +319,33 @@ contraste élevé Windows : les couleurs système réelles, et les thèmes perso
 Le scénario `gravatar` ouvre **deux vraies sessions** (`admin`, `gestionnaire-demo`) et pose donc
 délibérément des cookies `wordpress_logged_in_*`, détruits avec les contextes de navigation qui les
 portent — l'interdiction de cookie du §2 vise le visiteur anonyme, et le scénario l'asserte
-explicitement dans sa première jambe. Il **ne couvre pas** l'énumération d'utilisateurs par
-`GET /wp-json/wp/v2/users`, qui reste ouverte : il asserte même que la route continue de lister les
-mêmes comptes, pour prouver qu'elle n'a pas été touchée. C'est une exigence distincte, du §9 du brief.
+explicitement dans sa première jambe.
 
-Ne sont pas couvertes, faute d'exister : les pages « La démarche », « Accessibilité » et
-« Mentions légales ». La ligne du §12 « pages rédigées » n'est déclarée couverte nulle part, et la
-ligne « vérifications d'accessibilité » ne peut donc pas les inclure.
+**Ce scénario affirmait l'INVERSE de ce qu'il affirme aujourd'hui, et c'est écrit ici pour que
+personne ne le relise de travers.** Le contrat #25 avait gelé un état nommé
+`enumeration_toujours_ouverte` : `GET /wp-json/wp/v2/users` devait répondre **200 et peuplé**, afin de
+prouver que la chaîne Gravatar n'avait pas débordé sur un défaut voisin — son point B-3 renvoyait
+nommément à l'issue **#16** pour corriger l'énumération. #16 l'a fait, et la couture **S-1** de son
+contrat désignait ces lignes de test. L'attente est donc **retournée** : 404 en anonyme.
+
+Conséquence à connaître : la preuve « la clé `avatar_urls` a disparu » ne peut plus être portée par
+l'anonyme sur cette route — un 404 ne contient aucune clé, l'assertion y serait trivialement verte.
+Elle est reprise **en session administrateur**, où la route répond 200 (non-régression d'administration
+du contrat #16). **Le cookie n'y suffit pas** : `rest_cookie_check_errors()` du cœur remet l'utilisateur
+courant à 0 quand une requête porte un cookie valide **sans nonce `wp_rest`**, et la route répond alors
+404 comme pour un anonyme. Mesurée sans nonce, la non-régression se lirait comme une régression. Le
+nonce est prélevé sur l'écran d'administration réellement servi.
+
+Les trois pages « La démarche », « Accessibilité » et « Mentions légales » existent depuis l'issue #18
+et sont couvertes par le scénario `pages`, ainsi que par `tierce`, `structure`, `mobile` et `a11y` —
+elles sont entrées dans la constante `PAGES`. **Mais elles ne sont pas provisionnées** : leur prose est
+du contenu, versionné sous `docs/recette/contenu/` et poussé en base par
+`docs/recette/importer-pages.sh`. Sans cet import, elles répondent 404 et les scénarios ci-dessus
+rougissent — c'est voulu. **`docker/reset.sh` les perd** : rejouer l'import après toute remise à zéro.
+
+```bash
+MSYS_NO_PATHCONV=1 docker compose run --rm -v "$PWD/docs:/docs" wpcli sh /docs/recette/importer-pages.sh
+```
 
 **Le portail est couvert depuis le lot de l'Épic 5** — `60-portail-journal-exact` côté domaine,
 `portail`, `portail-anonyme` et `2fa` côté navigateur. Trois limites y sont **structurelles** :

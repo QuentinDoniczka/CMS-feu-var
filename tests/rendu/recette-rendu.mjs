@@ -202,8 +202,22 @@ function chercherChromium() {
 
 // ---------------------------------------------------------------- pages
 
+// Les trois pages éditoriales de l'issue #18 sont ici parce que le §12 nomme
+// « accueil, démarche, accessibilité, connexion » comme pages clés du contrôle
+// d'accessibilité, et parce que le §12 exige la preuve « zéro requête tierce »
+// sur TOUT le site. Elles ne sont pas provisionnées par `docker/provision/` :
+// leur prose est du contenu, poussé par `docs/recette/importer-pages.sh`.
+// Sans cet import, elles répondent 404 — et `s03` le dit en toutes lettres
+// (« code HTTP attendu »), au lieu de sauter silencieusement.
+const PAGES_EDITORIALES = [
+	{ chemin: '/la-demarche/', nom: 'la démarche' },
+	{ chemin: '/accessibilite/', nom: 'accessibilité' },
+	{ chemin: '/mentions-legales/', nom: 'mentions légales' },
+];
+
 const PAGES = [
 	{ chemin: '/', nom: 'accueil', statuts: true },
+	...PAGES_EDITORIALES,
 	{ chemin: '/hello-world/', nom: 'article (repli index.php)' },
 	{ chemin: '/sample-page/', nom: 'page (repli index.php)' },
 	{ chemin: '/wp-login.php', nom: 'connexion' },
@@ -1052,7 +1066,19 @@ async function s08_accessibiliteAutomatisee( navigateur ) {
 	poserEtat( 'jour-nominal' );
 
 	const axe = resoudre( 'axe-core' );
-	const contexte = await navigateur.newContext();
+	// CONTEXTE DÉROGATOIRE, ET LA DÉROGATION EST BORNÉE À CETTE PASSE.
+	//
+	// Depuis l'issue #16 le front public porte `script-src 'self'` : injecter
+	// axe-core par `addScriptTag()` est un script en ligne, que Chrome refuse.
+	// Sans `bypassCSP`, la passe d'accessibilité ne se termine pas — et le rouge
+	// se lit comme un défaut d'accessibilité alors que c'est une panne de harnais.
+	//
+	// `bypassCSP` n'est JAMAIS posé sur une mesure de réseau : les origines
+	// contactées sont relevées par `s01` dans un contexte sans dérogation, et la
+	// preuve « zéro requête tierce » du §12 ne doit rien à cette option. Elle ne
+	// sert qu'à faire entrer l'outil de mesure dans la page, jamais à changer ce
+	// que la page fait.
+	const contexte = await navigateur.newContext( { bypassCSP: true } );
 
 	for ( const cible of PAGES ) {
 		const page = await contexte.newPage();
@@ -1186,14 +1212,21 @@ async function s10_apiPublique( navigateur ) {
 	// utiles sont COMPLÈTES, sans quoi le cœur répondrait 400 (paramètre manquant)
 	// avant même d'atteindre le contrôle de droits — et le scénario ne prouverait
 	// rien du contrôle d'accès.
+	//
+	// `wp/v2/users` fait exception depuis l'issue #16 : la route entière est
+	// retirée à l'appelant anonyme (`rest_endpoints`, `unset()` de deux clés
+	// littérales), le verbe POST compris. Le refus n'est donc plus un 401/403 de
+	// contrôle de droits mais un **404 `rest_no_route`** — refus plus fort, pas
+	// plus faible : la route n'existe pas pour l'anonyme. C'est la couture S-1 du
+	// contrat #16, portée ici au niveau du lot.
 	const ecritures = [
-		[ '/wp-json/wp/v2/posts', { title: 'recette', content: 'recette', status: 'publish' } ],
-		[ '/wp-json/wp/v2/users', { username: 'recette', email: 'recette@massifs.local', password: 'Recette!2026#massifs' } ],
-		[ '/wp-json/wp/v2/settings', { title: 'recette' } ],
+		[ '/wp-json/wp/v2/posts', { title: 'recette', content: 'recette', status: 'publish' }, [ 401, 403 ] ],
+		[ '/wp-json/wp/v2/users', { username: 'recette', email: 'recette@massifs.local', password: 'Recette!2026#massifs' }, [ 404 ] ],
+		[ '/wp-json/wp/v2/settings', { title: 'recette' }, [ 401, 403 ] ],
 	];
-	for ( const [ route, charge ] of ecritures ) {
+	for ( const [ route, charge, attendus ] of ecritures ) {
 		const r = await api.post( BASE + route, { data: charge, failOnStatusCode: false } );
-		assert( r.status() === 401 || r.status() === 403, `écriture anonyme refusée sur ${ route }`, '401 ou 403', `${ r.status() } — ${ ( await r.text() ).slice( 0, 120 ) }` );
+		assert( attendus.includes( r.status() ), `écriture anonyme refusée sur ${ route }`, attendus.join( ' ou ' ), `${ r.status() } — ${ ( await r.text() ).slice( 0, 120 ) }` );
 	}
 	const reglages = await api.get( `${ BASE }/wp-json/wp/v2/settings`, { failOnStatusCode: false } );
 	assert( reglages.status() === 401 || reglages.status() === 403, 'lecture anonyme des réglages refusée', '401 ou 403', reglages.status() );
@@ -2597,7 +2630,12 @@ async function s21_aucuneFuiteGravatar( navigateur ) {
 		);
 		await page.close();
 
-		for ( const route of [ '/wp-json/wp/v2/users', '/wp-json/wp/v2/comments' ] ) {
+		// Les commentaires restent servis anonymement : c'est une route publique du
+		// cœur, que l'issue #16 ne touche pas. Elle porte, elle, la preuve encore
+		// vivante de la coupe Gravatar du contrat #25 — la clé disparue de la
+		// charge utile ET du schéma.
+		{
+			const route = '/wp-json/wp/v2/comments';
 			const reponse = await anonyme.request.get( BASE + route, { failOnStatusCode: false } );
 			egal( 200, reponse.status(), `anonyme ${ route } : la route reste servie` );
 			const corps = await reponse.text();
@@ -2607,35 +2645,100 @@ async function s21_aucuneFuiteGravatar( navigateur ) {
 			// le filtre `option_show_avatars` retire du SCHÉMA (contrat #25,
 			// filtre 2). Le balayage d'empreinte ci-dessus resterait vert si la
 			// clé revenait avec des URL vides ; celui-ci ne le resterait pas.
-			const cle = route.endsWith( 'users' ) ? 'avatar_urls' : 'author_avatar_urls';
 			assert(
-				! corps.includes( cle ),
-				`anonyme ${ route } : la clé ${ cle } a disparu de la charge utile`,
+				! corps.includes( 'author_avatar_urls' ),
+				`anonyme ${ route } : la clé author_avatar_urls a disparu de la charge utile`,
 				'absente',
 				'présente'
 			);
 			const schema = await anonyme.request.fetch( BASE + route, { method: 'OPTIONS', failOnStatusCode: false } );
-			const declare = await schema.text();
 			assert(
-				! declare.includes( cle ),
-				`anonyme ${ route } : la clé ${ cle } a disparu du schéma REST (OPTIONS)`,
+				! ( await schema.text() ).includes( 'author_avatar_urls' ),
+				`anonyme ${ route } : la clé author_avatar_urls a disparu du schéma REST (OPTIONS)`,
 				'absente',
 				'présente'
 			);
-
-			if ( route.endsWith( 'users' ) ) {
-				// Non-régression INVERSE : l'énumération d'utilisateurs est un défaut
-				// DISTINCT, hors périmètre. On asserte qu'on ne l'a PAS corrigée au
-				// passage — sans quoi un vert masquerait un débordement.
-				const liste = JSON.parse( corps );
-				assert(
-					Array.isArray( liste ) && liste.length > 0,
-					`anonyme ${ route } : liste toujours les mêmes utilisateurs — l'énumération n'a pas été corrigée ici`,
-					'au moins un utilisateur',
-					corps.slice( 0, 120 )
-				);
-			}
 		}
+
+		// ---- l'énumération de comptes est FERMÉE (§9 du brief, issue #16)
+		//
+		// CETTE ASSERTION AFFIRMAIT L'INVERSE JUSQU'AU LOT #16/#18. Le contrat #25
+		// avait gelé un état nommé `enumeration_toujours_ouverte` : il exigeait que
+		// `GET /wp-json/wp/v2/users` réponde 200 et peuplé, pour prouver que la
+		// chaîne Gravatar n'avait pas débordé sur un défaut voisin, et son point B-3
+		// renvoyait NOMMÉMENT à l'issue #16 pour le corriger. #16 l'a fait ; la
+		// couture S-1 de son contrat désigne ces lignes. L'attente est donc
+		// retournée, et la jambe renommée : elle éprouve désormais la FERMETURE.
+		//
+		// Conséquence assumée, écrite pour n'être pas découverte plus tard : la
+		// preuve « la clé `avatar_urls` a disparu » ne peut plus être portée par
+		// l'anonyme sur cette route — un 404 ne contient aucune clé, l'assertion y
+		// serait trivialement verte. Elle est reprise EN SESSION, jambe 3.
+		const surfaces = [
+			[ '/wp-json/wp/v2/users', 404, 'la collection des comptes n’existe pas pour l’anonyme' ],
+			[ '/wp-json/wp/v2/users/1', 404, 'aucun compte ne se lit à l’unité' ],
+		];
+		for ( const [ route, attendu, propos ] of surfaces ) {
+			const reponse = await anonyme.request.get( BASE + route, { failOnStatusCode: false } );
+			const corps = await reponse.text();
+			egal( attendu, reponse.status(), `anonyme ${ route } : ${ propos }` );
+			assert(
+				corps.includes( 'rest_no_route' ),
+				`anonyme ${ route } : le refus est un retrait de route (rest_no_route), pas un refus de droits`,
+				'rest_no_route',
+				corps.slice( 0, 160 )
+			);
+			balayerTexte( `anonyme ${ route }`, corps, sansContenuEditorial( corps ) );
+		}
+
+		// `users/me` reste 401, et ce n'est PAS un oubli : l'éditeur de blocs du
+		// cœur en dépend. Un 404 ici signerait un retrait par préfixe, que le
+		// contrat #16 interdit en toutes lettres.
+		const moi = await anonyme.request.get( BASE + '/wp-json/wp/v2/users/me', { failOnStatusCode: false } );
+		egal( 401, moi.status(), 'anonyme /wp-json/wp/v2/users/me : 401, jamais 404 — le retrait est littéral, jamais par préfixe' );
+
+		// La fuite réelle de `?author=N` n'est pas dans le corps : c'est
+		// `redirect_canonical` qui émet un 301 vers `/author/<identifiant>/`. On
+		// coupe donc le suivi de redirection, sans quoi on mesurerait la page
+		// d'arrivée et on ne verrait rien.
+		for ( const chemin of [ '/?author=1', `/author/${ COMPTES[ 0 ].login }/` ] ) {
+			const reponse = await anonyme.request.get( BASE + chemin, { failOnStatusCode: false, maxRedirects: 0 } );
+			egal( 404, reponse.status(), `anonyme ${ chemin } : 404, aucune redirection vers un identifiant de connexion` );
+			const emplacement = reponse.headers().location ?? '';
+			egal( '', emplacement, `anonyme ${ chemin } : aucun en-tête Location qui divulguerait un identifiant` );
+			const corps = await reponse.text();
+			assert(
+				! new RegExp( `/author/|"slug"` ).test( corps ),
+				`anonyme ${ chemin } : le corps ne divulgue aucun identifiant d’auteur`,
+				'aucune occurrence de /author/ ni de "slug"',
+				( corps.match( /\/author\/[^"'<\s]*/g ) ?? [] ).slice( 0, 3 ).join( ', ' ) || 'un champ "slug"'
+			);
+		}
+
+		// Le fournisseur de plan de site `users` est retiré INCONDITIONNELLEMENT
+		// (A-4). Le fait opposable est l'INDEX : c'est la seule surface qu'un
+		// moteur suit. Le code de statut de `wp-sitemap-users-1.xml` n'est PAS de
+		// notre fait — le cœur laisse sa règle de réécriture en place et sert la
+		// page d'accueil en 200 quand plus aucun fournisseur ne répond. Ce
+		// soft-404 est relevé en note ; ce qui est affirmé, c'est qu'aucun compte
+		// n'y figure.
+		const planIndex = await anonyme.request.get( BASE + '/wp-sitemap.xml', { failOnStatusCode: false } );
+		egal( 200, planIndex.status(), 'anonyme /wp-sitemap.xml : l’index du plan de site est servi' );
+		assert(
+			! ( await planIndex.text() ).includes( 'users' ),
+			'anonyme /wp-sitemap.xml : l’index ne référence AUCUN plan « users » (A-4)',
+			'aucune occurrence',
+			'un plan users référencé'
+		);
+		const planUtilisateurs = await anonyme.request.get( BASE + '/wp-sitemap-users-1.xml', { failOnStatusCode: false } );
+		const corpsPlan = await planUtilisateurs.text();
+		assert(
+			! corpsPlan.includes( '<url>' ) && ! corpsPlan.includes( '/author/' ),
+			'anonyme /wp-sitemap-users-1.xml : aucune entrée d’auteur n’est servie',
+			'aucun <url>, aucun /author/',
+			corpsPlan.slice( 0, 200 )
+		);
+		note( `/wp-sitemap-users-1.xml → HTTP ${ planUtilisateurs.status() }, ${ corpsPlan.length } octets (soft-404 du cœur, sans aucun compte)` );
 	} finally {
 		await anonyme.close();
 	}
@@ -2735,8 +2838,69 @@ async function s21_aucuneFuiteGravatar( navigateur ) {
 				await profil.page.locator( 'input#user_login' ).inputValue(),
 				`${ compte.login } : profile.php est bien celui du compte attendu`
 			);
+			// LE COOKIE NE SUFFIT PAS À ÊTRE « EN SESSION » POUR L'API REST, et
+			// c'est le piège de cette jambe. `rest_cookie_check_errors()` du cœur
+			// remet l'utilisateur courant à 0 quand une requête porte un cookie de
+			// connexion VALIDE mais aucun nonce `wp_rest` : la requête est alors
+			// traitée comme anonyme, et `wp/v2/users` répond 404 comme il le doit.
+			// Mesurée sans nonce, la non-régression d'administration se lirait donc
+			// comme une régression. Le nonce est prélevé sur l'écran réellement
+			// servi — c'est celui que l'administration utilise elle-même.
+			const nonceRest = /createNonceMiddleware\(\s*"([0-9a-f]+)"/.exec( await profil.page.content() )?.[ 1 ] ?? '';
 			await accueil.page.close();
 			await profil.page.close();
+
+			// NON-RÉGRESSION D'ADMINISTRATION, et reprise de la preuve que
+			// l'anonyme ne peut plus porter depuis que la route lui est retirée
+			// (voir jambe 1) : EN SESSION, `wp/v2/users` répond 200 et peuplé —
+			// le retrait de #16 vise l'appelant anonyme, jamais l'administration —
+			// et la clé `avatar_urls` y est toujours absente, charge utile ET
+			// schéma. Réservé à l'administrateur : le gestionnaire n'a pas
+			// `list_users`, un 401 ne prouverait rien de la coupe Gravatar.
+			if ( compte.login === COMPTE_ADMIN.login ) {
+				assert(
+					nonceRest !== '',
+					'admin : un nonce wp_rest est prélevé sur l’écran d’administration servi',
+					'un nonce',
+					'(aucun nonce dans le HTML de profile.php)'
+				);
+				const enSession = await contexte.request.get( `${ BASE }/wp-json/wp/v2/users`, {
+					headers: { 'X-WP-Nonce': nonceRest },
+					failOnStatusCode: false,
+				} );
+				const corpsSession = await enSession.text();
+				egal( 200, enSession.status(), 'en session admin : /wp-json/wp/v2/users répond 200 — le retrait de #16 ne vise que l’anonyme' );
+				let liste = [];
+				try {
+					liste = JSON.parse( corpsSession );
+				} catch {
+					/* laissé vide : l'assertion suivante le dira */
+				}
+				assert(
+					Array.isArray( liste ) && liste.length > 0,
+					'en session admin : la liste des comptes est bien peuplée — l’administration n’a pas été cassée par le durcissement',
+					'au moins un utilisateur',
+					corpsSession.slice( 0, 160 )
+				);
+				assert(
+					! corpsSession.includes( 'avatar_urls' ),
+					'en session admin : la clé avatar_urls a disparu de la charge utile',
+					'absente',
+					'présente'
+				);
+				const schemaSession = await contexte.request.fetch( `${ BASE }/wp-json/wp/v2/users`, {
+					method: 'OPTIONS',
+					headers: { 'X-WP-Nonce': nonceRest },
+					failOnStatusCode: false,
+				} );
+				assert(
+					! ( await schemaSession.text() ).includes( 'avatar_urls' ),
+					'en session admin : la clé avatar_urls a disparu du schéma REST (OPTIONS)',
+					'absente',
+					'présente'
+				);
+				balayerTexte( 'en session admin /wp-json/wp/v2/users', corpsSession, sansContenuEditorial( corpsSession ) );
+			}
 
 			// Ces pages sont balayées sur leur HTML ENTIER, sans l'exclusion
 			// `sansContenuEditorial()` dont les corps REST ont besoin : aucune ne
@@ -3000,7 +3164,10 @@ async function s22_publicationPartielle( navigateur ) {
 	// doit rien casser de ce que le scénario 08 vérifie sur une journée complète.
 	poserEtat( 'jour-partiel', 5, 3 );
 	const axe = resoudre( 'axe-core' );
-	const vue = await ( await navigateur.newContext() ).newPage();
+	// `bypassCSP` : uniquement pour faire entrer axe-core dans la page — voir
+	// l'encadré du scénario 08. La mesure de débordement à 360 px, plus bas, se
+	// fait dans un contexte SANS dérogation.
+	const vue = await ( await navigateur.newContext( { bypassCSP: true } ) ).newPage();
 	await vue.goto( BASE + '/', { waitUntil: 'load' } );
 	await vue.addScriptTag( { path: axe } );
 	const resultat = await vue.evaluate( async () => {
@@ -3020,11 +3187,16 @@ async function s22_publicationPartielle( navigateur ) {
 		'journée partielle : la règle axe « page-has-heading-one » passe'
 	);
 
+	await vue.context().close();
+
 	// Débordement horizontal à 360 px : la phrase ajoutée est la plus longue de
-	// l'ardoise, c'est donc elle qui déborderait la première.
-	await vue.setViewportSize( { width: 360, height: 780 } );
-	await vue.goto( BASE + '/', { waitUntil: 'load' } );
-	const debordement = await vue.evaluate( () => ( {
+	// l'ardoise, c'est donc elle qui déborderait la première. Contexte NEUF et
+	// sans dérogation : une mise en page mesurée sous `bypassCSP` ne serait pas
+	// celle que le visiteur reçoit.
+	const etroit = await navigateur.newContext( { viewport: { width: 360, height: 780 } } );
+	const vue360 = await etroit.newPage();
+	await vue360.goto( BASE + '/', { waitUntil: 'load' } );
+	const debordement = await vue360.evaluate( () => ( {
 		documentWidth: document.documentElement.scrollWidth,
 		viewport: window.innerWidth,
 	} ) );
@@ -3034,7 +3206,7 @@ async function s22_publicationPartielle( navigateur ) {
 		`≤ ${ debordement.viewport } px`,
 		`${ debordement.documentWidth } px`
 	);
-	await vue.context().close();
+	await etroit.close();
 
 	// --- Les états qui ne sont PAS `disponible` n'émettent jamais la mention.
 	const sansStatut = await navigateur.newContext( { javaScriptEnabled: false } );
@@ -4689,27 +4861,52 @@ async function s28_portailGestionnaire( navigateur ) {
 		}
 
 		// ---- 7. Accessibilité automatisée sur les deux écrans du portail
+		//
+		// La passe axe vit dans SON PROPRE contexte, dérogatoire (`bypassCSP`) et
+		// muni des cookies de la session du gestionnaire. Le contexte principal
+		// reste, lui, sans aucune dérogation : c'est lui qui a mesuré les origines
+		// contactées dans `wp-admin` (jambe « zéro origine tierce »), et une
+		// dérogation posée dessus rendrait cette mesure ininterprétable.
+		//
+		// `wp-admin` ne reçoit aujourd'hui aucune CSP de notre fait — `send_headers`
+		// ne part que de `WP::main()` (contrat #16). La dérogation est donc sans
+		// effet ici, et volontairement posée quand même : le jour où une CSP
+		// couvrira l'administration, cette passe ne tombera pas en panne de harnais.
 		const axeSource = readFileSync( resoudre( 'axe-core' ).replace( /index\.js$/, 'axe.min.js' ), 'utf8' );
-		for ( const [ nom, url ] of [
-			[ 'écran de publication', '/wp-admin/admin.php?page=massifs-publication&massifs_jour=aujourd_hui' ],
-			[ 'écran d’historique', '/wp-admin/admin.php?page=massifs-historique' ],
-		] ) {
-			const vue = await contexte.newPage();
-			await vue.goto( BASE + url, { waitUntil: 'load' } );
-			await vue.addScriptTag( { content: axeSource } );
-			const resultat = await vue.evaluate( () =>
-				window.axe.run( document, { resultTypes: [ 'violations' ] } ).then( ( r ) =>
-					r.violations.map( ( v ) => ( { id: v.id, impact: v.impact, n: v.nodes.length, cible: v.nodes[ 0 ]?.target?.join( ' ' ) ?? '' } ) )
-				)
-			);
-			const bloquantes = resultat.filter( ( v ) => [ 'critical', 'serious' ].includes( v.impact ) );
-			note( `axe-core sur ${ nom } : ${ resultat.length } violation(s) — ${ JSON.stringify( resultat ) }` );
-			egal( [], bloquantes, `axe-core : aucune violation bloquante sur l’${ nom }` );
+		const contexteAxe = await navigateur.newContext( { bypassCSP: true } );
+		await contexteAxe.addCookies( await contexte.cookies() );
+		try {
+			for ( const [ nom, url ] of [
+				[ 'écran de publication', '/wp-admin/admin.php?page=massifs-publication&massifs_jour=aujourd_hui' ],
+				[ 'écran d’historique', '/wp-admin/admin.php?page=massifs-historique' ],
+			] ) {
+				const vue = await contexteAxe.newPage();
+				await vue.goto( BASE + url, { waitUntil: 'load' } );
+				// Garde anti-faux-vert : sans cookie recopié, l'écran serait
+				// `wp-login.php`, qui n'a aucune violation à montrer.
+				assert(
+					! vue.url().includes( 'wp-login.php' ),
+					`${ nom } : la passe axe s’exécute bien sur l’écran du portail, pas sur la connexion`,
+					url,
+					vue.url()
+				);
+				await vue.addScriptTag( { content: axeSource } );
+				const resultat = await vue.evaluate( () =>
+					window.axe.run( document, { resultTypes: [ 'violations' ] } ).then( ( r ) =>
+						r.violations.map( ( v ) => ( { id: v.id, impact: v.impact, n: v.nodes.length, cible: v.nodes[ 0 ]?.target?.join( ' ' ) ?? '' } ) )
+					)
+				);
+				const bloquantes = resultat.filter( ( v ) => [ 'critical', 'serious' ].includes( v.impact ) );
+				note( `axe-core sur ${ nom } : ${ resultat.length } violation(s) — ${ JSON.stringify( resultat ) }` );
+				egal( [], bloquantes, `axe-core : aucune violation bloquante sur l’${ nom }` );
 
-			// lang="fr" : le cœur le sert, mais un écran qui l'aurait perdu ne serait
-			// pas annoncé dans la bonne langue.
-			egal( 'fr-FR', await vue.evaluate( () => document.documentElement.lang ), `${ nom } : la page est annoncée en français` );
-			await vue.close();
+				// lang="fr" : le cœur le sert, mais un écran qui l'aurait perdu ne serait
+				// pas annoncé dans la bonne langue.
+				egal( 'fr-FR', await vue.evaluate( () => document.documentElement.lang ), `${ nom } : la page est annoncée en français` );
+				await vue.close();
+			}
+		} finally {
+			await contexteAxe.close();
 		}
 
 		// ---- 7 bis. JAVASCRIPT COUPÉ — le portail publie quand même
@@ -5802,6 +5999,336 @@ async function s31_carteSelectionEtPaliers( navigateur ) {
 	}
 }
 
+/**
+ * Les trois pages obligatoires du §5.1, servies et rédigées (issue #18).
+ *
+ * CE QUE CE SCÉNARIO REND VÉRIFIABLE, ET CE QU'IL NE PEUT PAS RENDRE VÉRIFIABLE.
+ *
+ * La ligne du §12 « mentions légales ; pages "La démarche" et "Accessibilité"
+ * rédigées » n'était couverte NULLE PART avant ce lot — les pages n'existaient
+ * pas. Elles existent maintenant, mais **pas dans le provisionnement** : leur
+ * prose est du contenu, versionné sous `docs/recette/contenu/` et poussé par
+ * `docs/recette/importer-pages.sh`. Sans cet import, les trois pages répondent
+ * 404 et TOUT ce scénario rougit — c'est voulu : une ligne de DoD qui dépend
+ * d'un geste manuel doit le dire, pas le taire. `docker/reset.sh` les perd.
+ *
+ * Les chaînes affirmées ici sont celles que le §9 du brief impose VERBATIM
+ * (les cinq attributions). Elles ne sont pas recomposées : une expectative qui
+ * reproduirait la règle du code ne prouverait rien.
+ *
+ * JavaScript est COUPÉ : ces pages doivent être entières sans une ligne de
+ * script, comme le reste du site (contrainte n° 3).
+ *
+ * @param {import('playwright-core').Browser} navigateur Navigateur.
+ */
+async function s33_pagesObligatoires( navigateur ) {
+	scenario( '33 — les trois pages obligatoires du §5.1, servies et rédigées (issue #18)' );
+
+	const contexte = await navigateur.newContext( { javaScriptEnabled: false } );
+	try {
+		for ( const cible of PAGES_EDITORIALES ) {
+			const page = await contexte.newPage();
+			const reponse = await page.goto( BASE + cible.chemin, { waitUntil: 'load' } );
+
+			// GARDE : sans l'import, la page n'existe pas et tout le reste du
+			// scénario mesurerait un 404 servi par `404.php`.
+			if ( ! assert(
+				reponse.status() === 200,
+				`${ cible.nom } : la page est en base et servie — l’import docs/recette/importer-pages.sh a bien été joué`,
+				200,
+				`${ reponse.status() } — jouer « docker compose run --rm -v "$PWD/docs:/docs" wpcli sh /docs/recette/importer-pages.sh »`
+			) ) {
+				await page.close();
+				continue;
+			}
+
+			egal( 1, await page.locator( 'h1' ).count(), `${ cible.nom } : exactement un h1` );
+			egal(
+				1,
+				await page.locator( 'section.bande--editorial > .bande__contenu' ).count(),
+				`${ cible.nom } : le gabarit éditorial de #18 est bien celui qui rend la page (et non le repli page.php)`
+			);
+			egal(
+				0,
+				await page.locator( 'script[src]' ).count(),
+				`${ cible.nom } : aucune ressource de script — la page est entière sans JavaScript`
+			);
+
+			// Contrat #18 §3 : ces trois pages n'affichent AUCUN statut. Elles
+			// n'ont donc pas à porter le bandeau de non-officialité, et surtout
+			// elles ne peuvent pas périmer un statut.
+			const texte = await texteSource( page.locator( 'body' ) );
+			egal(
+				[],
+				[ 'Accès au massif autorisé', 'Accès au massif interdit', 'Aujourd’hui, ' ].filter( ( l ) => texte.includes( l ) ),
+				`${ cible.nom } : aucun statut d’accès n’est rendu — la page ne peut pas en périmer un`
+			);
+
+			// La <meta name="description"> de `seo-meta.php`, servie avant wp_head().
+			const description = await page.locator( 'head meta[name="description"]' ).getAttribute( 'content' );
+			assert(
+				typeof description === 'string' && description.trim().length > 40,
+				`${ cible.nom } : une <meta name="description"> substantielle est servie`,
+				'plus de 40 caractères',
+				description ?? '(absente)'
+			);
+
+			await page.close();
+		}
+
+		// ---- Les CINQ attributions du §9, verbatim, en mentions légales
+		const mentions = await contexte.newPage();
+		await mentions.goto( BASE + '/mentions-legales/', { waitUntil: 'load' } );
+		// LA FORME DE L'APOSTROPHE EST NEUTRALISÉE, ET SEULEMENT ELLE. Les
+		// attributions viennent de l'extension et portent l'apostrophe droite
+		// (`&#039;` dans le HTML servi) ; la copie éditoriale, elle, porte
+		// l'apostrophe typographique. Faire échouer la recette là-dessus
+		// mesurerait une divergence de typographie entre deux chaînes hors du
+		// périmètre de ce lot, et masquerait ce que le §9 demande vraiment :
+		// que la mention SOIT LÀ. L'écart est relevé en note, pas tu.
+		const sansApostrophe = ( t ) => t.replace( /[’‘‛`´]/g, "'" );
+		const corpsMentions = sansApostrophe( await texteSource( mentions.locator( 'body' ) ) );
+		note( 'forme d’apostrophe servie dans les attributions de l’extension : droite (U+0027) ; la copie éditoriale, elle, emploie l’apostrophe typographique (U+2019)' );
+
+		for ( const attendu of [
+			'Source : DDTM des Bouches-du-Rhône, via data.gouv.fr — Licence Ouverte 2.0',
+			'© les contributeurs d’OpenStreetMap',
+			'D’après les publications de la préfecture des Bouches-du-Rhône',
+			'Données Météo-France — Licence Etalab 2.0',
+			'© Union européenne, Copernicus Emergency Management Service / EFFIS',
+		] ) {
+			assert(
+				corpsMentions.includes( sansApostrophe( attendu ) ),
+				`mentions légales : l’attribution « ${ attendu.slice( 0, 46 ) }… » est présente verbatim (§9)`,
+				attendu,
+				'absente'
+			);
+		}
+
+		assert(
+			/Éditeur/.test( corpsMentions ) && /Directeur de (la )?publication/i.test( corpsMentions ),
+			'mentions légales : éditeur et directeur de publication sont nommés (§9)',
+			'les deux mentions',
+			corpsMentions.slice( 0, 200 )
+		);
+		await mentions.close();
+
+		// ---- « La démarche » : le §5.4 documenté, et la fierté du zéro cookie
+		const demarche = await contexte.newPage();
+		await demarche.goto( BASE + '/la-demarche/', { waitUntil: 'load' } );
+		const corpsDemarche = await texteSource( demarche.locator( 'body' ) );
+		assert(
+			/aucun cookie/i.test( corpsDemarche ),
+			'la démarche : le choix « zéro cookie » est expliqué (§9)',
+			'une phrase sur l’absence de cookie',
+			'absente'
+		);
+
+		// LE POINT D'ACCÈS N'EST PAS SEULEMENT CITÉ : IL EST SUIVI. Une page qui
+		// documente une route morte est pire qu'une page muette. La page l'écrit
+		// en `<code>` et non en lien — c'est un choix éditorial légitime, donc on
+		// relève le CHEMIN dans le texte au lieu d'exiger un `<a>`, puis on va
+		// voir si ce chemin répond.
+		const chemins = [ ...new Set( ( corpsDemarche.match( /\/wp-json\/[a-z0-9/-]+/gi ) ?? [] ) ) ];
+		note( `points d’accès cités par « La démarche » : ${ chemins.join( ', ' ) || '(aucun)' }` );
+		assert(
+			chemins.length > 0,
+			'la démarche : le point d’accès JSON public du §5.4 est documenté, chemin écrit en toutes lettres',
+			'au moins un chemin /wp-json/…',
+			'aucun'
+		);
+		for ( const chemin of chemins ) {
+			const r = await contexte.request.get( BASE + chemin, { failOnStatusCode: false } );
+			egal( 200, r.status(), `la démarche : le point d’accès documenté répond réellement, et sans authentification — ${ chemin }` );
+			const charge = await r.text();
+			assert(
+				charge.trim().startsWith( '{' ) || charge.trim().startsWith( '[' ),
+				`la démarche : le point d’accès documenté sert bien du JSON — ${ chemin }`,
+				'du JSON',
+				charge.slice( 0, 80 )
+			);
+		}
+		await demarche.close();
+
+		// ---- « Accessibilité » : le moyen de signalement du §5.1, réellement joignable
+		const a11y = await contexte.newPage();
+		await a11y.goto( BASE + '/accessibilite/', { waitUntil: 'load' } );
+		const signalement = await a11y.locator( 'a[href^="mailto:"]' ).evaluateAll( ( as ) => as.map( ( a ) => a.getAttribute( 'href' ) ) );
+		assert(
+			signalement.length > 0 && signalement.every( ( h ) => /^mailto:[^@\s]+@[^@\s]+$/.test( h ) ),
+			'accessibilité : un moyen de signalement par courriel est offert, et son adresse est bien formée (§5.1)',
+			'un mailto: valide',
+			JSON.stringify( signalement )
+		);
+		// §8 : le contrôle humain au lecteur d'écran est DOCUMENTÉ sur cette page.
+		// On affirme qu'il y est décrit — jamais qu'il a eu lieu.
+		const corpsA11y = await texteSource( a11y.locator( 'body' ) );
+		assert(
+			/lecteur d’écran|lecteur d'écran/i.test( corpsA11y ),
+			'accessibilité : le contrôle au lecteur d’écran est documenté sur la page (§8)',
+			'une mention du contrôle au lecteur d’écran',
+			'absente'
+		);
+		await a11y.close();
+	} finally {
+		await contexte.close();
+	}
+}
+
+/**
+ * La CSP de l'issue #16, mesurée DANS le navigateur — jamais sur le papier.
+ *
+ * AUCUNE DÉROGATION ICI, ET C'EST LA RAISON D'ÊTRE DU SCÉNARIO. Les passes
+ * axe-core tournent sous `bypassCSP` pour pouvoir s'injecter ; ce scénario-ci
+ * est celui qui prouve que la CSP existe et mord réellement. Poser `bypassCSP`
+ * dessus le rendrait vert en n'ayant rien mesuré.
+ *
+ * DEUX PIÈGES, TOUS DEUX MESURÉS ET NON DÉDUITS.
+ *
+ * 1. `document.styleSheets`, JAMAIS LA CONSOLE (arbitrage A-13 du contrat #16).
+ *    L'arbitrage écrit que Chrome n'émet AUCUNE violation en console quand il
+ *    refuse le bloc `<style>` en ligne du cœur. NUANCE MESURÉE ICI, sur Chromium
+ *    151 : la console PARLE (« Applying inline style violates… »). La conclusion
+ *    de l'arbitrage tient quand même, et c'est pour cela qu'on ne l'a pas
+ *    renversée : un message de console dépend de la version du moteur, du niveau
+ *    de journalisation et du filtre affiché, alors que `sheet === null` est un
+ *    fait du document. Le juge reste `document.styleSheets` ; la console est
+ *    relevée en note, jamais affirmée.
+ *
+ * 2. L'ÎLOT `<script type="application/json">` DOIT SURVIVRE (arbitrage A-3).
+ *    Le contrat écrit lui-même que c'est « le seul point de la CSP qui ne se
+ *    prouve pas sur le papier — à confirmer dans Chrome à la recette de lot ».
+ *    C'est cette recette-ci, et la preuve opposable n'est pas la présence de la
+ *    balise : c'est que la carte se monte, donc que la donnée a été lue.
+ *
+ * @param {import('playwright-core').Browser} navigateur Navigateur.
+ */
+async function s32_cspReellementOpposee( navigateur ) {
+	scenario( '32 — la CSP du §9 mord réellement, et n’emporte rien de ce qui doit vivre (issue #16)' );
+	poserEtat( 'jour-nominal' );
+
+	const contexte = await navigateur.newContext();
+	try {
+		const page = await contexte.newPage();
+
+		// Les violations de console sont COLLECTÉES pour être rapportées, jamais
+		// pour servir de juge : voir A-13.
+		const violationsConsole = [];
+		page.on( 'console', ( m ) => {
+			if ( /Content Security Policy|Refused to/i.test( m.text() ) ) {
+				violationsConsole.push( m.text().slice( 0, 160 ) );
+			}
+		} );
+
+		const reponse = await page.goto( BASE + '/', { waitUntil: 'networkidle' } );
+		const entetes = reponse.headers();
+
+		egal(
+			"default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'",
+			entetes[ 'content-security-policy' ],
+			'accueil anonyme : la CSP est servie mot pour mot'
+		);
+		assert(
+			! ( entetes[ 'content-security-policy' ] ?? '' ).includes( "script-src 'self' 'unsafe-inline'" ),
+			'interdit 4 : « unsafe-inline » n’est JAMAIS ajouté à script-src',
+			"script-src 'self' seul",
+			entetes[ 'content-security-policy' ]
+		);
+
+		// ---- 1. La CSP mord : un script en ligne inséré dans le document ne
+		// s'exécute pas. `addScriptTag()` lèverait ; on insère à la main pour
+		// pouvoir OBSERVER le refus au lieu de le subir.
+		const executeEnLigne = await page.evaluate( () => {
+			const s = document.createElement( 'script' );
+			s.textContent = 'window.__massifs_csp_temoin = true;';
+			document.head.appendChild( s );
+			return window.__massifs_csp_temoin === true;
+		} );
+		egal( false, executeEnLigne, 'un <script> en ligne inséré dans la page ne s’exécute PAS — la CSP est opposée, pas décorative' );
+
+		// ---- 2. Ce qui est bloqué, et ce qui ne l'est pas, feuille par feuille.
+		const feuilles = await page.evaluate( () => {
+			const releve = [];
+			for ( const element of document.querySelectorAll( 'link[rel="stylesheet"], style' ) ) {
+				releve.push( {
+					quoi: element.tagName === 'STYLE' ? `style#${ element.id || '(sans id)' }` : ( element.getAttribute( 'href' ) ?? '' ).split( '/' ).pop(),
+					enLigne: element.tagName === 'STYLE',
+					appliquee: element.sheet !== null,
+				} );
+			}
+			return releve;
+		} );
+		for ( const f of feuilles ) {
+			note( `${ f.appliquee ? 'APPLIQUÉE' : 'BLOQUÉE  ' }  ${ f.quoi }` );
+		}
+
+		const bloquees = feuilles.filter( ( f ) => ! f.appliquee ).map( ( f ) => f.quoi );
+		egal(
+			[ 'style#wp-img-auto-sizes-contain-inline-css' ],
+			bloquees,
+			'A-12 : le SEUL style refusé est le bloc en ligne du cœur — arbitrage assumé, couture S-11'
+		);
+		egal(
+			[],
+			feuilles.filter( ( f ) => ! f.enLigne && ! f.appliquee ).map( ( f ) => f.quoi ),
+			'aucune feuille du thème n’est emportée par la CSP — le site reste peint'
+		);
+
+		// La console est MUETTE sur ce refus : c'est le piège de A-13, consigné.
+		note(
+			violationsConsole.length === 0
+				? 'console : AUCUNE violation CSP signalée, alors qu’un style EST refusé (piège A-13 — la console ne prouve rien ici)'
+				: `console : ${ violationsConsole.length } message(s) — ${ violationsConsole.join( ' | ' ) }`
+		);
+
+		// ---- 3. A-3 : l'îlot de données survit, et la carte se monte.
+		const ilots = await page.evaluate( () =>
+			[ ...document.querySelectorAll( 'script[type="application/json"]' ) ].map( ( s ) => ( {
+				id: s.id,
+				octets: ( s.textContent ?? '' ).length,
+			} ) )
+		);
+		note( `îlots <script type="application/json"> : ${ JSON.stringify( ilots ) }` );
+		assert(
+			ilots.length > 0 && ilots.every( ( i ) => i.octets > 0 ),
+			'A-3 : l’îlot de données JSON est servi et non vide',
+			'au moins un îlot peuplé',
+			JSON.stringify( ilots )
+		);
+
+		await page.waitForSelector( '.carte--prete', { timeout: 20000 } );
+		const traces = await page.locator( 'path.carte__massif' ).count();
+		assert(
+			traces > 0,
+			'A-3 confirmé DANS CHROME : la carte se monte sous script-src « self » — l’îlot de données a bien été lu',
+			'des massifs tracés',
+			traces
+		);
+
+		await page.close();
+	} finally {
+		await contexte.close();
+	}
+
+	// ---- 4. A-2 : la CSP n'est PAS émise au visiteur en session, et c'est un
+	// affaiblissement BORNÉ ET ASSUMÉ (le cœur émet deux <style> en ligne pour la
+	// barre d'administration). Le mesurer évite qu'on le découvre en production.
+	const session = await navigateur.newContext();
+	try {
+		await connexion( session, COMPTE_GESTIONNAIRE );
+		const vue = await session.newPage();
+		const reponse = await vue.goto( BASE + '/', { waitUntil: 'load' } );
+		const csp = reponse.headers()[ 'content-security-policy' ] ?? '';
+		egal( '', csp, 'A-2 : aucune CSP sur le front EN SESSION — affaiblissement borné et assumé, jamais un oubli' );
+		egal( 'nosniff', reponse.headers()[ 'x-content-type-options' ], 'en session : les en-têtes inconditionnels restent, eux, émis' );
+		egal( 1, await vue.locator( '#wpadminbar' ).count(), 'en session : la barre d’administration est rendue — c’est elle qui motive A-2' );
+		await vue.close();
+	} finally {
+		await session.close();
+		purgerEcluse();
+	}
+}
+
 // ---------------------------------------------------------------- lancement
 
 const SCENARIOS = [
@@ -5836,6 +6363,8 @@ const SCENARIOS = [
 	[ 'portail-anonyme', s29_portailEcrituresRefusees ],
 	[ '2fa', s30_deuxFacteursEtSuspension ],
 	[ 'carte-selection', s31_carteSelectionEtPaliers ],
+	[ 'csp', s32_cspReellementOpposee ],
+	[ 'pages', s33_pagesObligatoires ],
 ];
 
 const filtre = ( process.argv.find( ( a ) => a.startsWith( '--filtre=' ) ) ?? '' ).slice( 9 );

@@ -105,11 +105,46 @@ t_egal( false, $f_hs['dispositif_actif'], 'hors saison : dispositif inactif' );
 t_egal( false, $f_hs['perimee'], 'hors saison : pas de bannière de péremption' );
 
 // --- CAS 7 : aucune fonction « dernier statut connu » sans date (clause §8.4).
-$interdites = array_values( array_filter(
+//
+// LE GARDE EST NOMINAL, DONC IL ATTRAPE AUSSI DES HOMONYMES. Ce qu'il interdit
+// est une lecture du DOMAINE DES STATUTS qui rendrait « la dernière valeur
+// connue » sans qu'on lui ait demandé un jour — c'est par là qu'un statut périmé
+// redeviendrait courant. Une fonction qui porte le même mot sans appartenir à ce
+// domaine n'est pas ce défaut-là.
+//
+// LES EXEMPTIONS SONT NOMMÉES UNE À UNE, JAMAIS OBTENUES PAR UN MOTIF PLUS
+// LÂCHE. Élargir le filtre (« sauf ce qui contient sauvegarde ») rouvrirait
+// silencieusement la porte à toute future famille de noms. Ici, la liste reste
+// courte et chaque entrée porte sa raison ; une fonction neuve qui contiendrait
+// « dernier » sera ROUGE tant que personne n'aura écrit pourquoi elle est
+// légitime.
+//
+// `massifs_sauvegardes_derniere()` (issue #16) rend la dernière ARCHIVE de
+// sauvegarde. Elle ne lit aucun statut, ne connaît ni jour de validité ni
+// fraîcheur, et n'est jamais appelée par un gabarit : le contrat #16 écrit
+// qu'aucune de ses fonctions n'est destinée au thème.
+$exemptees = array(
+	'massifs_sauvegardes_derniere' => 'issue #16 — dernière ARCHIVE de sauvegarde ; hors du domaine des statuts, jamais lue par le thème',
+);
+
+$suspectes = array_values( array_filter(
 	get_defined_functions()['user'],
 	static fn( $f ) => str_starts_with( $f, 'massifs_' ) && ( str_contains( $f, 'dernier' ) || str_contains( $f, 'courant_connu' ) )
 ) );
+
+$interdites = array_values( array_diff( $suspectes, array_keys( $exemptees ) ) );
 t_egal( array(), $interdites, 'aucune fonction « dernier statut connu » n\'existe' );
+
+// Une exemption qui ne correspond plus à rien est une exemption morte : elle
+// masquerait la réapparition du nom qu'elle couvre. On l'affirme donc présente.
+foreach ( $exemptees as $nom => $raison ) {
+	t_assert(
+		function_exists( $nom ),
+		sprintf( 'l’exemption nominale « %s » couvre une fonction qui existe réellement (%s)', $nom, $raison ),
+		'la fonction existe',
+		'exemption morte, à retirer'
+	);
+}
 
 t_reset();
 t_bilan();
