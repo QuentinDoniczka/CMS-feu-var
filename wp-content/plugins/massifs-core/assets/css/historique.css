@@ -241,6 +241,32 @@
   line-height: var(--lh-dense);
 }
 
+/* LA VOIE DU CHEVRON DE wp-admin, RENDUE À LA DROITE — ET À ELLE SEULE.
+ *
+ * Le cœur peint la flèche des `<select>` en `background-image`, à
+ * `calc(100% - 8px)` et sur 16 px de large : elle occupe donc les 24 px de
+ * droite du champ, et le cœur se les réserve par un `padding-right`
+ * ASYMÉTRIQUE de 24 px. La règle ci-dessus écrase les deux côtés d'un seul
+ * `padding-inline` : la voie disparaît et le libellé passe SOUS la flèche.
+ *
+ * CE N'EST PAS UN CAS LIMITE, C'EST LE CAS NOMINAL : un `<select>` se
+ * dimensionne sur son option la plus large, donc le pire cas est atteint au
+ * chargement, sans aucune interaction. « Tous les auteurs » perdait son « s ».
+ *
+ * `--esp-l` VAUT EXACTEMENT CES 24 px. Ce n'est pas une valeur de notre design
+ * system appliquée ici pour son sens d'espacement : c'est une GÉOMÉTRIE IMPOSÉE
+ * PAR wp-admin que le pas 24 px de l'échelle du §6.1 se trouve reproduire au
+ * pixel près. On consomme donc le jeton plutôt que d'écrire un littéral — mais
+ * si le cœur changeait la largeur de sa flèche, c'est cette règle qu'il
+ * faudrait suivre, pas l'échelle d'espacement.
+ *
+ * `padding-inline-end` seul : la gauche reste à `--esp-xs`, et les `<input>`
+ * ne sont pas touchés — ils n'ont pas de flèche. C'est le mélange des deux
+ * dans un `padding-inline` unique qui avait créé le défaut. */
+.massifs-historique-filtres select {
+  padding-inline-end: var(--esp-l);
+}
+
 /* Valeur rejetée par l'analyseur (contrat §3) : le champ conserve la saisie,
    `aria-invalid="true"` et `aria-describedby` portent le sens, l'avertissement
    relié le dit en toutes lettres. Le liseré passe de garrigue à charbon —
