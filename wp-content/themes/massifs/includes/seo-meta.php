@@ -41,19 +41,26 @@ if ( ! defined( 'MASSIFS_CONTACT' ) ) {
 	 * gabarits — l'empreinte de l'issue #18 n'en autorise pas un second.
 	 */
 	/*
-	 * NON FOURNIE PAR LE PROPRIÉTAIRE DU PROJET — emplacement à remplir.
+	 * FOURNIE ET VALIDÉE par le propriétaire du projet, relayée par
+	 * l'orchestrateur — voir l'avis de provenance du contrat #18 §4.
 	 *
-	 * Une adresse de contact publiée engage : elle paraît sur les mentions
-	 * légales ET sur la page « Accessibilité » comme canal de signalement. La
-	 * choisir à la place du propriétaire — fût-ce en reprenant une adresse
-	 * trouvée ailleurs dans le dépôt — publierait une adresse personnelle que
-	 * personne n'a accepté de rendre publique.
+	 * DÉCLARÉE ICI ET NULLE PART AILLEURS. Employée par DEUX pages : les
+	 * mentions légales (contact de l'éditeur) et « Accessibilité » (canal de
+	 * signalement du §8 du brief). Recopiée dans les deux gabarits, elle
+	 * finirait par diverger — et c'est le canal de signalement d'accessibilité
+	 * qui pointerait un jour dans le vide.
 	 *
-	 * La chaîne vide n'est PAS un oubli : les deux gabarits la testent et
-	 * n'affichent aucun lien tant qu'elle est vide, plutôt que d'émettre un
-	 * `mailto:` qui n'aboutit nulle part.
+	 * REMPLAÇABLE : c'est l'adresse personnelle du propriétaire du projet, pas
+	 * une boîte dédiée. Le jour où une adresse propre au site existe, elle se
+	 * change ICI, une fois, et les deux pages suivent.
+	 *
+	 * La garde de vacuité des deux gabarits est CONSERVÉE bien que la valeur
+	 * soit renseignée : elle coûte une comparaison et elle empêche qu'un
+	 * `mailto:` vide reparaisse silencieusement si quelqu'un vide cette
+	 * constante — sur le canal de signalement, un lien mort est pire qu'une
+	 * absence de lien.
 	 */
-	define( 'MASSIFS_CONTACT', '' );
+	define( 'MASSIFS_CONTACT', 'doniczka.quentin67@gmail.com' );
 }
 
 if ( ! function_exists( 'massifs_meta_description' ) ) {

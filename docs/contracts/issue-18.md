@@ -241,6 +241,26 @@ else : massifs_journaliser( … ); endif;
 get_template_part( 'templates/footer' );
 ```
 
+### 5.2.a Qui possède les intitulés de section — la règle manquait, elle est ici
+
+Le gabarit **et** la copie émettent tous deux des `h2`. Sans propriétaire déclaré, les deux peuvent
+titrer la même section et produire un **`h2` en double** — défaut d'accessibilité qu'aucun des deux
+auteurs ne voit depuis son propre fichier.
+
+**Règle : l'intitulé appartient à celui qui rend le contenu de la section.**
+
+| Section | `h2` émis par | Ancre |
+|---|---|---|
+| Sources et licences *(faits servis)* | **le gabarit** | `sources` |
+| Éditeur *(identité servie)* | **le gabarit** | `editeur` |
+| Signalement *(adresse servie)* | **le gabarit** | `signalement` |
+| Tout le reste — démarche, limites, zéro cookie, données personnelles, licence du code… | **la copie** | posée par le bloc `core/heading` |
+
+**La copie ne titre jamais une section rendue par le gabarit**, et réciproquement. Aujourd'hui la règle
+est tenue par des intitulés distincts ; elle est écrite ici pour ne plus dépendre de cette chance.
+**Vérification opposable** : `curl -s <page> | grep -o 'id="[^"]*"' | sort | uniq -d` doit ne rien
+rendre. Relevé le 16 août 2026 : **aucun doublon** sur les trois pages (17, 14 et 13 identifiants).
+
 **Trois contraintes de structure, chacune avec sa raison :**
 
 1. `the_content()` doit rester **enfant direct** de `.bande__contenu`. `layout.css` y accroche le
@@ -266,6 +286,16 @@ avancé (**hors périmètre**, §13) :
   depuis le contenu ;
 - rien d'autre. Les titres uniques sont déjà tenus par `wp_get_document_title()` dans
   `templates/header.php`.
+
+> **EXCEPTION NOMMÉE À A-1 — écrite ici pour ne pas se découvrir en revue.**
+> A-1 pose que les gabarits ne portent **aucune** rédaction. Les trois descriptions sont pourtant de
+> la rédaction, et elles vivent dans les gabarits. **Ce n'est pas un oubli, et il n'y a pas d'issue** :
+> une `<meta>` doit être émise dans le `<head>`, donc **avant** `wp_head()`, et la faire venir du
+> contenu supposerait un filtre dans `functions.php`, hors empreinte.
+> C'est donc **la règle qui reçoit une exception explicite, pas l'exception qui tord la règle**. Les
+> trois descriptions partent **non ratifiées** au même titre que le reste de la copie (arbitrage
+> **A-14**, question **Q-2**). Leur texte exact est reproduit dans `docs/recette/contenu/README.md`,
+> où le gabarit est déclaré **source de vérité**.
 
 **Interdits attachés** : aucun `add_theme_support('title-tag')` — `templates/header.php` imprime déjà
 `<title>` et en ajouterait un second ; aucun fournisseur de plan de site, en particulier `users` ou
@@ -316,8 +346,24 @@ inclus trois fois — garde `function_exists()` et garde d'enregistrement.
 **Fabrication**
 - **Aucune requête vers un domaine tiers** — police, script, image, feuille. Les trois pages
   n'enfilent **rien** : elles héritent des feuilles déjà en place et n'ajoutent pas un octet.
-- Aucun `<style>` ni `<script>` en ligne : depuis #16 le site sert `script-src 'self'` et
-  `style-src 'self'`, et un style en ligne serait **bloqué par la CSP**.
+- Aucun `<script>` en ligne, et **aucun `<style>` écrit par les gabarits** : depuis #16 le site sert
+  `script-src 'self'` et `style-src 'self'`. Les quatre fichiers de cette issue n'en émettent aucun.
+
+  > **Constat assumé, et non un interdit que le contrat pourrait tenir.** Une version antérieure de ce
+  > §6 interdisait tout `<style>` en ligne *sur la page*. C'était **intenable par construction** : le
+  > cœur de WordPress imprime une feuille en ligne **par type de bloc rendu**, et l'arbitrage A-1
+  > impose précisément une copie faite de `wp:paragraph`, `wp:heading` et `wp:list`. L'interdit était
+  > donc violé par le mode de livraison que le contrat prescrit lui-même — un interdit fictif, que
+  > personne n'aurait pu appliquer.
+  >
+  > **Mesuré le 16 août 2026**, balises `<style>` présentes dans le DOM : accueil **1**,
+  > `/la-demarche/` **4**, `/accessibilite/` **4**, `/mentions-legales/` **3**. Toutes **bloquées** par
+  > la CSP, chacune journalisant une violation en console. **Aucune conséquence visuelle** : ces
+  > feuilles ne stylent que des blocs dont ce thème ne dépend pas, et `wp-block-library` est déjà
+  > retiré du front.
+  >
+  > **Correctif nommé, porté en dette** : `wp_dequeue_style()` sur les feuilles de bloc en ligne, dans
+  > `functions.php` — **hors empreinte** de cette issue.
 - Aucune écriture dans `assets/css/**` : `dev-ux-cms` n'est **pas** lancé sur cette issue, ce
   répertoire est hors empreinte.
 
@@ -353,7 +399,8 @@ inclus trois fois — garde `function_exists()` et garde d'enregistrement.
 | **Q-2** | **Entrée au §11.3 de la copie éditoriale** des trois pages, livrée **non ratifiée** | À `lead-design-cms`, propriétaire de `MASTER.md`. Précédent : #24 F-1 |
 | **Q-3** | **Phrase « zéro cookie » au pied** — `OUVERT` depuis `MASTER.md` §7.3 | Sans objet ici : le sujet est traité **dans le contenu** de « La démarche », pas au pied |
 | **Q-4** | **Provisionnement durable** des trois pages et du menu `pied` | Hors empreinte (`docker/provision`). À ordonnancer par l'orchestrateur |
-| **Q-5** | **Adresse de contact — et elle seule.** L'éditeur et le directeur de la publication sont **fournis et rétablis** ; l'adresse est **en cours de reconfirmation** auprès du propriétaire. Tant qu'elle manque, les mentions légales portent un emplacement marqué et la page « Accessibilité » n'affiche **aucun** canal de signalement — or le §8 du brief l'exige | **Bloquante pour la ligne de DoD « moyen de signaler un problème par email »**, qui n'est donc pas tenue à cet instant. Se comble par la réponse attendue, **jamais par une déduction** — c'est le seul des trois points où la prudence de la chaîne était fondée |
+| **Q-6** | **Heure de publication du soir : deux sources du projet divergent.** Le brief §4.2 dit que la préfecture publie « vers 18-19 h » ; `MASTER.md` §11.3 fait dire au site « La préfecture publie vers 17 h ». Les deux sont normatives et incompatibles | **Non tranchée par cette chaîne, et c'est délibéré.** Ni la copie éditoriale ni la documentation d'administration ne choisissent : elles écrivent « chaque soir ». Choisir reviendrait à trancher un fait de domaine par préférence. Remontée au propriétaire du projet |
+| ~~**Q-5**~~ | ~~Adresse de contact~~ | **CLOSE le 16 août 2026.** Le propriétaire du projet a validé explicitement le triplet complet — éditeur `OmbruStudio`, directeur de la publication `Quentin Doniczka`, contact `doniczka.quentin67@gmail.com`. Les trois sont des **faits fournis** ; aucun n'est déduit. Le canal de signalement du §8 est rétabli et la ligne de DoD correspondante est **tenue** |
 
 ---
 

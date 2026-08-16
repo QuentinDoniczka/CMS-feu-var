@@ -123,6 +123,14 @@ autant — c'est le plus gros objet de la page, et le seul candidat sérieux à 
 **Budget : « deux fichiers de police maximum ». Tenu — exactement 2**, tous deux variables et
 auto-hébergés.
 
+**Le même budget lu en octets bruts, pour qu'une revue n'ait pas à le recalculer.** Le §10 du brief
+écrit « transférés » ; c'est la lecture retenue ci-dessus. Mesurés sur disque le 16 août 2026, les
+mêmes ressources pèsent **333 177 o bruts** (document 20 078 + feuilles 136 654 + scripts 176 445, dont
+`leaflet.js` 147 517 à lui seul). Sous la lecture brute — celle que l'arbitrage B-11 du contrat #2 a
+retenue pour les **géométries**, où le brief n'écrit pas « transférés » — ce total **dépasserait** les
+250 Ko. Les deux nombres sont donnés ; aucun n'est présenté à la place de l'autre, et l'écart tient
+presque entièrement à la bibliothèque cartographique, qui n'est chargée que sur l'accueil.
+
 ### 4.2 Pages éditoriales
 
 | Page | Transféré, total | Texte rendu |
@@ -169,7 +177,71 @@ et 2 716 caractères dans les deux cas). Ces pages ne dépendent d'aucun script.
    #24, A-8/F-2 ; la corriger demande `assets/css/editorial.css` **et** un handle dans `functions.php`,
    deux fichiers hors empreinte. **Constatée à l'écran**, pas déduite — voir les captures.
 
+4. **Trois `<style>` en ligne par page éditoriale, bloqués par la CSP.** Relevé le 16 août 2026 à
+   20 h 55 UTC dans le HTML servi, non déduit :
+
+   | Page | `<style>` en ligne | Identifiants |
+   |---|---|---|
+   | Accueil | 1 | `wp-img-auto-sizes-contain-inline-css` |
+   | `/la-demarche/`, `/accessibilite/` | 4 | le précédent + `wp-block-heading`, `wp-block-list`, `wp-block-paragraph` |
+   | `/mentions-legales/` | 3 | le précédent + `wp-block-heading`, `wp-block-paragraph` (pas de liste dans cette copie) |
+
+   Le cœur de WordPress imprime une feuille en ligne **par type de bloc rendu**. Le retrait de
+   `wp-block-library` par le thème ne les atteint pas : ce sont des styles **par bloc**, enregistrés
+   ailleurs. Et le site sert `style-src 'self'` **sans** `'unsafe-inline'` : le navigateur les
+   **bloque**, et journalise trois violations de CSP par page dans la console.
+
+   **Portée réelle, dite sans dramatiser** : aucune conséquence visuelle — aucune feuille du thème ne
+   dépend de ces règles, et les pages sont rendues correctement, captures à l'appui. Ce qui est en
+   cause, c'est (a) l'interdit « aucun `<style>` en ligne » du contrat §6, (b) le bruit dans la console
+   d'un site dont l'argument est justement la propreté du réseau.
+
+   **Cause et emplacement du correctif** : le contenu ne peut rien y faire — c'est le rendu de
+   `wp:paragraph`, `wp:heading` et `wp:list` qui les déclenche, et les remplacer par du HTML brut
+   rendrait la copie non modifiable dans l'éditeur. Le correctif est un retrait de file d'attente dans
+   `functions.php`, **hors empreinte de cette issue**. Le défaut est **pré-existant sur l'accueil**
+   (une occurrence, `wp-img-auto-sizes-contain-inline-css`) : les pages éditoriales l'amplifient, elles
+   ne l'introduisent pas.
+
 ---
+
+## 6 bis. Défilement horizontal — mesuré à **320 px**, la largeur que le §8 nomme
+
+Le §8 du brief exige « pas de défilement horizontal à **320 px** ». Les captures du §7 sont prises à
+360 px ; **320 px a donc été mesuré séparément**, sur les cinq pages, en relevant
+`scrollWidth - clientWidth`.
+
+| Page | 320 px | 360 px |
+|---|---|---|
+| Accueil | **0 px** | **0 px** |
+| `/la-demarche/` | **0 px** | **0 px** |
+| `/accessibilite/` | **0 px** | **0 px** |
+| `/mentions-legales/` | **0 px** | **0 px** |
+| `/wp-login.php` | **0 px** | **0 px** |
+
+**Dix mesures, dix fois zéro.** La ligne du §8 est tenue à la largeur qu'elle nomme, et pas seulement à
+celle qui était commode à capturer.
+
+## 6 ter. Feuilles de style en ligne bloquées par la CSP — sans conséquence visuelle
+
+Constat, pas défaut. Le cœur de WordPress imprime une feuille en ligne **par type de bloc rendu**, et la
+copie éditoriale est faite de blocs (`wp:paragraph`, `wp:heading`, `wp:list`) — c'est ce que
+l'arbitrage A-1 impose. Sous `style-src 'self'`, le navigateur les **bloque** et journalise une
+violation par balise.
+
+| Page | Balises `<style>` dans le DOM |
+|---|---|
+| Accueil | 1 |
+| `/la-demarche/` | 4 |
+| `/accessibilite/` | 4 |
+| `/mentions-legales/` | 3 |
+
+**Aucune conséquence visuelle constatée** : ces feuilles ne stylent que des blocs dont ce thème ne
+dépend pas, et `wp-block-library` est déjà retiré du front. **Correctif nommé et porté en dette** :
+`wp_dequeue_style()` dans `functions.php`, hors empreinte de cette issue.
+
+C'est écrit ici parce que la console d'un relecteur affichera ces violations, et qu'il faut qu'il sache
+qu'elles sont connues, mesurées et sans effet — plutôt qu'il les découvre et les prenne pour une panne.
 
 ## 7. Captures
 
@@ -178,6 +250,26 @@ Le débordement horizontal (`scrollWidth - clientWidth`) est **nul sur les dix c
 
 `captures/` — `accueil`, `connexion`, `demarche`, `accessibilite`, `mentions`, chacune en
 `-desktop.png` et `-mobile-360.png`.
+
+### 7.1 Débordement horizontal — les valeurs, pas seulement la conclusion
+
+`captures.mjs` imprime le débordement sur la sortie standard mais ne l'écrit dans aucun fichier : la
+conclusion ci-dessus survivait sans ses chiffres. Passe de contrôle **indépendante**, rejouée le
+**16 août 2026 à 21 h 00 UTC**, sur la même stack et sans aucune dérogation, avec la **largeur 320 px**
+ajoutée — c'est celle que le §8 du brief nomme (« pas de défilement horizontal à 320 px »), et elle
+n'avait jamais été mesurée :
+
+| Page | 360 × 800 | 320 × 800 |
+|---|---|---|
+| Accueil `/` | `scrollWidth` 360, `clientWidth` 360 → **0 px** | 320 / 320 → **0 px** |
+| Connexion `/wp-login.php` | 360 / 360 → **0 px** | 320 / 320 → **0 px** |
+| `/la-demarche/` | 360 / 360 → **0 px** | 320 / 320 → **0 px** |
+| `/accessibilite/` | 360 / 360 → **0 px** | 320 / 320 → **0 px** |
+| `/mentions-legales/` | 360 / 360 → **0 px** | 320 / 320 → **0 px** |
+
+Dix mesures, deux largeurs, cinq pages, aucun débordement. La mesure est `scrollWidth - clientWidth`
+sur `documentElement` après `networkidle` — la même expression que `captures.mjs`, pour que les deux
+passes soient comparables.
 
 ---
 

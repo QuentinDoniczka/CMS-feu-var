@@ -143,8 +143,12 @@ if ( have_posts() ) :
 					// Vide ⇒ emplacement marqué, jamais un lien mort.
 					if ( defined( 'MASSIFS_CONTACT' ) && '' !== MASSIFS_CONTACT ) {
 						printf(
-							'<dt>Contact</dt><dd><a href="mailto:%1$s">%2$s</a></dd>',
-							esc_attr( MASSIFS_CONTACT ),
+							'<dt>Contact</dt><dd><a href="%1$s">%2$s</a></dd>',
+							// `esc_url()` et non `esc_attr()` : règle 2 du §1.1 du
+							// contrat. Le schéma est concaténé AVANT l'échappement,
+							// sans quoi `esc_url()` prendrait l'adresse nue pour une
+							// URL relative au lieu d'y reconnaître `mailto:`.
+							esc_url( 'mailto:' . MASSIFS_CONTACT ),
 							esc_html( antispambot( MASSIFS_CONTACT ) )
 						);
 					} else {

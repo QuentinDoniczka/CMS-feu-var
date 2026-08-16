@@ -95,8 +95,13 @@ if ( have_posts() ) :
 				// le canal de signalement d'accessibilité : pire que son absence.
 				if ( defined( 'MASSIFS_CONTACT' ) && '' !== MASSIFS_CONTACT ) {
 					printf(
-						'<dl id="signalement"><dt>Signaler un problème d\'accessibilité</dt><dd><a href="mailto:%1$s">%2$s</a></dd></dl>',
-						esc_attr( MASSIFS_CONTACT ),
+						'<dl id="signalement"><dt>Signaler un problème d\'accessibilité</dt><dd><a href="%1$s">%2$s</a></dd></dl>',
+						// `esc_url()` et non `esc_attr()` : c'est une URL, et la règle
+						// 2 du §1.1 du contrat #18 l'impose. Le schéma est concaténé
+						// AVANT l'échappement — `esc_url()` doit voir `mailto:…` en
+						// entier pour reconnaître le protocole ; appliqué à l'adresse
+						// nue il la traiterait comme une URL relative.
+						esc_url( 'mailto:' . MASSIFS_CONTACT ),
 						esc_html( antispambot( MASSIFS_CONTACT ) )
 					);
 				}
