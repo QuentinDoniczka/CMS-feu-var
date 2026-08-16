@@ -1,7 +1,12 @@
 /**
- * Relevé de recette ad hoc pour l'issue #18 — hors dépôt, jamais commité.
- * Produit : violations axe (serious/critical), origines réseau, poids transféré,
+ * Relevé de recette pour l'issue #18.
+ * Produit : violations axe (tous impacts), origines réseau, poids transféré,
  * titre du document, structure de titres, rendu sans JavaScript.
+ *
+ * Le script est versionné, ses DÉPENDANCES ne le sont pas : `axe-core` et
+ * `playwright-core` s'installent hors du dépôt (voir preuves-a11y-et-perf.md §8).
+ * C'est ce qui permet de rejouer un relevé sans faire entrer un navigateur de
+ * 150 Mo et un arbre npm dans un dépôt dont l'argument est la surface tierce nulle.
  *
  * Usage : node recette.mjs <url> [<url>...]
  */

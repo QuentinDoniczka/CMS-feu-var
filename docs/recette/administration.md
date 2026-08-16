@@ -14,7 +14,8 @@ Courte, donc. Pour le détail d'un écran, l'écran lui-même fait foi.
 
 1. L'écran liste les massifs, avec le statut actuel de chacun.
 2. Choisir le jour : **aujourd'hui** (correction) ou **demain** (le cas normal — la préfecture publie
-   la veille au soir, vers 17 h).
+   le statut du lendemain la veille au soir ; l'heure exacte n'est pas écrite ici, le brief §4.2 et le
+   design system ne disent pas la même, et l'écran affiche celle que le domaine sert).
 3. Choisir un niveau par massif. Au clavier : `Tab` d'un massif au suivant, flèches pour le niveau.
 4. **Publier les statuts** — un seul bouton, en bas.
 5. Un récapitulatif confirme ce qui a été enregistré et combien de statuts ont changé.
@@ -48,11 +49,20 @@ C'est la vue à ouvrir en premier quand quelqu'un demande « pourquoi ce massif 
 
 Les trois actions existent, et ce sont celles promises au client :
 
+Tout se passe sur l'écran **Utilisateurs** du cœur — il n'y a **pas** d'écran dédié, et c'est un choix :
+la liste des utilisateurs porte une colonne **Portail**, des actions au survol de chaque ligne, et les
+mêmes actions en **actions groupées**. Rien de tout cela n'est sur la fiche d'un utilisateur.
+
 | Action | Où | Effet |
 |---|---|---|
-| **Créer** | Utilisateurs → Ajouter, rôle **Gestionnaire** | accès aux seuls écrans de statuts et d'historique |
-| **Suspendre** | fiche de l'utilisateur | le compte existe, ses sessions vivantes sont révoquées, il ne peut plus se connecter |
-| **Réinitialiser** le mot de passe | fiche de l'utilisateur | lien de réinitialisation envoyé |
+| **Créer** | Utilisateurs → Ajouter, rôle **Gestionnaire des massifs** | accès aux seuls écrans de statuts et d'historique |
+| **Suspendre** | Utilisateurs → action de ligne, ou action groupée | le compte existe, ses sessions vivantes sont révoquées, il ne peut plus se connecter |
+| **Rétablir** | Utilisateurs → action de ligne, ou action groupée | rend au compte suspendu ses droits, sans le recréer |
+| **Réinitialiser le mot de passe** | Utilisateurs → action de ligne, ou action groupée | lien de réinitialisation envoyé |
+
+La colonne **Portail** dit l'état de chaque compte : c'est là qu'on lit qu'un compte est suspendu, et
+pas ailleurs. Un compte suspendu reste visible dans la liste — c'est voulu, un compte invisible se
+recrée par erreur.
 
 Le rôle **gestionnaire** ne voit ni les contenus, ni les réglages, ni les extensions, ni les
 utilisateurs. C'est délibéré, et c'est éprouvé par les tests d'intégration : douze écrans du cœur lui
@@ -85,8 +95,13 @@ alerte est une invitation à saisir manuellement, jamais une urgence à contourn
 
 ## 5. Hors saison
 
-Du 1er octobre au 31 mai, le dispositif préfectoral est inactif : le site l'affiche et n'attend aucune
-saisie. Rien à faire.
+Hors de la période du dispositif préfectoral, le site affiche « dispositif estival inactif » et n'attend
+aucune saisie. Rien à faire.
+
+Les bornes ne sont **pas** écrites ici, et surtout pas déduites de mémoire : elles viennent du domaine,
+qui les sert avec un drapeau disant si la préfecture les a **confirmées** pour l'année en cours. Les
+recopier dans une documentation les figerait, et une borne figée devient fausse en silence l'année où
+elle bouge.
 
 ---
 

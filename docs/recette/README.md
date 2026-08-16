@@ -26,6 +26,16 @@ crée aussi le menu de pied. Sous Git Bash / MSYS2, préfixer par `MSYS_NO_PATHC
 > **Si vous modifiez une page dans l'éditeur WordPress, reportez la modification dans le fichier
 > source.** Sinon le prochain import l'écrase. C'est le prix de la source versionnée, et il est assumé.
 
+[`contenu/README.md`](contenu/README.md) porte les titres, les slugs, les gabarits, les descriptions
+servies, les règles de rédaction tenues, et la liste des endroits où il aurait été facile d'inventer un
+fait — avec ce qui a été écrit à la place.
+
+**L'idempotence de l'import est établie par l'exécution, pas par la lecture** : le script a été rejoué
+**deux fois de suite** sur la stack déjà importée le 16 août 2026 à 21 h 05 UTC. Les trois pages gardent
+les identifiants 4, 5 et 6 ; les trois entrées de menu gardent 7, 8 et 9 ; le menu compte toujours 3
+entrées et reste affecté à l'emplacement `pied` ; les trois `_wp_page_template` pointent toujours sur
+leur gabarit. Aucun doublon, aucune erreur.
+
 ## 2. Les preuves et les livrables
 
 | Fichier | Ce qu'il contient |
