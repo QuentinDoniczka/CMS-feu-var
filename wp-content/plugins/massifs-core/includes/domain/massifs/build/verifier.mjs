@@ -423,105 +423,124 @@ function main() {
 		tenter(
 			'métadonnées PHP',
 			() => {
-		const meta = lecture.donnees;
-		const massifs = meta && meta.massifs ? meta.massifs : {};
-		const lignes = Object.values( massifs );
+				const meta = lecture.donnees;
+				const massifs = meta && meta.massifs ? meta.massifs : {};
+				const lignes = Object.values( massifs );
 
-		controler( 'métadonnées : schéma connu', SCHEMA === meta.schema, `schema=${ meta.schema }` );
-		controler( 'métadonnées : sha256 de la géométrie', meta.geometrie.sha256 === empreinteGeometrie );
-		controler( 'métadonnées : octets de la géométrie', meta.geometrie.octets === octets );
-		controler(
-			'métadonnées : jeton de version',
-			meta.geometrie.version === empreinteGeometrie.slice( 0, 8 ),
-			meta.geometrie.version
-		);
-		controler( 'métadonnées : sha256 de la source archivée', meta.source.archive.sha256 === sha256( sourceBrute ) );
-		controler( 'métadonnées : octets de la source archivée', meta.source.archive.octets === sourceBrute.length );
-		controler(
-			'métadonnées : mention d\'attribution non vide',
-			'string' === typeof meta.attribution.phrase && meta.attribution.phrase.length > 0
-		);
-		controler(
-			'métadonnées : un massif par entité géométrique',
-			codes.every( ( code ) => Object.prototype.hasOwnProperty.call( massifs, code ) ),
-			`${ lignes.length } lignes`
-		);
-		controler( 'identités : codes conformes à la regex', lignes.every( ( l ) => regex.test( l.code ) ) );
-		controler( 'identités : clé du tableau égale au code', Object.entries( massifs ).every( ( [ cle, l ] ) => cle === l.code ) );
-		controler( 'identités : libellés non vides', lignes.every( ( l ) => 'string' === typeof l.libelle && '' !== l.libelle.trim() ) );
-		controler(
-			'identités : note de provenance présente si le libellé diffère du nom source',
-			lignes.every( ( l ) => l.libelle === l.source.nom_massif || Boolean( l.note_provenance ) )
-		);
-		controler( 'identités : gid source uniques', new Set( lignes.map( ( l ) => l.source.gid ) ).size === lignes.length );
-		controler(
-			'identités : liste pré-triée par `tri`',
-			lignes.every( ( l, i ) => 0 === i || lignes[ i - 1 ].tri <= l.tri )
-		);
-		const correspondance = meta.correspondance_source || {};
-		const codesCorrespondance = Object.keys( correspondance );
-		const identifiants = Object.values( correspondance );
-		const formeIdentifiant = new RegExp( SEUILS.identifiant_prefecture_regex );
+				controler( 'métadonnées : schéma connu', SCHEMA === meta.schema, `schema=${ meta.schema }` );
+				controler( 'métadonnées : sha256 de la géométrie', meta.geometrie.sha256 === empreinteGeometrie );
+				controler( 'métadonnées : octets de la géométrie', meta.geometrie.octets === octets );
+				controler(
+					'métadonnées : jeton de version',
+					meta.geometrie.version === empreinteGeometrie.slice( 0, 8 ),
+					meta.geometrie.version
+				);
+				controler(
+					'métadonnées : sha256 de la source archivée',
+					meta.source.archive.sha256 === sha256( sourceBrute )
+				);
+				controler(
+					'métadonnées : octets de la source archivée',
+					meta.source.archive.octets === sourceBrute.length
+				);
+				controler(
+					'métadonnées : mention d\'attribution non vide',
+					'string' === typeof meta.attribution.phrase && meta.attribution.phrase.length > 0
+				);
+				controler(
+					'métadonnées : un massif par entité géométrique',
+					codes.every( ( code ) => Object.prototype.hasOwnProperty.call( massifs, code ) ),
+					`${ lignes.length } lignes`
+				);
+				controler( 'identités : codes conformes à la regex', lignes.every( ( l ) => regex.test( l.code ) ) );
+				controler(
+					'identités : clé du tableau égale au code',
+					Object.entries( massifs ).every( ( [ cle, l ] ) => cle === l.code )
+				);
+				controler(
+					'identités : libellés non vides',
+					lignes.every( ( l ) => 'string' === typeof l.libelle && '' !== l.libelle.trim() )
+				);
+				controler(
+					'identités : note de provenance présente si le libellé diffère du nom source',
+					lignes.every( ( l ) => l.libelle === l.source.nom_massif || Boolean( l.note_provenance ) )
+				);
+				controler(
+					'identités : gid source uniques',
+					new Set( lignes.map( ( l ) => l.source.gid ) ).size === lignes.length
+				);
+				controler(
+					'identités : liste pré-triée par `tri`',
+					lignes.every( ( l, i ) => 0 === i || lignes[ i - 1 ].tri <= l.tri )
+				);
+				const correspondance = meta.correspondance_source || {};
+				const codesCorrespondance = Object.keys( correspondance );
+				const identifiants = Object.values( correspondance );
+				const formeIdentifiant = new RegExp( SEUILS.identifiant_prefecture_regex );
 
-		controler(
-			'correspondance : une entrée par massif',
-			SEUILS.features_attendues === codesCorrespondance.length,
-			`${ codesCorrespondance.length } / ${ SEUILS.features_attendues }`
-		);
-		controler(
-			'correspondance : identifiants conformes à la regex',
-			identifiants.length > 0 && identifiants.every( ( identifiant ) => formeIdentifiant.test( identifiant ) )
-		);
-		controler(
-			'correspondance : identifiants uniques',
-			new Set( identifiants ).size === identifiants.length
-		);
-		controler(
-			'correspondance : bijective avec les codes des lignes',
-			codesCorrespondance.length === lignes.length &&
-				lignes.every( ( l ) => correspondance[ l.code ] === l.source.identifiant_prefecture )
-		);
-		controler(
-			'correspondance : identifiants en surnombre non rattachés',
-			FLUX_PREFECTURE.sans_correspondance.every( ( identifiant ) => ! identifiants.includes( identifiant ) ),
-			FLUX_PREFECTURE.sans_correspondance.join( ', ' )
-		);
-		controler(
-			'correspondance : total du flux consigné',
-			meta.source.flux_identifiants_total === FLUX_PREFECTURE.identifiants_total,
-			`${ meta.source.flux_identifiants_total }`
-		);
-		controler(
-			'correspondance : identifiants en surnombre consignés',
-			Array.isArray( meta.source.flux_identifiants_sans_correspondance ) &&
-				meta.source.flux_identifiants_sans_correspondance.join( ',' ) ===
-					FLUX_PREFECTURE.sans_correspondance.join( ',' )
-		);
-		controler(
-			'emprise : contient toutes les bbox de massifs',
-			lignes
-				.filter( ( l ) => l.bbox )
-				.every(
-					( l ) =>
-						l.bbox.ouest >= meta.emprise.bbox.ouest &&
-						l.bbox.est <= meta.emprise.bbox.est &&
-						l.bbox.sud >= meta.emprise.bbox.sud &&
-						l.bbox.nord <= meta.emprise.bbox.nord
-				)
-		);
-		/*
-		 * Le seul contrôle du fichier qui compare deux valeurs LUES. Deux blocs
-		 * absents donneraient `undefined === undefined`, c'est-à-dire un contrôle
-		 * VERT sur des métadonnées cassées — un faux vert, pire que l'arrêt qu'on
-		 * répare. On exige donc que la valeur existe avant de la comparer. La
-		 * garde va ici et nulle part ailleurs : partout ailleurs, l'absence fait
-		 * déjà rougir.
-		 */
-		controler(
-			'emprise : zoom maximal',
-			undefined !== meta.emprise?.zoom_max && meta.emprise.zoom_max === meta.geometrie?.zoom_max,
-			`z${ meta.emprise?.zoom_max }`
-		);
+				controler(
+					'correspondance : une entrée par massif',
+					SEUILS.features_attendues === codesCorrespondance.length,
+					`${ codesCorrespondance.length } / ${ SEUILS.features_attendues }`
+				);
+				controler(
+					'correspondance : identifiants conformes à la regex',
+					identifiants.length > 0 &&
+						identifiants.every( ( identifiant ) => formeIdentifiant.test( identifiant ) )
+				);
+				controler(
+					'correspondance : identifiants uniques',
+					new Set( identifiants ).size === identifiants.length
+				);
+				controler(
+					'correspondance : bijective avec les codes des lignes',
+					codesCorrespondance.length === lignes.length &&
+						lignes.every( ( l ) => correspondance[ l.code ] === l.source.identifiant_prefecture )
+				);
+				controler(
+					'correspondance : identifiants en surnombre non rattachés',
+					FLUX_PREFECTURE.sans_correspondance.every(
+						( identifiant ) => ! identifiants.includes( identifiant )
+					),
+					FLUX_PREFECTURE.sans_correspondance.join( ', ' )
+				);
+				controler(
+					'correspondance : total du flux consigné',
+					meta.source.flux_identifiants_total === FLUX_PREFECTURE.identifiants_total,
+					`${ meta.source.flux_identifiants_total }`
+				);
+				controler(
+					'correspondance : identifiants en surnombre consignés',
+					Array.isArray( meta.source.flux_identifiants_sans_correspondance ) &&
+						meta.source.flux_identifiants_sans_correspondance.join( ',' ) ===
+							FLUX_PREFECTURE.sans_correspondance.join( ',' )
+				);
+				controler(
+					'emprise : contient toutes les bbox de massifs',
+					lignes
+						.filter( ( l ) => l.bbox )
+						.every(
+							( l ) =>
+								l.bbox.ouest >= meta.emprise.bbox.ouest &&
+								l.bbox.est <= meta.emprise.bbox.est &&
+								l.bbox.sud >= meta.emprise.bbox.sud &&
+								l.bbox.nord <= meta.emprise.bbox.nord
+						)
+				);
+				/*
+				 * Le seul contrôle du fichier qui compare deux valeurs LUES. Deux blocs
+				 * absents donneraient `undefined === undefined`, c'est-à-dire un contrôle
+				 * VERT sur des métadonnées cassées — un faux vert, pire que l'arrêt qu'on
+				 * répare. On exige donc que la valeur existe avant de la comparer. La
+				 * garde va ici et nulle part ailleurs : partout ailleurs, l'absence fait
+				 * déjà rougir.
+				 */
+				controler(
+					'emprise : zoom maximal',
+					undefined !== meta.emprise?.zoom_max &&
+						meta.emprise.zoom_max === meta.geometrie?.zoom_max,
+					`z${ meta.emprise?.zoom_max }`
+				);
 			},
 			CONTROLES_DES_METADONNEES
 		);
@@ -551,35 +570,37 @@ function main() {
 	 * portent.
 	 */
 	if ( fideliteMesuree ) {
-	controler(
-		'fidélité : écart maximal',
-		metriques.max_deviation_m <= SEUILS.ecart_max_m,
-		`${ metriques.max_deviation_m } m / ${ SEUILS.ecart_max_m } m`
-	);
-	controler(
-		'fidélité : écart de surface global',
-		Math.abs( metriques.area_delta_pct ) <= SEUILS.ecart_surface_global_abs_pct_max,
-		`${ metriques.area_delta_pct } %`
-	);
-	controler(
-		'fidélité : pire écart de surface par massif',
-		metriques.area_delta_abs_worst_pct <= SEUILS.ecart_surface_massif_abs_pct_max,
-		`${ metriques.area_delta_abs_worst_pct } % (${ metriques.area_delta_abs_worst_massif })`
-	);
-	controler(
-		'fidélité : surface des anneaux supprimés',
-		metriques.dropped_ring_area_pct_of_total <= SEUILS.surface_anneaux_supprimes_pct_max,
-		`${ metriques.dropped_ring_area_pct_of_total } %`
-	);
-	controler(
-		'recette : écart maximal conforme à massifs-13.fidelite.json',
-		Math.abs( metriques.max_deviation_m - fidelite.global_metrics.max_deviation_m ) <= TOLERANCES.ecart_m,
-		`mesuré ${ metriques.max_deviation_m } m, consigné ${ fidelite.global_metrics.max_deviation_m } m`
-	);
-	controler(
-		'recette : écart de surface conforme à massifs-13.fidelite.json',
-		Math.abs( metriques.area_delta_pct - fidelite.global_metrics.area_delta_pct ) <= TOLERANCES.surface_pct
-	);
+		controler(
+			'fidélité : écart maximal',
+			metriques.max_deviation_m <= SEUILS.ecart_max_m,
+			`${ metriques.max_deviation_m } m / ${ SEUILS.ecart_max_m } m`
+		);
+		controler(
+			'fidélité : écart de surface global',
+			Math.abs( metriques.area_delta_pct ) <= SEUILS.ecart_surface_global_abs_pct_max,
+			`${ metriques.area_delta_pct } %`
+		);
+		controler(
+			'fidélité : pire écart de surface par massif',
+			metriques.area_delta_abs_worst_pct <= SEUILS.ecart_surface_massif_abs_pct_max,
+			`${ metriques.area_delta_abs_worst_pct } % (${ metriques.area_delta_abs_worst_massif })`
+		);
+		controler(
+			'fidélité : surface des anneaux supprimés',
+			metriques.dropped_ring_area_pct_of_total <= SEUILS.surface_anneaux_supprimes_pct_max,
+			`${ metriques.dropped_ring_area_pct_of_total } %`
+		);
+		controler(
+			'recette : écart maximal conforme à massifs-13.fidelite.json',
+			Math.abs( metriques.max_deviation_m - fidelite.global_metrics.max_deviation_m ) <=
+				TOLERANCES.ecart_m,
+			`mesuré ${ metriques.max_deviation_m } m, consigné ${ fidelite.global_metrics.max_deviation_m } m`
+		);
+		controler(
+			'recette : écart de surface conforme à massifs-13.fidelite.json',
+			Math.abs( metriques.area_delta_pct - fidelite.global_metrics.area_delta_pct ) <=
+				TOLERANCES.surface_pct
+		);
 	}
 
 	controler( 'recette : verdict consigné', 'conforme' === fidelite.verdict.statut, fidelite.verdict.statut );
