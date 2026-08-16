@@ -608,6 +608,22 @@ tranchent.
 13. Le CSS est enfilé **uniquement sur le `$hook_suffix` de l'écran**, jamais globalement.
 14. **Le balisage doit rester accessible sans aucun CSS** : si le thème n'est pas actif, les jetons sont
     absents et la page doit rester lisible et navigable.
+15. **`CORRECTIF-2` — la feuille vit HORS de `includes/`, sinon elle est servie en `403`.**
+    **Ce contrat a été gelé avec une erreur sur ce point ; elle est corrigée ici, et cette version fait
+    foi.** Emplacement imposé : **`wp-content/plugins/massifs-core/assets/css/historique.css`**.
+    La feuille vivait dans `includes/admin/historique/assets/css/`, et
+    `docker/wordpress/plugins-guard.conf` (deuxième `DirectoryMatch`) **refuse `includes/` à n'importe
+    quelle profondeur** sous `wp-content/plugins/`. Mesuré : `403`, donc **écran rendu nu** — aucune
+    pastille, aucune zone défilante, libellés collés, et tableau débordant la page à 360 px.
+    **Rien ne le signalait côté serveur** : poignée correcte, `<link>` bien présent dans le `<head>`,
+    aucune erreur PHP. Seul un navigateur pouvait le voir.
+    **Ne jamais la remettre sous `includes/`. Ne jamais élargir le garde-fou Apache à `plugins/`** —
+    ce serait rouvrir l'invariant opposable de l'issue #20 ; `docker/**` n'est pas dans l'empreinte.
+    **Corollaire, aussi important que l'emplacement** : l'enfilage **nomme la feuille explicitement** et
+    n'emploie **jamais** `glob`. Un `glob` qui ne trouve rien enfile silencieusement **zéro** feuille :
+    c'est ce mode d'échec **muet** qui a rendu le défaut invisible à toute la chaîne.
+    Le répertoire `assets/css/` est **partagé avec #14** (`ecran-publication.css`) : le créer sans
+    présumer qu'il est vide, et ne jamais toucher au fichier de l'autre chaîne.
 
 ---
 

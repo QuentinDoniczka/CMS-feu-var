@@ -126,9 +126,9 @@ if ( ! function_exists( 'massifs_historique_enfiler_styles' ) ) {
 	 * `wp_enqueue_scripts`, qui ne se déclenche pas ici. Même domaine : la
 	 * contrainte « zéro requête vers un domaine tiers » reste intacte.
 	 *
-	 * LA FEUILLE DE L'ÉCRAN EST DÉCOUVERTE, PAS NOMMÉE : son nom appartient à la
-	 * chaîne qui écrit le CSS, et le balisage doit de toute façon rester lisible
-	 * et navigable sans aucune feuille de style.
+	 * LA FEUILLE DE L'ÉCRAN EST NOMMÉE EXPLICITEMENT, et vit hors de `includes/`
+	 * — voir le commentaire du corps, qui porte la mesure. Le balisage doit de
+	 * toute façon rester lisible et navigable sans aucune feuille de style.
 	 *
 	 * AUCUNE DÉPENDANCE VERS UN STYLE DU CŒUR (`common`, `forms`, `buttons`) :
 	 * les règles de focus et de bouton de la feuille ont la même spécificité que
@@ -151,24 +151,34 @@ if ( ! function_exists( 'massifs_historique_enfiler_styles' ) ) {
 			$dependances[] = 'massifs-historique-jetons';
 		}
 
-		$feuilles = glob( __DIR__ . '/assets/css/*.css' );
+		// CHEMIN EXPLICITE, JAMAIS UN `glob`. La feuille était naguère découverte
+		// par `glob( __DIR__ . '/assets/css/*.css' )`, et ce sont les DEUX moitiés
+		// de cette ligne qui ont produit un défaut bloquant :
+		//
+		//   - `__DIR__` la logeait sous `includes/`, que `plugins-guard.conf`
+		//     refuse à n'importe quelle profondeur sous `wp-content/plugins/`
+		//     (deuxième `DirectoryMatch`). La feuille partait donc en 403 : la
+		//     poignée était correcte, le `<link>` bien dans le `<head>`, aucune
+		//     erreur PHP — et l'écran rendu NU ;
+		//   - un `glob` qui ne trouve rien enfile SILENCIEUSEMENT zéro feuille.
+		//     Le mode d'échec est muet, donc invisible sans ouvrir un navigateur.
+		//
+		// La feuille vit désormais sous `massifs-core/assets/css/`, hors de tout
+		// sous-arbre refusé (sondé : servi). Ne pas la remettre sous `includes/`,
+		// et ne pas élargir le garde-fou Apache à `plugins/` — ce serait rouvrir
+		// l'invariant opposable de l'issue #20.
+		$feuille = MASSIFS_CORE_CHEMIN . 'assets/css/historique.css';
 
-		if ( ! is_array( $feuilles ) ) {
+		if ( ! is_readable( $feuille ) ) {
 			return;
 		}
 
-		sort( $feuilles );
-
-		foreach ( $feuilles as $feuille ) {
-			$nom = basename( $feuille, '.css' );
-
-			wp_enqueue_style(
-				'massifs-historique-' . sanitize_key( $nom ),
-				plugins_url( 'assets/css/' . basename( $feuille ), __FILE__ ),
-				$dependances,
-				massifs_historique_version_asset( $feuille )
-			);
-		}
+		wp_enqueue_style(
+			'massifs-historique',
+			plugins_url( 'assets/css/historique.css', MASSIFS_CORE_FICHIER ),
+			$dependances,
+			massifs_historique_version_asset( $feuille )
+		);
 	}
 }
 
