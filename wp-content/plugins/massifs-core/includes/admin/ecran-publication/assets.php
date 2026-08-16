@@ -134,12 +134,19 @@ if ( ! function_exists( 'massifs_publication_enfiler_styles' ) ) {
 			$enfilees[] = $poignee;
 		}
 
-		$notre_chemin = __DIR__ . '/assets/css/ecran-publication.css';
+		/*
+		 * Feuille servie depuis la racine `assets/` de l'extension et non depuis ce
+		 * répertoire (R-9) : le garde-fou Apache `plugins-guard.conf` refuse en 403
+		 * tout `includes/` sous `wp-content/plugins/`, à n'importe quelle profondeur.
+		 * Une ressource destinée au navigateur n'a donc rien à y faire — le garde-fou
+		 * prescrit le déplacement, pas son élargissement.
+		 */
+		$notre_chemin = MASSIFS_CORE_CHEMIN . 'assets/css/ecran-publication.css';
 
 		if ( is_readable( $notre_chemin ) ) {
 			wp_enqueue_style(
 				'massifs-ecran-publication',
-				MASSIFS_CORE_URL . 'includes/admin/ecran-publication/assets/css/ecran-publication.css',
+				MASSIFS_CORE_URL . 'assets/css/ecran-publication.css',
 				$enfilees,
 				massifs_publication_version_fichier( $notre_chemin ),
 				'all'

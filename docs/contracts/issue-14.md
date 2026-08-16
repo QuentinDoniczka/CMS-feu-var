@@ -36,12 +36,21 @@
 
 - `wp-content/plugins/massifs-core/includes/admin/ecran-publication/**`
 - `wp-content/plugins/massifs-core/includes/rest/portail/publication/**`
+- `wp-content/plugins/massifs-core/assets/css/ecran-publication.css` — **[R-9]**, ce seul fichier
 - `docs/contracts/issue-14.md`
 
-Aucun fichier du thème. Aucun `massifs-core.php`. Aucun `design-system/MASTER.md`.
+Aucun fichier du thème. Aucun `massifs-core.php`. Aucun `design-system/MASTER.md`. **Aucun `docker/**`.**
 **Jamais** `includes/security/roles|auth/**`, `includes/admin/historique/**`,
 `includes/rest/portail/historique/**` (chaînes #13 et #15, en cours en parallèle).
 **Jamais** `includes/rest/portail/module.php` — fichier de niveau `portail`, hors des deux empreintes.
+**Jamais** `massifs-core/assets/css/historique.css` — même répertoire que notre feuille depuis [R-9],
+mais il appartient à la chaîne #15.
+
+> **RÉVISION 2 — 16 août 2026, après le premier aller-retour de `test-integration-cms`.**
+> Une seule correction, **[R-9]**, mais elle porte un défaut **bloquant** que la chaîne n'aurait jamais
+> vu sans un œil sur l'écran : la feuille de style de l'écran était servie en **403** et l'écran était
+> rendu **nu**. Cause, remède et règle générale : voir le §10, encadré [R-9]. Le périmètre d'écriture
+> ci-dessus gagne un chemin, hors de `includes/`.
 
 ---
 
@@ -80,7 +89,7 @@ même répertoire ; cette table est leur seule protection mutuelle.
 | `gabarit-ligne.php` | **front** | Une ligne de massif |
 | `gabarit-statut.php` | **front** | Le fragment `.statut` (marque + libellé) |
 | `gabarit-recapitulatif.php` | **front** | Le bloc post-publication |
-| `assets/css/ecran-publication.css` | **front** | Notre feuille. Zéro custom property, zéro littéral |
+| ~~`assets/css/ecran-publication.css`~~ | — | **[R-9] Déplacée hors de `includes/`** — voir la ligne suivante et le §10 |
 | `module.php` | **back**, **écrit en dernier** | Amorce |
 
 ### `includes/rest/portail/publication/`
@@ -672,7 +681,34 @@ On enfile donc depuis le thème, chaque fichier sous garde `is_readable( get_the
 | `massifs-admin-tokens` | `assets/css/tokens.css` | — |
 | `massifs-admin-composants` | `assets/css/composants.css` | tokens |
 | `massifs-admin-print` | `assets/css/print.css` (`media="print"`) | tokens, composants |
-| `massifs-ecran-publication` | *notre* `assets/css/ecran-publication.css` | les quatre ci-dessus |
+| `massifs-ecran-publication` | **[R-9]** *notre* `massifs-core/assets/css/ecran-publication.css` — **hors de `includes/`** | les quatre ci-dessus |
+
+> **[R-9] La feuille de l'écran ne peut pas vivre sous `includes/`, et ce n'est pas un détail de rangement.**
+> Défaut **bloquant** trouvé par `test-integration-cms`, invisible à toute relecture de code.
+> `docker/wordpress/plugins-guard.conf` refuse le sous-arbre `includes/` **à n'importe quelle profondeur**
+> sous `wp-content/plugins/`, **pour tout fichier quelle que soit son extension** — pas seulement les
+> `.php`. Une feuille servie depuis `includes/` répond donc **403**, et l'écran est rendu **nu** : radios
+> empilés, pas de barre d'action, `document.styleSheets` → `regles: 0`.
+>
+> **Rien dans le code ne le trahissait** : la poignée `wp_enqueue_style()` était correcte, le `<link>`
+> bien présent dans le `<head>`, aucune erreur PHP, et une requête refusée n'apparaît pas comme une
+> requête « en échec » pour un pilote de navigateur. Le seul symptôme était **à l'écran**.
+>
+> **Emplacement gelé** : `wp-content/plugins/massifs-core/assets/css/ecran-publication.css`, sondé à
+> **404** avant déplacement — donc autorisé. **Le contenu de la feuille n'a pas changé d'un octet** : elle
+> ne contient ni `url()`, ni `@import`, ni `@font-face`, il n'y avait aucun chemin relatif à corriger.
+>
+> **Le garde-fou n'est pas élargi, et ne doit jamais l'être** : il prescrit lui-même ce remède —
+> « Un asset de l'extension qui buterait sur ce refus se corrige en le DÉPLAÇANT. Élargir le grant à
+> `plugins/` rouvrirait le sous-arbre dont l'issue #20 a fait un invariant opposable. » Le garde-fou est
+> **correct** ; c'était l'emplacement du fichier qui ne l'était pas. `docker/**` reste hors empreinte.
+>
+> **Règle générale à retenir pour toute chaîne suivante** : sous `wp-content/plugins/`, tout ce qui est
+> destiné au **navigateur** — CSS, JS, images, polices — vit sous `massifs-core/assets/` ou
+> `massifs-core/data/`, **jamais** sous `includes/`, qui est réservé au code que seul PHP charge.
+>
+> `wp-content/plugins/massifs-core/assets/css/` est **partagé** : la chaîne #15 y a déposé
+> `historique.css` pour le même défaut, au même moment. Fichiers distincts, aucune collision.
 
 > **Correction d'une erreur de fait du plan back.** Il prévoyait `assets/css/polices.css`, **qui n'existe
 > pas**. Le fichier réel est `assets/fonts/fonts.css` (`functions.php` l. 201). Sous une garde
