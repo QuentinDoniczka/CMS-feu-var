@@ -188,6 +188,13 @@ final class Ecluse {
 	public static function barrer( mixed $utilisateur, string $identifiant = '', string $mot_de_passe = '' ): mixed {
 		unset( $mot_de_passe );
 
+		// Remise en état de toute chaîne précédente qui n'aurait pas atteint la
+		// priorité 100 — appel direct de `barrer()` hors crochet, sortie par
+		// redirection, arrêt anticipé. Nous sommes en priorité 1 : les rappels
+		// réarmés ici s'exécuteront bien à leur priorité 20 dans CETTE chaîne, et
+		// seront redésarmés juste après si l'origine est toujours verrouillée.
+		self::rearmer_verification_du_coeur();
+
 		$attente = self::attente( $identifiant );
 
 		if ( $attente <= 0 ) {
@@ -548,6 +555,9 @@ final class Ecluse {
 	 * échouerait sans qu'aucun verrou ne s'y oppose — un faux refus silencieux, avec
 	 * le code générique `authentication_failed`. Le désarmement doit durer ce que dure
 	 * la tentative verrouillée, pas davantage.
+	 *
+	 * Également appelé en tête de `barrer()`, ce qui rend le mécanisme autoréparant
+	 * même quand la priorité 100 n'a pas été atteinte.
 	 */
 	private static function rearmer_verification_du_coeur(): void {
 		if ( array() === self::$rappels_desarmes ) {
