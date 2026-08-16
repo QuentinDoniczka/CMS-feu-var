@@ -30,10 +30,15 @@ $massifs_api = function_exists( 'massifs_codes' )
 // `$massifs_peremption` SURVIT à l'affichage qu'elle conditionnait. La mention
 // « Donnée périmée. » a quitté l'ardoise pour le bandeau de péremption, qui lit
 // la fraîcheur lui-même — cette variable ne pilote donc plus aucun rendu.
-// Elle reste parce qu'elle est l'ANCRE d'injection de `tests/rendu/recette-rendu.mjs`
-// (scénario 23) : la ligne qui l'affecte est réécrite à la volée pour forcer un
-// état de péremption sans toucher aux données. La retirer casserait cette
-// recette sans rien gagner.
+// Elle reste parce que la SECONDE de ses deux affectations — celle qui lit
+// `$massifs_fraicheur['perimee']`, dans la garde `$massifs_api` — est l'ANCRE
+// d'injection de `tests/rendu/recette-rendu.mjs` (scénario 23, recette R-27) :
+// la recette insère sa ligne JUSTE APRÈS cette affectation, où
+// `$massifs_synthese` et `$massifs_fraicheur` sont déjà en portée, pour forcer
+// un `etat_global` hors des quatre bras du `match()`. Elle n'y force AUCUN état
+// de péremption : la péremption s'éprouve par les données posées, jamais par
+// injection de source. Retirer l'affectation ancrée casserait cette recette
+// sans rien gagner.
 $massifs_peremption = false;
 
 if ( $massifs_api ) {
@@ -56,11 +61,22 @@ if ( $massifs_api ) {
 	// (`par_niveau['autorise']`, `partiel`, `disponibles`, `sans_donnee`), et son
 	// motif est de ne laisser aucune phrase chiffrée plausible et fausse en
 	// mémoire dans un état sans chiffre. Ce tableau ne lit AUCUNE de ces clés et
-	// ne contient AUCUN chiffre : il est l'inverse exact du danger visé, et il
-	// rend l'unique chemin de repli provablement dépourvu de chiffre.
+	// ne porte aucun chiffre DANS LE TEXTE PRÉSENTÉ AU VISITEUR : il est l'inverse
+	// exact du danger visé, et il rend l'unique chemin de repli provablement
+	// dépourvu de chiffre affiché.
 	// CRITÈRE DE REVUE : une variable hissée au-dessus du `match()` est un défaut
-	// si et seulement si elle peut contenir un nombre, ou une phrase contenant un
-	// nombre.
+	// si et seulement si elle peut porter, DANS LE TEXTE RENDU AU VISITEUR, un
+	// nombre ou une phrase contenant un nombre.
+	// Le critère est borné au texte rendu parce que ce tableau transporte bel et
+	// bien un chiffre : le numéro de département que porte `carte_officielle_url`
+	// (valeur imposée par includes/domain/statuts/api.php l. 325), rendu en
+	// attribut `href` et jamais lu comme un décompte. Un relecteur appliquant la
+	// formulation non bornée à la lettre supprimerait le lien officiel exigé par
+	// le brief §4.2.
+	// Ce critère est rédigé à l'identique dans le commentaire du bras
+	// `disponible` du `match()`. Les deux formulations doivent rester alignées :
+	// deux rédactions divergentes d'un même critère de revue rouvriraient le
+	// défaut qu'elles referment.
 	//
 	// massifs_attribution_statuts() ne prend aucun argument, ne lève rien et
 	// retourne `carte_officielle_url` sur ses deux chemins de retour ; elle est
@@ -130,9 +146,15 @@ if ( $massifs_api ) {
 			// fausse, à portée de copier-coller. C'est le prix de la garantie
 			// structurelle : NE PAS factoriser ces lectures. L'interdit porte sur CES
 			// QUATRE LECTURES CHIFFRÉES, non sur le tableau d'absence hissé au-dessus
-			// du `match()`, qui ne contient aucun chiffre : une variable hissée est un
-			// défaut si et seulement si elle peut contenir un nombre, ou une phrase
-			// contenant un nombre.
+			// du `match()`, dont le seul chiffre est celui de l'URL officielle, porté
+			// en attribut `href` et jamais rendu comme un décompte.
+			// CRITÈRE DE REVUE : une variable hissée au-dessus du `match()` est un
+			// défaut si et seulement si elle peut porter, DANS LE TEXTE RENDU AU
+			// VISITEUR, un nombre ou une phrase contenant un nombre.
+			// Ce critère est rédigé à l'identique dans le bloc qui déclare
+			// $massifs_ardoise_absente. Les deux formulations doivent rester
+			// alignées : deux rédactions divergentes d'un même critère de revue
+			// rouvriraient le défaut qu'elles referment.
 			'disponible'            => array(
 				'chiffre'               => (string) $massifs_synthese['par_niveau']['autorise'],
 				// Le dénominateur reste un ternaire EXPLICITE sur `partiel`. Qu'en
@@ -251,7 +273,24 @@ if ( $massifs_api ) {
 
 // Journal de recette seulement : massifs_journaliser() ignore un message vide
 // et n'écrit rien hors WP_DEBUG.
-massifs_journaliser( $massifs_ardoise['journal'] );
+//
+// Garde de type de la même classe que les trois de la ligne de fraîcheur, mais
+// PRÉ-ÉMISSION, donc plus grave : massifs_journaliser( string $message ) est
+// strictement typée et ce fichier déclare strict_types=1. La clé `journal`
+// disparue d'un site d'écriture, l'expression vaudrait `null` et le \TypeError
+// tomberait avant le premier octet de sortie — HTTP 500 et page « Erreur
+// critique sur ce site. » du cœur, donc zéro statut et zéro lien officiel :
+// exactement ce que l'enveloppe du `match()` referme par un autre déclencheur.
+// Atténuation notée : les cinq littéraux qui portent `journal`, comme
+// l'affectation du `catch`, sont LOCAUX à ce fichier, contrairement à
+// `etat_global`, qui vient de l'extension. Le déclencheur est donc moins
+// probable, pas la panne moins grave.
+// L'accès reste DIRECT, sans isset() ni ?? : l'avertissement « Undefined array
+// key » est conservé. La garde de type n'achète pas le silence, elle achète la
+// page.
+if ( is_string( $massifs_ardoise['journal'] ) ) {
+	massifs_journaliser( $massifs_ardoise['journal'] );
+}
 
 get_template_part( 'templates/header' );
 ?>
@@ -299,7 +338,56 @@ get_template_part( 'templates/header' );
 					if ( $massifs_ardoise['fraicheur'] ) {
 						// Gabarit de MASTER.md §11.3. Les variantes s'obtiennent
 						// UNIQUEMENT en supprimant la proposition dont la valeur
-						// serveur est nulle : aucun mot n'est réécrit.
+						// serveur est INEXPLOITABLE : aucun mot n'est réécrit.
+						//
+						// Depuis la révision 7 du contrat #5 (arbitrage A-2),
+						// « inexploitable » recouvre TROIS causes, et non plus la seule
+						// valeur `null` : valeur `null` (nominal), valeur non-`string`
+						// (garde is_string()), instant refusé par massifs_horodatage()
+						// (`catch`). Les trois produisent EXACTEMENT le même rendu —
+						// l'omission — et c'est cette propriété qui rend la dégradation
+						// sûre : la page est moins complète, elle n'est jamais fausse.
+
+						// LES TROIS GARDES DE TYPE ET LES TROIS `try/catch` QUI
+						// SUIVENT SONT DE LA DÉFENSE EN PROFONDEUR : NE PAS LES
+						// RETIRER. Ce n'est pas du code mort.
+						//
+						// L'\InvalidArgumentException attrapée est INATTEIGNABLE
+						// AUJOURD'HUI, et ce qui la rend inatteignable vit HORS DU
+						// THÈME : `evalue_le` est produit par la machine
+						// (includes/domain/fraicheur/Fraicheur.php l. 85) et déclaré
+						// `readonly string` (ResultatFraicheur.php l. 46) ;
+						// `publie_prefecture_le` et `dernier_releve_le` passent par
+						// includes/domain/fraicheur/RegistreReleves.php,
+						// RegistreReleves::entree() l. 172-182, qui re-parse chaque
+						// champ et SUPPRIME la clé quand le parsing échoue ;
+						// `dernier_releve_le` porte une seconde ceinture
+						// (Fraicheur.php l. 64-69) ; aucun `apply_filters` ne traverse
+						// includes/domain/fraicheur/. Rien n'empêche une chaîne future
+						// de relâcher cet assainissement sans savoir que la validité
+						// du HTML de l'accueil en dépend : la preuve n'est pas dans ce
+						// fichier, la garde doit y être.
+						//
+						// Ce que les is_string() préviennent est, lui, ATTEIGNABLE :
+						// strict_types=1, plus massifs_horodatage( string ), plus une
+						// clé renommée ou retirée, font valoir l'expression `null` et
+						// lèvent un \TypeError EN COURS D'ÉMISSION — après le h1,
+						// avant </main> et avant </html>. \TypeError extends \Error
+						// quand \InvalidArgumentException extends \LogicException :
+						// hiérarchies DISJOINTES, le `catch` ne l'attraperait pas. Un
+						// \TypeError se prévient, il ne se rattrape pas.
+						//
+						// L'accès aux clés reste DIRECT, sans isset() ni ?? :
+						// is_string( $tableau['cle'] ) CONSERVE l'avertissement
+						// « Undefined array key », la lecture ayant lieu avant l'appel,
+						// là où isset() l'éteindrait. La garde de type n'achète pas le
+						// silence, elle achète la page.
+						//
+						// Symétrie : les NEUF autres appels à massifs_horodatage() du
+						// thème portent déjà la même protection — parts/carte.php
+						// l. 156, 246 et 385 ; parts/liste-statuts.php l. 181, 198 et
+						// 335 ; parts/panneau-feu.php l. 205 et 270 ;
+						// parts/etats-vides.php l. 140.
 						$massifs_propositions = array();
 
 						// Passerelle bornée : massifs_horodatage() exige un instant et
@@ -310,35 +398,61 @@ get_template_part( 'templates/header' );
 						// serveur — aucune arithmétique de date ici.
 						// À RETIRER dès que massifs_horodatage_jour() existe (B-1).
 						if ( $massifs_fraicheur['jour_validite'] === $massifs_synthese['jour_validite']
-							&& $massifs_synthese['jour_validite'] === massifs_jour_courant() ) {
+							&& $massifs_synthese['jour_validite'] === massifs_jour_courant()
+							&& is_string( $massifs_fraicheur['evalue_le'] ) ) {
 
-							$massifs_jour_formate = massifs_horodatage( $massifs_fraicheur['evalue_le'] );
+							// Le `try` couvre l'appel ET la seule expression qui
+							// consomme son résultat. Laisser le sprintf dehors le
+							// ferait s'exécuter après le `catch` avec
+							// $massifs_jour_formate indéfinie : la panne se
+							// déplacerait. Les deux comparaisons de la passerelle
+							// restent dehors — elles ne peuvent rien lever.
+							try {
+								$massifs_jour_formate = massifs_horodatage( $massifs_fraicheur['evalue_le'] );
 
-							$massifs_propositions['validite'] = sprintf(
-								'Statuts du <time datetime="%1$s">%2$s</time>',
-								esc_attr( $massifs_synthese['jour_validite'] ),
-								esc_html( $massifs_jour_formate['date_longue'] )
-							);
+								$massifs_propositions['validite'] = sprintf(
+									'Statuts du <time datetime="%1$s">%2$s</time>',
+									esc_attr( $massifs_synthese['jour_validite'] ),
+									esc_html( $massifs_jour_formate['date_longue'] )
+								);
+							} catch ( \InvalidArgumentException ) {
+								// `catch` non capturant : les deux sites de `throw`
+								// émettent le même littéral constant, getMessage() ne
+								// discrimine rien. Le fait discriminant est porté par
+								// le libellé de la ligne de journal.
+								massifs_journaliser( 'massifs: fraicheur.evalue_le refusé par massifs_horodatage() (instant malformé) — proposition « Statuts du {date} » omise, donc ligne de fraîcheur entière omise. Ne devrait jamais paraître : les instants du domaine sont assainis à la source.' );
+							}
 						}
 
-						if ( null !== $massifs_fraicheur['publie_prefecture_le'] ) {
-							$massifs_publication = massifs_horodatage( $massifs_fraicheur['publie_prefecture_le'] );
+						// is_string() remplace `null !== …` sans rien changer au rendu
+						// nominal : la clé est déclarée `?string`, les deux
+						// conditions sont donc aujourd'hui équivalentes.
+						if ( is_string( $massifs_fraicheur['publie_prefecture_le'] ) ) {
+							try {
+								$massifs_publication = massifs_horodatage( $massifs_fraicheur['publie_prefecture_le'] );
 
-							$massifs_propositions['publication'] = sprintf(
-								'publiés la veille à %s par la préfecture',
-								esc_html( $massifs_publication['heure'] )
-							);
+								$massifs_propositions['publication'] = sprintf(
+									'publiés la veille à %s par la préfecture',
+									esc_html( $massifs_publication['heure'] )
+								);
+							} catch ( \InvalidArgumentException ) {
+								massifs_journaliser( 'massifs: fraicheur.publie_prefecture_le refusé par massifs_horodatage() (instant malformé) — proposition « publiés la veille à {heure} par la préfecture » omise. Ne devrait jamais paraître : les instants du domaine sont assainis à la source.' );
+							}
 						}
 
-						if ( null !== $massifs_fraicheur['dernier_releve_le'] ) {
-							$massifs_releve = massifs_horodatage( $massifs_fraicheur['dernier_releve_le'] );
+						if ( is_string( $massifs_fraicheur['dernier_releve_le'] ) ) {
+							try {
+								$massifs_releve = massifs_horodatage( $massifs_fraicheur['dernier_releve_le'] );
 
-							$massifs_propositions['releve'] = sprintf(
-								'relevés sur ce site le <time datetime="%1$s">%2$s</time> à %3$s',
-								esc_attr( $massifs_releve['attr_datetime'] ),
-								esc_html( $massifs_releve['date_longue'] ),
-								esc_html( $massifs_releve['heure'] )
-							);
+								$massifs_propositions['releve'] = sprintf(
+									'relevés sur ce site le <time datetime="%1$s">%2$s</time> à %3$s',
+									esc_attr( $massifs_releve['attr_datetime'] ),
+									esc_html( $massifs_releve['date_longue'] ),
+									esc_html( $massifs_releve['heure'] )
+								);
+							} catch ( \InvalidArgumentException ) {
+								massifs_journaliser( 'massifs: fraicheur.dernier_releve_le refusé par massifs_horodatage() (instant malformé) — proposition « relevés sur ce site le {date} à {heure} » omise. Ne devrait jamais paraître : les instants du domaine sont assainis à la source.' );
+							}
 						}
 
 						if ( array_key_exists( 'validite', $massifs_propositions ) ) {
@@ -357,7 +471,7 @@ get_template_part( 'templates/header' );
 							// sont du balisage écrit ici.
 							echo '<p class="ardoise__fraicheur">' . $massifs_phrase . '.</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 						} else {
-							massifs_journaliser( 'massifs: ligne de fraîcheur omise — la date de validité ne peut pas être mise en forme sans massifs_horodatage_jour() (demande B-1).' );
+							massifs_journaliser( 'massifs: ligne de fraîcheur omise — proposition « Statuts du {date} » indisponible, donc publication et relevé omis avec elle. Cause nominale : le jour de validité n’est pas le jour courant, faute de massifs_horodatage_jour() (demande B-1) ; l’instant refusé fait l’objet d’une ligne distincte, la clé absente d’un avertissement PHP.' );
 						}
 					}
 

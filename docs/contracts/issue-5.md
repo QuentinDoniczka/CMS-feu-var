@@ -2,6 +2,31 @@
 
 **Gelé le 12 août 2026** par `lead-issue-cms` (chaîne #5). Liant à partir de ce point.
 
+> **RÉVISION 7 — 17 août 2026, issue #29 « Garder les appels à `massifs_horodatage()` dans
+> `front-page.php` pour éviter une page tronquée ».** Les trois appels à `massifs_horodatage()` de la
+> ligne de fraîcheur n'avaient **aucune garde**, et ils s'exécutent **après le premier octet de sortie**.
+>
+> **CORRECTION FACTUELLE — le défaut décrit par l'issue #29 n'est pas celui qui existe.**
+> L'`\InvalidArgumentException` visée est **inatteignable par tout chemin de donnée** : les trois instants
+> sont assainis en amont (`RegistreReleves::entree()` l. 172-182 re-parse et **supprime la clé** en cas
+> d'échec ; `evalue_le` est produit par la machine et déclaré `readonly string`). Le déclencheur
+> **réellement atteignable** est un `\TypeError` — `strict_types=1` plus `massifs_horodatage( string )`
+> plus une lecture de `evalue_le` **sans garde de type** — et `\TypeError extends \Error` quand
+> `\InvalidArgumentException extends \LogicException` : **la garde demandée par l'issue ne l'aurait pas
+> attrapé.** Les deux sont donc traités : `is_string()` ferme le trou réel, le `try/catch` est une défense
+> en profondeur assumée. Contrat complet : `docs/contracts/issue-29.md`, arbitrage **A-39**.
+>
+> **`is_string( $tableau['cle'] )` ne viole PAS l'interdit `isset()`/`??` de ce contrat** (l. 121) :
+> l'accès reste **direct**, l'avertissement `Undefined array key` est **conservé**, `is_string()` est une
+> fonction qui reçoit une valeur déjà lue. Arbitrage **A-41**.
+>
+> **Répercussion normative dans ce contrat : le tableau de la section « La ligne de fraîcheur — variantes
+> par omission seule » était FAUX depuis son gel.** Sa troisième ligne décrivait un rendu que le code ne
+> produit pas. Il est remplacé ci-dessous par un tableau à **quatre** combinaisons. Arbitrage **A-44**.
+>
+> **Aucune ligne d'extension n'a été écrite**, aucune demande nouvelle portée au back : l'issue consomme
+> une surface serveur déjà gelée.
+
 > **RÉVISION 6 — 13 août 2026, issue #27 « Réconcilier la garde du `match()` de `front-page.php` avec
 > l'arbitrage écran-blanc de la chaîne #6 ».** Le `match()` de l'ardoise s'exécute **avant le premier
 > octet de sortie** et **avant toute inclusion de partie**, et il n'était **ni gardé ni enveloppé**. Un
@@ -310,11 +335,36 @@ reproduites **octet pour octet**, `Niveau d'Accès` en U+0027 et `Zones d’Accu
 Gabarit §11.3. Les variantes sont produites **uniquement en supprimant la proposition dont la valeur
 serveur est `null`**, jamais en réécrivant des mots :
 
-| Condition | Rendu |
-|---|---|
-| `publie_prefecture_le !== null` et `dernier_releve_le !== null` | phrase complète |
-| `publie_prefecture_le === null` | « Statuts du {date} — relevés sur ce site le {date} à {heure}. » |
-| `dernier_releve_le === null` | « Statuts du {date}. » |
+> **CORRIGÉ — révision 7, issue #29 (arbitrage A-44).** Le tableau à trois lignes gelé jusqu'ici était
+> **factuellement faux**. Sa ligne « `dernier_releve_le === null` ⇒ *Statuts du {date}.* » décrivait un
+> rendu que le code **ne produit pas** : sous la **seule** condition `dernier_releve_le === null`, le code
+> produit « Statuts du {date}, **publiés la veille à {heure} par la préfecture.** ». Le rendu « Statuts du
+> {date}. » correspond à la **conjonction des deux nulles**. Le tableau n'était pas davantage une liste de
+> décision lue dans l'ordre : sa deuxième ligne se serait alors appliquée à la quatrième combinaison, en
+> prétendant rendre un relevé inexistant. Les **quatre** combinaisons réelles sont énumérées ci-dessous.
+
+Les quatre combinaisons, `validite` présente. Le séparateur est porté **par la proposition qu'il
+introduit** (`', '` par `publication`, `' — '` par `releve`) et le point final est ajouté à l'assemblage :
+c'est ce qui rend l'omission **pure** possible — retirer une proposition retire son séparateur avec elle,
+sans virgule orpheline, sans double espace, **sans qu'un seul mot soit réécrit**.
+
+| `publication` | `releve` | Rendu |
+|---|---|---|
+| présente | présente | « Statuts du {date}, publiés la veille à {heure} par la préfecture — relevés sur ce site le {date} à {heure}. » |
+| **absente** | présente | « Statuts du {date} — relevés sur ce site le {date} à {heure}. » |
+| présente | **absente** | « Statuts du {date}, publiés la veille à {heure} par la préfecture. » |
+| **absente** | **absente** | « Statuts du {date}. » |
+
+**Cinquième cas — `validite` absente** (passerelle A-1 fausse, type invalide, ou `\InvalidArgumentException`
+attrapée) : la clé n'entre pas dans `$massifs_propositions`, le test d'assemblage est faux, et **toute la
+ligne de fraîcheur est omise**, `<p class="ardoise__fraicheur">` compris. `publication` et `releve` ont
+pu être construites en mémoire : elles ne sont **jamais lues**. **Aucun octet n'est émis**, et le chemin
+journalise.
+
+> **Depuis la révision 7**, « absente » recouvre trois causes et non plus une seule : valeur `null`
+> (nominal), valeur non-`string` (garde `is_string()`), instant refusé par `massifs_horodatage()`
+> (`catch`). **Les trois produisent exactement le même rendu** — l'omission — ce qui est la propriété qui
+> rend la dégradation sûre : la page est moins complète, elle n'est jamais fausse.
 
 Les instants (`publie_prefecture_le`, `dernier_releve_le`) sont des ISO valides et passent par
 `massifs_horodatage()`. Les dates s'affichent dans un `<time datetime="…">` alimenté par `attr_datetime`.
@@ -564,7 +614,7 @@ Décisions du lead. Chacune tranche un désaccord, une ambiguïté ou un trou co
 | # | Sujet | Décision | Raison |
 |---|---|---|---|
 | **A-1** | `massifs_horodatage()` **refuse une date nue** (`Horloge::instant_depuis_chaine()`, motif ligne 246, partie horaire obligatoire — **vérifié dans le code**). Deux phrases de §11.3 en dépendent | **Ligne de fraîcheur** : passerelle bornée — `massifs_fraicheur()['evalue_le']` est un instant serveur réel, employé **uniquement** sous la garde `fraicheur['jour_validite'] === synthese['jour_validite'] && synthese['jour_validite'] === massifs_jour_courant()`. Garde tombée → la proposition « Statuts du {date} » est **omise**, jamais inventée. **Branche `hors_saison`** : aucune passerelle possible → la phrase est **tronquée à « Dispositif estival inactif. »**, « Reprise le {date}. » est **omise** et journalisée | Passer un instant serveur au formateur du serveur n'est pas composer une date ; la garde ne compare que des valeurs serveur, sans arithmétique. Afficher un `2027-06-01` brut serait le thème choisissant un format. **Omettre, jamais inventer.** Demande ferme **B-1** portée au back |
-| **A-2** | Trois variantes de la phrase de fraîcheur, absentes de §11.3 | Approuvées, avec la **règle d'omission seule** : on supprime la proposition dont la valeur serveur est `null`, on ne réécrit aucun mot | Mécanique, pas éditorial. À confirmer par `lead-design-cms` |
+| **A-2** | Trois variantes de la phrase de fraîcheur, absentes de §11.3 | Approuvées, avec la **règle d'omission seule** : on supprime la proposition dont la valeur serveur est inexploitable, on ne réécrit aucun mot. **RÉVISÉ en révision 7 (A-44)** : les variantes sont **quatre**, non trois, et la troisième telle que gelée était **fausse** ; « valeur `null` » devient « valeur inexploitable » (`null`, type invalide, ou instant refusé) | Mécanique, pas éditorial. À confirmer par `lead-design-cms` |
 | **A-3** | Ligne « zéro cookie » du pied de page | **Non écrite.** Le pied porte l'**emplacement** des mentions légales (menu `pied`), pas la copie | La case 2 de l'issue demande un *emplacement*, pas un texte. Cette phrase est de la copie éditoriale sans propriétaire ; elle appartient à la page « Mentions légales » / à la chaîne `contenu`. Une chaîne inventée de moins |
 | **A-4** | Péremption sans son composant (`MASTER.md` §8.3 sans propriétaire) | Phrase « Donnée périmée. » **ajoutée** sous la ligne de fraîcheur. Elle ne masque, ne remplace et ne conditionne rien | Le contrat #3 (interdit 9) impose que `perimee` **ajoute**. Une phrase n'est pas la bannière du brief §4.5 : forme dégradée assumée, **signalée** |
 | **A-5** | `MASTER.md` §8.2 met « INDISPONIBLE » en `--fs-700`, et §5.1 met le `h1` en `--fs-700` → **deux blocs `--fs-700` adjacents** disant la même chose | Le mot « INDISPONIBLE » **n'est pas rendu**. Le `h1` porte la phrase §11.3, l'emplacement du chiffre reste vide | Aucune information perdue — la phrase dit exactement « Information du jour non disponible ». La hiérarchie de MASTER vient de l'échelle ; deux blocs de même taille la détruisent. Divergence **signalée** à `lead-design-cms` |
