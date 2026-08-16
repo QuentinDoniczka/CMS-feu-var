@@ -1,0 +1,18 @@
+# PROTECTION 2 SUR 4.
+#
+# Chaque fichier de ce répertoire est un dump complet de la base : hachages de
+# mots de passe, secrets TOTP, adresses de courriel. Le répertoire parent porte
+# déjà un .htaccess ; celui-ci le double, parce qu'une règle de serveur mal
+# recopiée sur le parent laisserait ce répertoire-ci ouvert.
+#
+# NE PAS ÉCRIRE « PROTÉGÉ PAR .htaccess » COMME UN FAIT : `AllowOverride` n'a pas
+# été mesuré sur l'image utilisée par le projet. La vraie protection, en
+# production, est de SORTIR CE RÉPERTOIRE DE LA RACINE WEB via le filtre
+# `massifs_sauvegardes_repertoire`. Voir ../README.md.
+<IfModule mod_authz_core.c>
+	Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+	Order allow,deny
+	Deny from all
+</IfModule>

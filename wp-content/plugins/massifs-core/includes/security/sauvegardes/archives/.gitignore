@@ -1,0 +1,13 @@
+# PROTECTION 4 SUR 4.
+#
+# Une archive contient des hachages de mots de passe et des secrets TOTP. Elle ne
+# doit JAMAIS entrer dans l'historique git : un dépôt est cloné, poussé, parfois
+# rendu public, et un secret commité une fois y reste pour toujours.
+#
+# Tout est ignoré, sauf les trois fichiers de protection eux-mêmes. C'est ce qui
+# rend le répertoire commitable — donc présent et protégé dès le clone — sans
+# qu'aucune archive ne puisse y être commitée.
+*
+!.gitignore
+!.htaccess
+!index.php

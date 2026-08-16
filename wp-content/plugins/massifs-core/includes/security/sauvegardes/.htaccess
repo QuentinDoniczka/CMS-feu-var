@@ -1,0 +1,17 @@
+# Rien de ce répertoire n'est destiné au navigateur : code PHP du module, et
+# surtout le répertoire archives/, dont chaque fichier contient un dump complet
+# de la base — hachages de mots de passe et secrets TOTP compris.
+#
+# CE FICHIER EST UNE PROTECTION PARMI QUATRE, ET SON EFFET N'EST PAS MESURÉ SUR
+# L'IMAGE `wordpress:php8.3-apache` : `AllowOverride` n'y a pas été vérifié. Ne
+# jamais écrire « protégé par .htaccess » comme un fait. La protection effective
+# vient aujourd'hui du <DirectoryMatch> de docker/wordpress/plugins-guard.conf,
+# qui refuse **/includes/** à toute profondeur. Ce fichier existe pour les
+# hébergements mutualisés, où il est la seule barrière disponible.
+<IfModule mod_authz_core.c>
+	Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+	Order allow,deny
+	Deny from all
+</IfModule>

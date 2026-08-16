@@ -1,0 +1,133 @@
+<!-- wp:paragraph -->
+<p>Chaque été, la préfecture des Bouches-du-Rhône publie le soir, pour le lendemain, l'état d'accès de chaque massif forestier du département. L'information est officielle et elle est publique. Elle est aussi éclatée : il faut la chercher, la lire sur une carte, et recommencer le lendemain.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Ce site la rassemble en une page, avec un équivalent textuel lisible au lecteur d'écran et à l'impression. Il relaie une information ; il ne la produit pas.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading" id="ce-que-ce-site-n-est-pas">Ce que ce site n'est pas</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Ce site est un relais indépendant. Il n'a aucun caractère officiel et n'engage pas la préfecture. Seules les publications de la préfecture des Bouches-du-Rhône font foi. En cas de doute, ou de désaccord entre ce site et la carte officielle, c'est la carte officielle qui a raison.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Le site n'a pas non plus vocation à remplacer l'arrêté préfectoral en vigueur, qui est le texte qui fixe réellement ce qui est permis et ce qui ne l'est pas.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading" id="comment-il-fonctionne">Comment il fonctionne</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Le serveur va chercher lui-même les données, à heure fixe, et les conserve. Votre navigateur ne contacte jamais la préfecture, Météo-France, EFFIS ni OpenStreetMap : il ne parle qu'à ce site. Les fonds de carte, les polices et les scripts sont servis depuis notre propre domaine.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Ce choix a trois conséquences que nous assumons. Le site continue de fonctionner quand une source tombe, sur la dernière donnée conservée, avec son indicateur de fraîcheur. Aucun tiers ne sait que vous consultez cette page. Et la page reste utilisable si votre navigateur n'exécute pas JavaScript : la carte est un enrichissement, les statuts sont dans la page.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading" id="fraicheur-et-limites">Fraîcheur et limites</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Chaque statut affiché porte son jour de validité et la date à laquelle nous l'avons relevé. Quand nous n'avons pas de donnée valide pour le jour demandé, le site l'écrit et renvoie à la carte officielle. Il ne réaffiche jamais la donnée de la veille comme si elle était celle du jour : une information périmée présentée comme courante serait plus dangereuse qu'une absence d'information.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Hors de la période du dispositif estival, le site le dit et n'affiche pas de statut.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>En l'état, ce site est une démonstration technique. Certaines sources sont relevées par un connecteur simulé plutôt que par le service réel ; le connecteur employé est indiqué pour chaque source, plus bas sur cette page. Le reste — la validation, la conservation, la fraîcheur, l'affichage — fonctionne comme il fonctionnerait avec la source réelle.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list">
+<!-- wp:list-item -->
+<li>Le danger météo est un indicateur distinct de l'accès au massif. Il décrit les conditions du jour ; il ne détermine pas ce qui est autorisé, qui relève de l'arrêté préfectoral.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>Les zones parcourues par le feu sont des périmètres estimés par satellite. C'est la zone déjà parcourue par le feu, pas un périmètre officiel d'interdiction ni d'évacuation.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>Les périmètres des massifs viennent du référentiel de la DDTM. Les communes concernées n'y figurent pas : cet attribut n'existe pas dans la couche source, et nous ne l'avons pas reconstitué.</li>
+<!-- /wp:list-item -->
+</ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading" id="zero-cookie">Aucun cookie, aucune donnée personnelle</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Ce site ne dépose aucun cookie sur la partie publique et ne collecte aucune donnée personnelle. Il n'y a ni formulaire de contact, ni commentaire, ni compte visiteur, ni lettre d'information, ni mesure d'audience, ni ressource chargée depuis un tiers.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>C'est pourquoi vous ne voyez pas de bandeau de consentement : il n'y a rien à consentir. Ce n'est pas un oubli, c'est le choix de conception, et il est plus simple à tenir qu'à expliquer.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Les seules personnes enregistrées sont les comptes internes qui mettent à jour les statuts.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading" id="donnees-ouvertes">Reprendre les données</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Les statuts du jour sont disponibles en lecture seule, au format JSON, à l'adresse <code>/wp-json/massifs/v1/statuts</code>. La carte de ce site consomme le même point d'accès. Il répond sans authentification et ne dépose aucun cookie.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Le paramètre facultatif <code>jour</code>, au format <code>AAAA-MM-JJ</code>, accepte le jour courant et le lendemain. Toute autre valeur, y compris une date passée ou mal formée, répond 400 : il n'y a pas d'archive publique, et aucun repli silencieux sur aujourd'hui.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Toutes les clés de la réponse sont toujours présentes, dans tous les états, y compris quand une information manque. Vous n'avez jamais à tester l'existence d'une clé : vous testez des valeurs. L'historique complet des statuts existe, mais il vit dans le portail de mise à jour, derrière authentification — pas ici.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading" id="reutilisation-precautions">Ce qu'il ne faut pas en faire</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list">
+<!-- wp:list-item -->
+<li>Ne calculez pas « aujourd'hui » vous-même : <code>jours_disponibles</code> fait foi, la date est celle du fuseau Europe/Paris et non celle du poste client.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>Ne composez, ne traduisez et ne reformulez aucun libellé de niveau, aucune consigne, aucune attribution : tous voyagent dans la réponse, dans leur formulation officielle.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>N'affichez ni <code>niveau</code> ni <code>zapef</code> quand <code>etat</code> ne vaut pas <code>disponible</code>.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>N'affichez pas un statut d'un autre jour, ne le mémorisez pas durablement, ne rejouez pas une réponse précédente.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>N'interprétez jamais un corps vide, un 404 ou un 5xx comme « aucune restriction ». C'est la lecture dangereuse que toute la conception de ce point d'accès cherche à rendre impossible.</li>
+<!-- /wp:list-item -->
+</ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p>Les licences des données d'origine figurent ci-dessous et dans les mentions légales. Les conditions de réutilisation de notre propre agrégat ne sont pas encore arrêtées : si vous souhaitez le reprendre, écrivez-nous.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading" id="qui-le-fait">Qui fait ce site</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Ce site est conçu et réalisé par OmbruStudio. Le thème et l'extension ont été écrits pour ce sujet précis : il n'y a ni constructeur de pages, ni thème acheté, ni bibliothèque d'interface générique. Le code est publié sous licence GPL, version 2 ou ultérieure.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>L'identité de l'éditeur, le directeur de publication et l'adresse de contact figurent dans les mentions légales. La page « Accessibilité » décrit la démarche suivie, les vérifications menées et celles qui restent à mener.</p>
+<!-- /wp:paragraph -->

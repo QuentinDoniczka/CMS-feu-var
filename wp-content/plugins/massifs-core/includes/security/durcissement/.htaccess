@@ -1,0 +1,17 @@
+# Rien de ce répertoire n'est destiné au navigateur : uniquement du code PHP de
+# sécurité, chargé par l'amorce de l'extension. Aucun fichier n'y est servi
+# directement, et une requête qui en demande un est soit une erreur, soit une
+# reconnaissance.
+#
+# CE FICHIER N'EST PAS UNE PREUVE DE PROTECTION : `AllowOverride` n'a pas été
+# mesuré sur l'image `wordpress:php8.3-apache`, et il peut n'avoir aucun effet
+# sur cette pile. La protection effective vient aujourd'hui de
+# `docker/wordpress/plugins-guard.conf`. Il est ici pour l'hébergement de
+# production, où il en faut un.
+<IfModule mod_authz_core.c>
+	Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+	Order allow,deny
+	Deny from all
+</IfModule>
