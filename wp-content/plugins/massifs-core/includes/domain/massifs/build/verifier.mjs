@@ -549,8 +549,10 @@ function main() {
 	/*
 	 * La re-mesure est le cœur de la recette, et elle lève pour de bon : massif
 	 * absent de la géométrie simplifiée, géométrie non surfacique. Non rattrapée,
-	 * elle emportait les 45 contrôles déjà joués — c'est le défaut que corrige
-	 * cette passe.
+	 * elle emportait le rapport ENTIER — les 53 contrôles, puisque rien n'était
+	 * encore affiché. C'est le défaut que corrige cette passe : seuls les 8
+	 * contrôles qui consomment la mesure tombent désormais, les 45 autres sont
+	 * joués et imprimés.
 	 */
 	let metriques;
 
