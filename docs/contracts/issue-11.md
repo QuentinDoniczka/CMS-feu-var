@@ -54,8 +54,9 @@ cumulatives dont chacune suffirait :
 2. **Aucun chemin d'enfilage.** `functions.php` est hors empreinte. L'enfilage depuis l'extension
    exigerait `get_theme_file_uri()`, interdit par la frontière stricte du `CLAUDE.md` et par l'interdit 12
    du contrat #9 — **et serait de toute façon sans effet**, faute de poignée.
-3. **Aucun pigment.** `assets/css/tokens.css` est **gelé, sha256 épinglé, 111 propriétés** (invariant du
-   contrat #4) et ne porte aucun jeton EFFIS ; la table de classes du contrat #7 §8.2 est **déclarée
+3. **Aucun pigment.** `assets/css/tokens.css` est **gelé, sha256 épinglé, 116 propriétés** (invariant du
+   contrat #4 — valait 111 avant l'amendement v2.4 de `MASTER.md`, chaîne #50 ; empreinte courante
+   `104efb21…c112f`, l'ancienne `5ad802a3…3835` est caduque) et ne porte aucun jeton EFFIS ; la table de classes du contrat #7 §8.2 est **déclarée
    fermée** et ne porte aucune `.carte__feu*`. Un `L.geoJSON` monté sans classe peinte rendrait le bleu
    par défaut de Leaflet — une couleur d'interface inventée, violant §2.1 et §4.1.d de `MASTER.md`.
 
@@ -676,7 +677,7 @@ c'est une impossibilité mécanique, établie par lecture du code et non par dé
 | Entrée de légende de la couche | `templates/parts/legende.php` | Les deux voies sont fermées : `massifs_partie()` (`functions.php` l. 91-105) ne transmet **aucun `$args`** — le mur d'A-8 du contrat #7 — et il n'existe **aucun** filtre sur `massifs_legende()` |
 | Inclusion de la bande textuelle — **une ligne** | `front-page.php` **l. 417-419** | Emplacement **nommément réservé** par un commentaire : « elle appartient à la chaîne "effis", même raison, même place ». Contrat #5 **A-16** |
 | Enfilage d'une feuille de style | `functions.php` **l. 199-233** (`$feuilles`) | Aucun autre point d'entrée |
-| Tout jeton de couleur | `assets/css/tokens.css` | **Gelé, sha256 épinglé**, 111 propriétés (contrat #4) |
+| Tout jeton de couleur | `assets/css/tokens.css` | **Gelé, sha256 épinglé**, 116 propriétés (contrat #4 amendé v2.4 ; 111 auparavant) |
 
 **Le thème ne contient aucun `do_action` ni `apply_filters`** — vérifié, zéro occurrence sur tout
 `themes/massifs/`. Il n'existe donc aucun crochet par lequel se greffer.

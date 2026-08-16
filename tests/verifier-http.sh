@@ -196,6 +196,35 @@ verifier '/wp-content/themes/massifs/style.css' 200
 verifier '/wp-content/themes/massifs/assets/css/tokens.css' 200
 verifier '/wp-content/themes/massifs/assets/fonts/atkinson-hyperlegible-next-var.woff2' 200
 verifier '/wp-content/themes/massifs/assets/fonts/big-shoulders-display-var.woff2' 200
+
+# ÉPIC 5 — TOUT FICHIER ENFILÉ POUR UN NAVIGATEUR DOIT ÊTRE SERVI, OÙ QU'IL VIVE.
+#
+# Défaut trouvé le 15 août 2026, à la passe d'intégration du lot #13/#14/#15 :
+# les deux écrans du portail enfilent leur feuille de style depuis
+# `plugins/massifs-core/includes/**`, que le second garde-fou de
+# `docker/wordpress/plugins-guard.conf` REFUSE — « includes/ à n'importe quelle
+# profondeur ». Résultat : `wp_enqueue_style()` correct, `<link>` présent, aucune
+# erreur PHP, aucune requête « en échec », et les DEUX écrans du portail rendus
+# entièrement dépouillés. Un mode de panne invisible à tout contrôle qui n'ouvre
+# pas la page.
+#
+# CORRIGÉ le 16 août 2026 (`cb4be90`, `bd060b0`) : les deux feuilles ont été
+# DÉPLACÉES vers `massifs-core/assets/css/`, hors de l'alternation de refus. Le
+# garde-fou n'a PAS été élargi — c'est la moitié importante de la correction, et
+# les deux sondes ci-dessous la tiennent des deux côtés.
+#
+# Sens de lecture : la feuille est servie à son NOUVEAU chemin (200)…
+verifier '/wp-content/plugins/massifs-core/assets/css/ecran-publication.css' 200
+verifier '/wp-content/plugins/massifs-core/assets/css/historique.css' 200
+# …et l'ANCIEN chemin sous `includes/` reste REFUSÉ (403). Ces deux lignes sont
+# des sentinelles de l'invariant de l'issue #20 : si l'une d'elles vire au 200,
+# quelqu'un a élargi `plugins-guard.conf` au lieu de déplacer un fichier, et le
+# `403` sous `includes/` — qui protège tout le code PHP de l'extension — a
+# cessé d'être vrai. Ne jamais les retirer « parce que le fichier n'existe plus » :
+# un 403 est rendu par le garde-fou AVANT tout constat d'existence, c'est
+# précisément ce qu'elles mesurent.
+verifier '/wp-content/plugins/massifs-core/includes/admin/ecran-publication/assets/css/ecran-publication.css' 403
+verifier '/wp-content/plugins/massifs-core/includes/admin/historique/assets/css/historique.css' 403
 # Issue #30 — le `build/` d'une bibliothèque vendorisée est servi, et le grant
 # qui l'ouvre ne fuit ni vers le bas ni latéralement. Sondes éphémères.
 if [ -n "$SONDES_PRETES" ]; then

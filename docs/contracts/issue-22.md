@@ -113,7 +113,8 @@ règle de survol (arbitrage 19).
 4. Aucun `url()`, aucun `@import` — zéro requête vers un domaine tiers.
 5. Aucune custom property définie hors `tokens.css`.
 6. Aucune valeur hexadécimale, aucune durée, aucune taille de police hors jeton.
-7. Aucun jeton créé : les 111 du contrat #4 sont figés, sha256 épinglé.
+7. Aucun jeton créé : ceux du contrat #4 sont figés, sha256 épinglé (111 au gel de ce contrat ; 116
+   depuis l'amendement v2.4, chaîne #50).
 8. Aucun rôle ARIA ajouté — le CSS ne peut pas, et l'interdit 24 du contrat #6 est tenu par
    construction.
 9. Aucun texte posé sur un aplat de statut, y compris à l'impression (§10.4).

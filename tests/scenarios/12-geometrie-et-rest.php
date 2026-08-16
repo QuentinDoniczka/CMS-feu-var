@@ -75,13 +75,68 @@ t_egal( array(), array_unique( $proprietes_en_trop ), 'aucune propriété autre 
 // d'espace de noms `/massifs/v1` à côté de la route déclarée. Et la liste est
 // EXACTE parce que c'est ce qui rend l'invariant I-11 du contrat #8 opposable —
 // une route d'écriture ajoutée par mégarde dans `massifs/v1` rougit ici.
+//
+// ÉLARGIE PAR L'ÉPIC 5 (lot #13/#14/#15). Deux routes de portail entrent dans la
+// surface, et elles n'y entrent PAS dans le même espace de noms :
+//   · #14 publie `/massifs-portail/v1/publication` (contrat #14 §6) ;
+//   · #15 publie `/massifs/v1/portail/historique`  (contrat #15 §4, dont
+//     l'« ARBITRAGE » écrit noir sur blanc qu'il a été choisi sans visibilité sur
+//     #14 et qu'il est « à réconcilier en revue de lot ».)
+// La divergence est enregistrée ici plutôt que lissée : la liste exacte est ce
+// qui la rend visible à chaque exécution. L'invariant I-11 du contrat #8 est
+// maintenu et RENFORCÉ juste en dessous — la lecture publique reste la seule
+// surface anonyme.
 $serveur = rest_get_server();
 do_action( 'rest_api_init', $serveur );
 $routes = array_keys( $serveur->get_routes() );
 $nôtres = array_values( array_filter( $routes, static fn( $r ) => str_contains( $r, 'massifs' ) ) );
 sort( $nôtres );
-t_egal( array( '/massifs/v1', '/massifs/v1/statuts', '/massifs/v1/zones-parcourues-par-le-feu' ), $nôtres, 'la surface REST « massifs » est exactement l\'index d\'espace de noms, la route de lecture des statuts et celle des zones parcourues par le feu (contrat #8, I-11)' );
+t_egal(
+	array(
+		'/massifs-portail/v1',
+		'/massifs-portail/v1/publication',
+		'/massifs/v1',
+		'/massifs/v1/portail/historique',
+		'/massifs/v1/statuts',
+		'/massifs/v1/zones-parcourues-par-le-feu',
+	),
+	$nôtres,
+	'la surface REST « massifs » est exactement : les deux index d\'espace de noms, les deux routes publiques de lecture, et les deux routes du portail (contrat #8 I-11, élargi par l\'Épic 5)'
+);
 t_note( 'espaces de noms REST exposés : ' . implode( ', ', $serveur->get_namespaces() ) );
+
+// I-11 renforcé : AUCUNE route de la surface `massifs` n'est ouverte en
+// `__return_true` hors des deux lectures publiques du §5.4. C'est cette
+// assertion-là, et non la liste, qui empêche une route d'écriture d'entrer sans
+// garde — la liste ne fait que la rendre visible.
+//
+// Les DEUX index d'espace de noms sont écartés : ils ne sont pas déclarés par
+// nous. `WP_REST_Server::register_route()` fabrique lui-même l'entrée d'index de
+// chaque espace de noms avec `'permission_callback' => '__return_true'` ; les
+// compter reviendrait à exiger d'un comportement du cœur qu'il change.
+$index_de_namespace = array( '/massifs/v1', '/massifs-portail/v1' );
+$ouvertes           = array();
+foreach ( $serveur->get_routes() as $chemin => $poignees ) {
+	if ( ! str_contains( (string) $chemin, 'massifs' ) || in_array( (string) $chemin, $index_de_namespace, true ) ) {
+		continue;
+	}
+	foreach ( $poignees as $poignee ) {
+		$rappel = $poignee['permission_callback'] ?? null;
+		if ( null === $rappel || '__return_true' === $rappel ) {
+			$ouvertes[] = $chemin . ' [' . implode( ',', array_keys( array_filter( (array) ( $poignee['methods'] ?? array() ) ) ) ) . ']';
+		}
+	}
+}
+sort( $ouvertes );
+$ouvertes = array_values( array_unique( $ouvertes ) );
+t_egal(
+	array(
+		'/massifs/v1/statuts [GET]',
+		'/massifs/v1/zones-parcourues-par-le-feu [GET]',
+	),
+	$ouvertes,
+	'seules les deux lectures publiques du §5.4 portent une permission ouverte ; toute autre route « massifs » est gardée'
+);
 
 // L'EXTENSION n'enfile aucun asset navigateur.
 //

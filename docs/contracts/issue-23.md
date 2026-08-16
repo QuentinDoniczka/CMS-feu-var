@@ -26,7 +26,7 @@ chaîne : `dev-ux-cms` (`layout.css`), `dev-front-cms` (`front-page.php`, `templ
 
 **Interdits absolus** — arbre de travail partagé, mono-branche, aucune isolation. Un fichier écrit hors de
 cette liste est une perte irrécupérable pour une chaîne sœur :
-`assets/css/tokens.css` (gelé, sha256 épinglé, 111 propriétés, contrat #4) · `assets/css/composants.css`
+`assets/css/tokens.css` (gelé, sha256 épinglé, 116 propriétés depuis l'amendement v2.4 — 111 au gel de ce contrat —, contrat #4) · `assets/css/composants.css`
 et `assets/css/print.css` (chaîne #22, commit `6bb8b4d`) · `templates/parts/**` · `templates/header.php` ·
 `functions.php` · `docs/BRIEF.md` · `CLAUDE.md` · `assets/fonts/**` · `docs/contracts/issue-2..22.md`.
 
@@ -260,8 +260,8 @@ consigné en **D-27**. Pas « différée » : laisser la frise en attente mainti
 et inviterait une chaîne future à la construire.
 
 `--frise-l` et `--frise-h` **restent déclarés** dans `tokens.css` et **restent au §12**, exactement comme
-`--ombre-decalee` : le sha256 est épinglé et le compte de **111 propriétés** est un invariant du contrat
-#4. Les retirer casserait les deux. Ils deviennent **déclarés et consommés par personne**, et ce statut est
+`--ombre-decalee` : le sha256 est épinglé et le compte de propriétés — **111** au gel de ce contrat,
+**116** depuis l'amendement v2.4 de `MASTER.md` (chaîne #50) — est un invariant du contrat #4. Les retirer casserait les deux. Ils deviennent **déclarés et consommés par personne**, et ce statut est
 enregistré en **§12.1**, qui existe déjà pour ça — jamais dans le bloc de code du §12, qui est fermé.
 
 **Conséquence à consigner, sinon un refacto futur la détruira** : l'arbitrage 13 du contrat #22
@@ -421,7 +421,8 @@ des valeurs non autorisées et la revue remonte des défauts **réels**.
 ## Interdits — opposables à tout agent de cette chaîne
 
 1. **Ne jamais modifier `tokens.css`** — ni pour créer un jeton de plafond, ni pour amender un `clamp`, ni
-   pour retirer `--frise-l` / `--frise-h` / `--ombre-decalee`. sha256 épinglé, 111 propriétés, contrat #4.
+   pour retirer `--frise-l` / `--frise-h` / `--ombre-decalee`. sha256 épinglé, 116 propriétés (111 au gel
+   de ce contrat), contrat #4.
 2. **Jamais de plafond typographique en `px`.** Toujours en `rem` (WCAG 1.4.4, A-2).
 3. **Ne jamais toucher le terme médian `rem + vw`** d'un `clamp`, ni le réécrire en `clamp()` local :
    cela duplique le jeton en consommation et fait diverger les deux fichiers à la première révision.

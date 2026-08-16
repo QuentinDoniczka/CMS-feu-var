@@ -307,7 +307,28 @@ do_action( 'rest_api_init', $serveur );
 $routes = $serveur->get_routes();
 $nôtres = array_values( array_filter( array_keys( $routes ), static fn( $r ) => str_starts_with( $r, '/massifs/' ) ) );
 sort( $nôtres );
-t_egal( array( '/massifs/v1', '/massifs/v1/statuts', '/massifs/v1/zones-parcourues-par-le-feu' ), $nôtres, 'l\'espace `massifs/v1` expose exactement trois entrées : son index, la route de lecture des statuts et celle des zones parcourues par le feu' );
+// Quatre entrées depuis l'Épic 5 : #15 a posé `portail/historique` DANS
+// `massifs/v1` (contrat #15 §4), là où #14 a créé l'espace de noms distinct
+// `massifs-portail/v1`. La divergence est constatée, pas lissée. Ce qui reste
+// intact et compte pour I-11 : `portail/historique` est une LECTURE GARDÉE, elle
+// n'ouvre aucune écriture dans l'espace public — assertion ci-dessous.
+t_egal( array( '/massifs/v1', '/massifs/v1/portail/historique', '/massifs/v1/statuts', '/massifs/v1/zones-parcourues-par-le-feu' ), $nôtres, 'l\'espace `massifs/v1` expose exactement quatre entrées : son index, les deux lectures publiques, et l\'historique du portail (gardé)' );
+
+$methodes_ecriture = array();
+foreach ( $routes as $chemin => $poignees ) {
+	if ( ! str_starts_with( (string) $chemin, '/massifs/' ) ) {
+		continue;
+	}
+	foreach ( $poignees as $poignee ) {
+		foreach ( array( 'POST', 'PUT', 'PATCH', 'DELETE' ) as $verbe ) {
+			if ( ! empty( $poignee['methods'][ $verbe ] ) ) {
+				$methodes_ecriture[] = $chemin . ' ' . $verbe;
+			}
+		}
+	}
+}
+sort( $methodes_ecriture );
+t_egal( array(), array_values( array_unique( $methodes_ecriture ) ), 'I-11 : aucune méthode d\'écriture n\'est déclarée dans l\'espace `massifs/v1`' );
 
 $methodes = array();
 foreach ( $routes['/massifs/v1/statuts'] as $definition ) {

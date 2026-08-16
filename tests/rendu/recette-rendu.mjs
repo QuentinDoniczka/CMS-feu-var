@@ -1213,10 +1213,23 @@ async function s10_apiPublique( navigateur ) {
 	// L'égalité reste EXACTE — c'est elle qui détecterait l'apparition d'une route
 	// d'écriture dans un espace qui n'en déclare aucune (§6 du brief, tenu par
 	// construction et non par une garde).
+	// ÉLARGIE PAR L'ÉPIC 5. Deux routes de portail entrent dans la surface, et pas
+	// dans le même espace de noms : #14 publie `massifs-portail/v1/publication`,
+	// #15 publie `massifs/v1/portail/historique` — divergence que le contrat #15
+	// §4 déclare lui-même « à réconcilier en revue de lot ». La liste exacte est ce
+	// qui la rend visible à chaque exécution ; le refus anonyme des deux, lui, est
+	// éprouvé par le scénario `portail-anonyme`.
 	egal(
-		[ '/massifs/v1', '/massifs/v1/statuts', '/massifs/v1/zones-parcourues-par-le-feu' ],
+		[
+			'/massifs-portail/v1',
+			'/massifs-portail/v1/publication',
+			'/massifs/v1',
+			'/massifs/v1/portail/historique',
+			'/massifs/v1/statuts',
+			'/massifs/v1/zones-parcourues-par-le-feu',
+		],
 		routesMassifs.sort(),
-		'l’espace « massifs » expose exactement son index et ses deux routes publiques de lecture'
+		'l’espace « massifs » expose exactement ses deux index, ses deux lectures publiques et ses deux routes de portail'
 	);
 
 	// Et la route neuve est bien en lecture seule, anonymement : elle répond en
@@ -1412,7 +1425,10 @@ async function s12_integriteArtefacts() {
 	const octets = readFileSync( tokens );
 	const somme = createHash( 'sha256' ).update( octets ).digest( 'hex' );
 	egal(
-		'5ad802a3708fe1734845e7a76b46de5382f2421268542584cafa270d29aa3835',
+		// Empreinte ré-épinglée par l'amendement v2.4 de MASTER (chaîne #50) et
+		// enregistrée dans `docs/contracts/issue-4.md` §« Amendement ». L'ancienne,
+		// caduque, valait 5ad802a3708fe1734845e7a76b46de5382f2421268542584cafa270d29aa3835.
+		'104efb21fefa0e42b55ba0707ead5755e940b2cd87e4b1cff4c70148aeec112f',
 		somme,
 		'tokens.css : sha256 conforme à celui gelé par le contrat #4'
 	);
@@ -1421,7 +1437,16 @@ async function s12_integriteArtefacts() {
 	const racineBloc = /:root\s*\{([\s\S]*?)\n\}/.exec( texte );
 	// Sans ancre de début de ligne : plusieurs jetons partagent une même ligne.
 	const proprietes = [ ...racineBloc[ 1 ].matchAll( /(--[a-z0-9-]+)\s*:/g ) ].map( ( m ) => m[ 1 ] );
-	egal( 111, proprietes.length, 'tokens.css : 111 propriétés personnalisées sur :root' );
+	// 111 avant la révision v2.4 de MASTER, qui ajoute les cinq jetons de la carte
+	// (--carte-lisere, --carte-survol, --carte-cerne, --carte-cerne-clair,
+	// --bord-selection). 133 déclarations dans le fichier entier, les deux classes
+	// de palier comprises.
+	egal( 116, proprietes.length, 'tokens.css : 116 propriétés personnalisées sur :root' );
+	egal(
+		133,
+		[ ...texte.matchAll( /(?:^|[\s{;])(--[a-z0-9-]+)\s*:/g ) ].length,
+		'tokens.css : 133 déclarations dans le fichier entier (méthode de comptage du contrat #4)'
+	);
 	egal( proprietes.length, new Set( proprietes ).size, 'tokens.css : aucun jeton déclaré deux fois' );
 
 	// Le bloc normatif de MASTER §12 et le fichier servi doivent être le même texte.
@@ -2648,18 +2673,37 @@ async function s21_aucuneFuiteGravatar( navigateur ) {
 	egal( '', releve.url_defaut_force, 'get_avatar_url( 1, force_default ) ne compose aucune URL' );
 
 	// ---- jambes 3 et 4 : les deux comptes réels
+	//
+	// LE SECOND FACTEUR EST ARMÉ SUR L'ADMINISTRATEUR, ET C'EST NÉCESSAIRE.
+	//
+	// Défaut trouvé le 15 août 2026, à la passe d'intégration du lot de l'Épic 5 :
+	// depuis la rampe d'enrôlement de #13, un administrateur EXIGÉ mais NON ENRÔLÉ
+	// est redirigé vers `profile.php#massifs-2fa` sur TOUT écran d'administration.
+	// `page.goto()` suit la redirection, `reponse.status()` rend le 200 de
+	// `profile.php`, et l'assertion « users.php : servie » passait au vert SANS
+	// QUE `users.php` NE SOIT JAMAIS CHARGÉE — le balayage Gravatar de cet écran
+	// mesurait `profile.php` une seconde fois. Un faux vert, pas un échec.
+	//
+	// Deux corrections, l'une et l'autre nécessaires : on enrôle réellement
+	// l'administrateur avec le secret de recette — ce qui ÉPROUVE la 2FA au lieu
+	// de la contourner par `MASSIFS_DESACTIVER_2FA` —, et on asserte désormais que
+	// l'URL finale est bien celle qu'on a demandée.
+	enrolerTotp( COMPTE_ADMIN.login );
+
+	try {
 	for ( const compte of COMPTES ) {
 		const contexte = await navigateur.newContext();
 		try {
-			const page = await contexte.newPage();
-			// Le GET préalable pose `wordpress_test_cookie` : sans lui, le cœur
-			// refuse la connexion sans que rien ne le dise.
-			await page.goto( `${ BASE }/wp-login.php`, { waitUntil: 'load' } );
-			await page.fill( '#user_login', compte.login );
-			await page.fill( '#user_pass', compte.motDePasse );
-			await page.click( '#wp-submit' );
-			await page.waitForURL( ( u ) => ! u.href.includes( 'wp-login.php' ), { timeout: 20000 } );
-			await page.close();
+			const trace = await connexion( contexte, compte );
+
+			if ( compte.login === COMPTE_ADMIN.login ) {
+				assert(
+					trace.etape2,
+					'admin : la connexion traverse réellement l’étape 2 du second facteur',
+					'wp-login.php?action=massifs_2fa',
+					trace.destination
+				);
+			}
 
 			// Les quatre gardes anti-faux-vert, TOUTES avant la moindre assertion de
 			// fuite : une connexion silencieusement ratée produirait un « aucun
@@ -2711,6 +2755,15 @@ async function s21_aucuneFuiteGravatar( navigateur ) {
 				const { page: vue, requetes, echecs, statut } = await charger( contexte, chemin );
 				const etiquette = `${ compte.login } ${ chemin }`;
 				assert( statut === 200, `${ etiquette } : servie`, 200, statut );
+				// GARDE ANTI-FAUX-VERT N° 5 : `page.goto()` suit les redirections et
+				// rend 200 pour la page d'ARRIVÉE. Sans cette assertion, une page
+				// détournée — par la rampe 2FA, par une réauthentification, par un
+				// futur garde de menu — serait balayée à la place de la page visée, et
+				// le balayage passerait au vert en n'ayant rien regardé. C'est
+				// exactement ce qui s'est produit sur `users.php` avant l'enrôlement
+				// de l'administrateur, l. 2680.
+				const arrivee = new URL( vue.url() ).pathname + new URL( vue.url() ).search;
+				egal( chemin, arrivee, `${ etiquette } : c'est bien CETTE page qui a été chargée, sans redirection silencieuse` );
 				balayerReseau( etiquette, requetes, echecs );
 				balayerTexte( etiquette, await vue.content() );
 				await vue.close();
@@ -2720,6 +2773,13 @@ async function s21_aucuneFuiteGravatar( navigateur ) {
 			// zéro, et ce qui rend le scénario autonome.
 			await contexte.close();
 		}
+	}
+	} finally {
+		// Le second facteur de recette est retiré : la stack repart exactement comme
+		// elle est arrivée, et l'administrateur n'est pas laissé enrôlé sur un secret
+		// écrit dans un fichier du dépôt.
+		retirerTotp( COMPTE_ADMIN.login );
+		purgerEcluse();
 	}
 }
 
@@ -3891,6 +3951,1857 @@ async function s27_bandesDeLEpic4( navigateur ) {
 	await nominal.close();
 }
 
+// ================================================================ Épic 5 — le portail
+//
+// Rien du portail n'avait été exercé avec un vrai gestionnaire : les capacités
+// n'existaient pas au moment où #14 et #15 ont été écrites. Tout ce qui suit
+// ouvre de VRAIES sessions dans un VRAI navigateur et n'affirme que ce qu'un
+// gestionnaire ou un administrateur observerait.
+//
+// L'interdiction de cookie du §2 vise le visiteur ANONYME. Les cookies posés ici
+// meurent avec les contextes de navigation qui les portent.
+
+/** Comptes provisionnés par la stack, lus dans `.env` et jamais recopiés. */
+const COMPTE_ADMIN = {
+	login: lireEnv( 'WP_ADMIN_USER', '' ),
+	motDePasse: lireEnv( 'WP_ADMIN_PASSWORD', '' ),
+	courriel: lireEnv( 'WP_ADMIN_EMAIL', '' ),
+};
+
+const COMPTE_GESTIONNAIRE = {
+	login: lireEnv( 'WP_MANAGER_USER', '' ),
+	motDePasse: lireEnv( 'WP_MANAGER_PASSWORD', '' ),
+	courriel: lireEnv( 'WP_MANAGER_EMAIL', '' ),
+};
+
+/**
+ * Secret TOTP de recette, en base32 RFC 4648 §6.
+ *
+ * FIXE ET CONNU DE LA RECETTE, jamais aléatoire : c'est ce qui permet de calculer
+ * le code attendu ici, en Node, et donc d'ÉPROUVER la double authentification au
+ * lieu de la contourner par `MASSIFS_DESACTIVER_2FA`. Le secret ne vaut que sur
+ * la stack de recette et n'est jamais provisionné ailleurs.
+ */
+const SECRET_TOTP_RECETTE = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
+
+/**
+ * Code TOTP à six chiffres, calculé ici et jamais lu dans le code du serveur.
+ *
+ * Réimplémentation indépendante de la RFC 6238 en Node : si les deux moitiés
+ * divergent, la connexion échoue et le scénario rougit. C'est exactement ce
+ * qu'on veut d'une épreuve de second facteur — comparer notre implémentation à
+ * la sienne prouverait seulement qu'elle est égale à elle-même.
+ *
+ * @param {string} secretB32 Secret partagé, base32.
+ * @param {number} [decalage] Décalage en pas de 30 s, pour éprouver la tolérance.
+ * @return {Promise<string>} Six chiffres.
+ */
+async function codeTotp( secretB32, decalage = 0 ) {
+	const { createHmac } = await import( 'node:crypto' );
+	const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+	let bits = '';
+	for ( const caractere of secretB32.toUpperCase().replace( /[\s=-]/g, '' ) ) {
+		bits += ALPHABET.indexOf( caractere ).toString( 2 ).padStart( 5, '0' );
+	}
+	const octets = [];
+	for ( let i = 0; i + 8 <= bits.length; i += 8 ) {
+		octets.push( parseInt( bits.slice( i, i + 8 ), 2 ) );
+	}
+
+	const pas = Math.floor( Date.now() / 1000 / 30 ) + decalage;
+	const compteur = Buffer.alloc( 8 );
+	compteur.writeUInt32BE( Math.floor( pas / 2 ** 32 ), 0 );
+	compteur.writeUInt32BE( pas >>> 0, 4 );
+
+	const empreinte = createHmac( 'sha1', Buffer.from( octets ) ).update( compteur ).digest();
+	const offset = empreinte[ empreinte.length - 1 ] & 0x0f;
+	const binaire =
+		( ( empreinte[ offset ] & 0x7f ) << 24 ) |
+		( ( empreinte[ offset + 1 ] & 0xff ) << 16 ) |
+		( ( empreinte[ offset + 2 ] & 0xff ) << 8 ) |
+		( empreinte[ offset + 3 ] & 0xff );
+
+	return String( binaire % 1000000 ).padStart( 6, '0' );
+}
+
+/**
+ * Arme le second facteur d'un compte avec le secret de recette.
+ *
+ * Passe par `SecretUtilisateur::activer()`, le point de passage du contrat #13 —
+ * jamais par un `update_user_meta` nu, que l'interdit 5 proscrit et qui ne
+ * chiffrerait pas le secret.
+ *
+ * @param {string} login Identifiant du compte.
+ */
+function enrolerTotp( login ) {
+	// Pas consommé à 0 : l'anti-rejeu du contrat A-17 exige un pas STRICTEMENT
+	// supérieur au dernier mémorisé. Une valeur d'aujourd'hui refuserait le
+	// premier code que la recette produirait.
+	wp( [
+		'eval',
+		`$u = get_user_by( 'login', '${ login }' );` +
+			`\\Massifs\\Security\\Auth\\SecretUtilisateur::activer( (int) $u->ID, '${ SECRET_TOTP_RECETTE }', 0 );` +
+			`echo \\Massifs\\Security\\Auth\\SecretUtilisateur::est_actif( (int) $u->ID ) ? 'ARME' : 'RATE';`,
+	] );
+}
+
+/**
+ * Retire le second facteur d'un compte, et rend la stack à son état d'origine.
+ *
+ * @param {string} login Identifiant du compte.
+ */
+function retirerTotp( login ) {
+	wp( [
+		'eval',
+		`$u = get_user_by( 'login', '${ login }' );` +
+			`\\Massifs\\Security\\Auth\\SecretUtilisateur::desactiver( (int) $u->ID );` +
+			`echo \\Massifs\\Security\\Auth\\SecretUtilisateur::est_actif( (int) $u->ID ) ? 'ENCORE' : 'RETIRE';`,
+	] );
+}
+
+/**
+ * Purge l'écluse anti-force-brute.
+ *
+ * Un scénario qui sature volontairement l'écluse doit rendre la stack propre,
+ * sans quoi le scénario SUIVANT se ferait barrer à la connexion pour une raison
+ * qui n'a rien à voir avec ce qu'il éprouve.
+ */
+function purgerEcluse() {
+	wp( [
+		'eval',
+		"delete_option( 'massifs_ecluse_verrous' );" +
+			'global $wpdb;' +
+			"$wpdb->query( \"DELETE FROM {$wpdb->options} WHERE option_name LIKE '%massifs_ecluse_c_%'\" );" +
+			"echo 'PURGE';",
+	] );
+}
+
+/**
+ * Ouvre une session complète, second facteur compris.
+ *
+ * Traverse le VRAI formulaire du cœur, puis, si l'interstitiel du second facteur
+ * paraît, le VRAI formulaire d'étape 2 — jamais un `wp_set_auth_cookie` posé de
+ * l'extérieur, qui ne prouverait rien de la chaîne d'authentification.
+ *
+ * @param {import('playwright-core').BrowserContext} contexte Contexte de navigation.
+ * @param {object} compte Compte à connecter.
+ * @param {object} [options] `attendre2fa` impose la présence de l'étape 2.
+ * @return {Promise<object>} Ce que la connexion a réellement traversé.
+ */
+async function connexion( contexte, compte, options = {} ) {
+	const page = await contexte.newPage();
+	await page.goto( `${ BASE }/wp-login.php`, { waitUntil: 'load' } );
+	await page.fill( '#user_login', compte.login );
+	await page.fill( '#user_pass', compte.motDePasse );
+	await page.click( '#wp-submit' );
+	await page.waitForLoadState( 'load' );
+
+	const trace = { etape2: false, urlEtape2: '', cookiesApresEtape1: [], destination: '' };
+
+	if ( page.url().includes( 'action=massifs_2fa' ) ) {
+		trace.etape2 = true;
+		trace.urlEtape2 = page.url();
+		// AUCUN cookie de session ne doit exister à ce stade : le mot de passe seul
+		// n'ouvre rien. C'est la propriété qui distingue une vraie 2FA d'un rideau.
+		trace.cookiesApresEtape1 = ( await contexte.cookies() ).map( ( c ) => c.name );
+
+		await page.fill( '#massifs-2fa-code', await codeTotp( SECRET_TOTP_RECETTE ) );
+		await page.click( 'button[type="submit"]' );
+		await page.waitForLoadState( 'load' );
+	}
+
+	trace.destination = page.url();
+	await page.close();
+
+	if ( options.attendre2fa && ! trace.etape2 ) {
+		ko( `${ compte.login } : l’étape 2 du second facteur était attendue`, 'wp-login.php?action=massifs_2fa', trace.destination );
+	}
+
+	return trace;
+}
+
+/**
+ * Relevé réseau d'une page d'administration, origines et échecs.
+ *
+ * @param {import('playwright-core').BrowserContext} contexte Contexte connecté.
+ * @param {string} chemin Chemin d'administration.
+ * @return {Promise<object>} Relevé.
+ */
+async function chargerAdmin( contexte, chemin ) {
+	const releve = await charger( contexte, chemin );
+	const origines = new Map();
+	for ( const r of releve.requetes ) {
+		const origine = new URL( r.url ).origin;
+		origines.set( origine, ( origines.get( origine ) ?? 0 ) + 1 );
+	}
+	releve.origines = origines;
+	releve.tierces = [ ...origines.keys() ].filter( ( o ) => o !== ORIGINE );
+	return releve;
+}
+
+/** Les écrans du cœur que le §6 interdit au gestionnaire. */
+const ECRANS_INTERDITS = [
+	'/wp-admin/edit.php',
+	'/wp-admin/edit.php?post_type=page',
+	'/wp-admin/upload.php',
+	'/wp-admin/edit-comments.php',
+	'/wp-admin/themes.php',
+	'/wp-admin/plugins.php',
+	'/wp-admin/users.php',
+	'/wp-admin/user-new.php',
+	'/wp-admin/options-general.php',
+	'/wp-admin/tools.php',
+	'/wp-admin/theme-editor.php',
+	'/wp-admin/plugin-install.php',
+];
+
+async function s28_portailGestionnaire( navigateur ) {
+	scenario( '28 — portail : un gestionnaire publie les 25 massifs, et rien d’autre (issues #13, #14, #15)' );
+
+	// Garde de configuration : `lireEnv` se replie sur '' et une connexion ratée
+	// rendrait « le gestionnaire ne voit pas Réglages » trivialement vert.
+	assert(
+		COMPTE_GESTIONNAIRE.login !== '' && COMPTE_GESTIONNAIRE.motDePasse !== '',
+		'configuration : les identifiants du compte de démonstration sont lus dans .env',
+		'un identifiant et un mot de passe',
+		`${ COMPTE_GESTIONNAIRE.login || '(vide)' } / ${ COMPTE_GESTIONNAIRE.motDePasse ? '(présent)' : '(vide)' }`
+	);
+
+	poserEtat( 'jour-complet', 20 );
+
+	const contexte = await navigateur.newContext();
+	try {
+		const trace = await connexion( contexte, COMPTE_GESTIONNAIRE );
+
+		assert(
+			! trace.etape2,
+			'A-9 : le second facteur n’est PAS imposé au gestionnaire — la démonstration publique reste tenable en deux minutes',
+			'aucune étape 2',
+			trace.urlEtape2
+		);
+		assert(
+			( await contexte.cookies() ).some( ( c ) => c.name.startsWith( 'wordpress_logged_in_' ) ),
+			'le gestionnaire est réellement connecté',
+			'wordpress_logged_in_*',
+			( await contexte.cookies() ).map( ( c ) => c.name ).join( ', ' ) || '(aucun)'
+		);
+
+		// ---- 1. Le menu : ce que le gestionnaire voit, et surtout ce qu'il ne voit pas
+		const tableauDeBord = await chargerAdmin( contexte, '/wp-admin/' );
+		egal( 200, tableauDeBord.statut, 'le tableau de bord est servi au gestionnaire' );
+
+		const menu = await tableauDeBord.page.$$eval( '#adminmenu > li > a', ( liens ) =>
+			liens.map( ( a ) => ( a.getAttribute( 'href' ) ?? '' ).split( '?' )[ 0 ].replace( /^.*\/wp-admin\//, '' ) )
+		);
+		note( `menu du gestionnaire : ${ menu.join( ' · ' ) }` );
+
+		const menusInterdits = menu.filter( ( href ) =>
+			[ 'edit.php', 'upload.php', 'edit-comments.php', 'themes.php', 'plugins.php', 'users.php', 'tools.php', 'options-general.php' ].includes( href )
+		);
+		egal( [], menusInterdits, 'A-6 : aucune entrée de contenu, de réglage, d’extension ni d’utilisateur dans le menu du gestionnaire' );
+		assert(
+			menu.some( ( h ) => h.includes( 'admin.php' ) ) || menu.some( ( h ) => h.includes( 'massifs' ) ),
+			'le portail MASSIFS a bien son entrée de menu',
+			'une entrée admin.php?page=massifs…',
+			menu.join( ' · ' )
+		);
+		await tableauDeBord.page.close();
+
+		// ---- 2. Les écrans interdits, atteints PAR L'URL — le menu ne protège rien
+		const franchis = [];
+		for ( const chemin of ECRANS_INTERDITS ) {
+			const vue = await contexte.newPage();
+			const reponse = await vue.goto( BASE + chemin, { waitUntil: 'load' } );
+			const statut = reponse ? reponse.status() : 0;
+			const corps = await vue.content();
+			// Le cœur rend un 403 avec « Vous n'avez pas l'autorisation… ». Un 200
+			// portant l'écran réel est le seul résultat inadmissible.
+			const refuse =
+				statut === 403 ||
+				vue.url().includes( 'wp-login.php' ) ||
+				/n(?:’|')avez pas (?:l(?:’|')autorisation|les droits)|Désolé, vous n(?:’|')avez pas/i.test( corps );
+			if ( ! refuse ) {
+				franchis.push( `${ chemin } → ${ statut }` );
+			}
+			await vue.close();
+		}
+		egal( [], franchis, '§6 : aucun écran de contenu, de réglage, d’extension ou d’utilisateur n’est atteignable par URL directe' );
+
+		// ---- 3. L'écran de publication
+		const publication = await chargerAdmin( contexte, '/wp-admin/admin.php?page=massifs-publication&massifs_jour=aujourd_hui' );
+		egal( 200, publication.statut, 'l’écran de publication est servi au gestionnaire' );
+		egal( [], publication.tierces, 'ZÉRO REQUÊTE TIERCE sur l’écran de publication (§12, périmètre étendu à wp-admin)' );
+		note( `écran de publication : ${ publication.requetes.length } requêtes — ${ [ ...publication.origines.keys() ].join( ' · ' ) }` );
+
+		const ecran = publication.page;
+		egal( 1, await ecran.locator( 'h1' ).count(), 'un seul h1 sur l’écran de publication' );
+		egal( 25, await ecran.locator( '.massifs-liste__element' ).count(), 'les 25 massifs sont rendus' );
+		egal( 50, await ecran.locator( 'input.massifs-segmentee__radio' ).count(), 'deux niveaux par massif, soit 50 radios' );
+
+		// Contrainte n° 3 : l'écran est complet SANS une ligne de JavaScript livrée
+		// par l'issue. On mesure les scripts réellement demandés depuis l'extension.
+		const scriptsExtension = publication.requetes.filter(
+			( r ) => r.type === 'script' && r.url.includes( '/plugins/massifs-core/' )
+		);
+		egal( [], scriptsExtension.map( ( r ) => r.url ), 'contrainte 3 : l’écran de publication ne livre AUCUN JavaScript de l’extension' );
+
+		// LA FEUILLE DE L'ÉCRAN EST-ELLE RÉELLEMENT SERVIE ?
+		//
+		// Une poignée `wp_enqueue_style()` correctement posée ne prouve RIEN : elle
+		// n'établit que la présence d'un `<link>` dans le `<head>`. Ce que le
+		// navigateur obtient au bout de cette URL est une autre question, et c'est
+		// la seule qui décide de ce que l'écran donne à voir. Un 403 laisse la
+		// poignée intacte, le `<link>` en place, aucune erreur PHP, aucune requête
+		// « en échec » au sens de Playwright — et un écran entièrement dépouillé.
+		// C'est un mode de panne strictement invisible à toute vérification qui
+		// n'ouvre pas la page.
+		const refusees = publication.tailles.filter( ( t ) => t.statut >= 400 );
+		egal(
+			[],
+			refusees.map( ( t ) => `${ t.statut } ${ t.url.replace( ORIGINE, '' ) }` ),
+			'aucune sous-ressource de l’écran de publication ne répond en erreur'
+		);
+		const feuillesAppliquees = await ecran.evaluate( () =>
+			[ ...document.styleSheets ]
+				.filter( ( f ) => ( f.href ?? '' ).includes( '/plugins/massifs-core/' ) )
+				.map( ( f ) => {
+					let regles = -1;
+					try {
+						regles = f.cssRules.length;
+					} catch {
+						regles = -1;
+					}
+					return { href: f.href.split( '/' ).slice( -1 )[ 0 ].split( '?' )[ 0 ], regles };
+				} )
+		);
+		note( `feuilles de l’extension sur l’écran de publication : ${ JSON.stringify( feuillesAppliquees ) }` );
+		assert(
+			feuillesAppliquees.length > 0 && feuillesAppliquees.every( ( f ) => f.regles > 0 ),
+			'la feuille de style de l’écran de publication est SERVIE et RÉELLEMENT APPLIQUÉE — pas seulement enfilée',
+			'au moins une feuille de l’extension portant des règles',
+			JSON.stringify( feuillesAppliquees )
+		);
+
+		// R-1 : deux formulaires FRÈRES, et le formulaire principal n'a qu'un seul
+		// bouton de soumission. C'est ce qui empêche `Entrée` de tout passer en
+		// « autorisé ».
+		egal( 2, await ecran.locator( 'form.massifs-preremplissage__formulaire, form.massifs-ecran__formulaire' ).count(), 'R-1 : deux formulaires' );
+		egal(
+			0,
+			await ecran.locator( 'form.massifs-ecran__formulaire form' ).count(),
+			'R-1 : les deux formulaires sont FRÈRES, jamais imbriqués'
+		);
+		const soumissionsPrincipales = await ecran.locator( 'form.massifs-ecran__formulaire button[type="submit"]' ).allTextContents();
+		egal( [ 'Publier les statuts' ], soumissionsPrincipales.map( ( t ) => t.trim() ), 'R-1 : le formulaire principal n’a qu’un bouton de soumission — la soumission implicite ne peut plus tout autoriser' );
+
+		// ---- 4. Publication complète des 25 massifs, AU CLAVIER, chronométrée
+		//
+		// Ce chronomètre mesure la MACHINE, pas un opérateur humain : Playwright
+		// frappe plus vite qu'une personne. Il ne PROUVE donc pas la ligne « moins
+		// d'une minute » du §6 — il prouve que l'écran ne l'interdit pas, et il
+		// compte les gestes réellement nécessaires, qui est la grandeur qu'un humain
+		// paie. Les deux chiffres sont rapportés tels quels.
+		const debutClavier = Date.now();
+		let gestes = 0;
+
+		await ecran.locator( 'input.massifs-segmentee__radio' ).first().focus();
+		gestes += 1;
+
+		// Dans un groupe de radios, les flèches choisissent ; Tab passe au groupe
+		// suivant. C'est le parcours natif, celui qu'un gestionnaire emploiera.
+		for ( let massif = 0; massif < 25; massif += 1 ) {
+			if ( massif > 0 ) {
+				await ecran.keyboard.press( 'Tab' );
+				gestes += 1;
+			}
+			// Un massif sur trois passe en « interdit », les autres en « autorisé » :
+			// une journée réaliste, jamais un pré-remplissage en bloc.
+			if ( massif % 3 === 0 ) {
+				await ecran.keyboard.press( 'ArrowRight' );
+			} else {
+				await ecran.keyboard.press( 'ArrowLeft' );
+			}
+			gestes += 1;
+		}
+
+		const coches = await ecran.locator( 'input.massifs-segmentee__radio:checked' ).count();
+		const dureeSaisie = Date.now() - debutClavier;
+		egal( 25, coches, 'les 25 massifs sont renseignés au CLAVIER SEUL — flèches dans le groupe, Tab entre les groupes' );
+		note( `saisie clavier des 25 massifs : ${ gestes } gestes, ${ ( dureeSaisie / 1000 ).toFixed( 1 ) } s machine` );
+		assert(
+			gestes <= 60,
+			'§6 : renseigner les 25 massifs au clavier coûte au plus 60 gestes — la contrainte « moins d’une minute » reste atteignable',
+			'≤ 60 gestes',
+			`${ gestes } gestes`
+		);
+
+		const attenduParMassif = await ecran.$$eval( '.massifs-liste__element', ( elements ) =>
+			elements.map( ( li ) => {
+				const coche = li.querySelector( 'input.massifs-segmentee__radio:checked' );
+				return { code: li.id, valeur: coche ? coche.value : '' };
+			} )
+		);
+
+		const debutPublication = Date.now();
+		// `massifs_resultat` SEUL : un `includes( 'massifs-publication' )` en
+		// alternative serait déjà vrai de l'URL COURANTE, et `waitForURL`
+		// retournerait sans avoir attendu la moindre navigation.
+		await Promise.all( [
+			ecran.waitForURL( ( u ) => u.href.includes( 'massifs_resultat=' ), { timeout: 30000 } ),
+			ecran.locator( 'form.massifs-ecran__formulaire button[type="submit"]' ).click(),
+		] );
+		await ecran.waitForLoadState( 'load' );
+		const dureePublication = Date.now() - debutPublication;
+		note( `aller-retour de publication (POST + redirection + rendu) : ${ ( dureePublication / 1000 ).toFixed( 2 ) } s` );
+		assert(
+			dureePublication < 60000,
+			'§12 : l’aller-retour serveur de la publication complète tient sous une minute',
+			'< 60 000 ms',
+			`${ dureePublication } ms`
+		);
+
+		// PRG : on revient en GET, avec le fragment contractuel.
+		assert(
+			ecran.url().includes( 'massifs_resultat=' ),
+			'la publication répond par une redirection PRG portant un jeton de rapport',
+			'…&massifs_resultat=…',
+			ecran.url()
+		);
+		egal( 1, await ecran.locator( '#massifs-recapitulatif' ).count(), 'le récapitulatif est rendu, et porte l’ancre contractuelle' );
+		note( `récapitulatif : ${ await texteSource( ecran.locator( '#massifs-recapitulatif' ) ) }` );
+
+		await ecran.close();
+
+		// ---- 5. Propagation vers le site public
+		const publicContexte = await navigateur.newContext( { javaScriptEnabled: false } );
+		const vuePublique = await publicContexte.newPage();
+		await vuePublique.goto( BASE + '/', { waitUntil: 'load' } );
+		const propagation = Date.now() - debutPublication;
+
+		// La ligne d'en-tête porte la MÊME classe que les lignes de données, plus un
+		// modificateur : sans l'exclusion, on compterait 26 massifs.
+		const rendus = await vuePublique.$$eval( '.liste-statuts__ligne:not(.liste-statuts__ligne--entete)', ( lignes ) =>
+			lignes.map( ( tr ) => tr.textContent.replace( /\s+/g, ' ' ).trim() )
+		);
+		note( `propagation mesurée : ${ ( propagation / 1000 ).toFixed( 2 ) } s après la publication` );
+		assert(
+			propagation < 60000,
+			'§12 : la valeur publiée est visible sur le site public en moins d’une minute',
+			'< 60 000 ms',
+			`${ propagation } ms`
+		);
+
+		// Ce n'est pas le texte qui compte, c'est la CONCORDANCE : le public rend
+		// exactement ce que le portail vient d'écrire.
+		const interditsAttendus = attenduParMassif.filter( ( m ) => m.valeur === 'interdit' ).length;
+		const interditsRendus = rendus.filter( ( t ) => /interdit/i.test( t ) ).length;
+		egal(
+			interditsAttendus,
+			interditsRendus,
+			`la page publique rend exactement les ${ interditsAttendus } massifs que le portail vient de passer en « interdit »`
+		);
+		egal( 25, rendus.length, 'la liste publique porte toujours les 25 massifs' );
+
+		// Bandeau de non-officialité : présent partout où un statut paraît.
+		egal( 1, await vuePublique.locator( '.bandeau-non-officialite' ).count(), '§5.6 : le bandeau de non-officialité est présent sur la page qui porte les statuts publiés' );
+
+		await vuePublique.close();
+		await publicContexte.close();
+
+		// ---- 6. L'historique : la publication y est, avec qui / quoi / quand
+		const historique = await chargerAdmin( contexte, '/wp-admin/admin.php?page=massifs-historique' );
+		egal( 200, historique.statut, 'l’historique est servi au gestionnaire' );
+		egal( [], historique.tierces, 'ZÉRO REQUÊTE TIERCE sur l’écran d’historique' );
+		egal( 1, await historique.page.locator( 'h1' ).count(), 'un seul h1 sur l’historique' );
+
+		egal(
+			[],
+			historique.tailles.filter( ( t ) => t.statut >= 400 ).map( ( t ) => `${ t.statut } ${ t.url.replace( ORIGINE, '' ) }` ),
+			'aucune sous-ressource de l’écran d’historique ne répond en erreur'
+		);
+		const feuillesHistorique = await historique.page.evaluate( () =>
+			[ ...document.styleSheets ]
+				.filter( ( f ) => ( f.href ?? '' ).includes( '/plugins/massifs-core/' ) )
+				.map( ( f ) => {
+					let regles = -1;
+					try {
+						regles = f.cssRules.length;
+					} catch {
+						regles = -1;
+					}
+					return { href: f.href.split( '/' ).slice( -1 )[ 0 ].split( '?' )[ 0 ], regles };
+				} )
+		);
+		note( `feuilles de l’extension sur l’historique : ${ JSON.stringify( feuillesHistorique ) }` );
+		assert(
+			feuillesHistorique.length > 0 && feuillesHistorique.every( ( f ) => f.regles > 0 ),
+			'la feuille de style de l’historique est SERVIE et RÉELLEMENT APPLIQUÉE',
+			'au moins une feuille de l’extension portant des règles',
+			JSON.stringify( feuillesHistorique )
+		);
+
+		// §7.6.11 du contrat #15 : le tableau est confiné dans sa zone défilante,
+		// « la page ne bouge pas, ni à 360 px ni à 200 % de zoom ». C'est une
+		// propriété de RENDU, pas de balisage : elle ne tient que si la feuille
+		// arrive. Mesurée ici, à la largeur où elle compte.
+		const confinement = await historique.page.evaluate( () => {
+			const zone = document.querySelector( '.massifs-historique-defilant' );
+			return zone
+				? { role: zone.getAttribute( 'role' ), tabindex: zone.getAttribute( 'tabindex' ), overflowX: getComputedStyle( zone ).overflowX }
+				: null;
+		} );
+		note( `zone défilante de l’historique : ${ JSON.stringify( confinement ) }` );
+		egal( 'region', confinement?.role, '§7.6.11 : la zone défilante est une région annoncée' );
+		egal( '0', confinement?.tabindex, '§7.6.11 : la zone défilante est atteignable au clavier' );
+		assert(
+			confinement && [ 'auto', 'scroll' ].includes( confinement.overflowX ),
+			'§7.6.11 : la zone défilante DÉFILE réellement — sans quoi le tableau déborde la page',
+			'overflow-x: auto | scroll',
+			confinement?.overflowX
+		);
+
+		// ┌──────────────────────────────────────────────────────────────────────┐
+		// │  LE CHEVRON DES SELECTS RECOUVRAIT LE LIBELLÉ AFFICHÉ.               │
+		// │  DÉFAUT DE SOURCE trouvé le 16 août 2026 EN REGARDANT L'ÉCRAN,       │
+		// │  corrigé le jour même par `3814a31`.                                  │
+		// │                                                                       │
+		// │  wp-admin peint la flèche des `<select>` en `background-image` et lui │
+		// │  réserve sa voie par un `padding-right` ASYMÉTRIQUE. `historique.css` │
+		// │  écrasait les deux côtés d'un coup — `padding-inline: var(--esp-xs)`, │
+		// │  soit 8 px — sans rien remettre à droite. La voie n'était plus        │
+		// │  réservée : dès que le libellé affiché remplissait sa boîte, ses      │
+		// │  derniers glyphes passaient SOUS la flèche. Ce n'était pas un cas     │
+		// │  limite — un `<select>` se dimensionne sur son option la plus large,  │
+		// │  donc le pire cas ÉTAIT le cas nominal, et le filtre « Auteur » y     │
+		// │  tombait dès le chargement, sans la moindre interaction.              │
+		// └──────────────────────────────────────────────────────────────────────┘
+		//
+		// CE QUI EST MESURÉ, ET POURQUOI PAS AUTRE CHOSE (constat M-8 de la revue).
+		//
+		// La première rédaction comparait la largeur de l'option LA PLUS LARGE à la
+		// voie du chevron. Deux défauts, tous deux réels :
+		//
+		//   1. FAUX POSITIF EN ATTENTE. L'énoncé porte sur le libellé AFFICHÉ ; la
+		//      mesure portait sur une option qui peut n'être jamais choisie. Avec
+		//      `max-inline-size: 100%`, un `<select>` bridé par son conteneur aurait
+		//      fait rougir l'assertion sans qu'un seul pixel de libellé soit couvert.
+		//   2. MESURE SUR LE FIL DU RASOIR. Un `<select>` dimensionné par son contenu
+		//      a, par construction, sa plus large option qui FINIT exactement à la
+		//      limite de la voie : l'écart nominal est 0, et le verdict se joue alors
+		//      sur le bruit entre `measureText()` et la mise en page réelle — ±1 px
+		//      de police ou d'arrondi le fait basculer.
+		//
+		// L'assertion porte donc sur la RÉSERVE elle-même : `padding-inline-end` au
+		// moins égal à la voie de la flèche. C'est la condition géométrique
+		// SUFFISANTE, et elle est exacte — le texte est disposé dans la boîte de
+		// contenu, qui finit à `clientWidth - paddingRight` ; si cette limite est au
+		// plus le début de la voie, aucun glyphe ne peut être peint sous la flèche, y
+		// compris quand la largeur est bridée : le texte est alors ROGNÉ par la boîte,
+		// jamais glissé sous l'icône. Aucune métrique de texte n'intervient, donc
+		// aucune fragilité au sous-pixel, et un `<select>` contraint ne peut plus
+		// produire de faux rouge.
+		//
+		// Le recouvrement du libellé RÉELLEMENT SÉLECTIONNÉ reste relevé, en `note` :
+		// c'est le symptôme, utile à qui diagnostique, mais c'est la grandeur bruitée
+		// — elle ne décide de rien.
+		const chevrons = await historique.page.evaluate( () => {
+			const mesure = document.createElement( 'canvas' ).getContext( '2d' );
+			return [ ...document.querySelectorAll( '.massifs-historique-filtres select' ) ].map( ( s ) => {
+				const cs = getComputedStyle( s );
+				mesure.font = `${ cs.fontStyle } ${ cs.fontWeight } ${ cs.fontSize } ${ cs.fontFamily }`;
+
+				// La voie est LUE sur le style calculé, jamais codée en dur : si
+				// wp-admin déplace ou redimensionne sa flèche, l'exigence suit.
+				// `background-position` calcule en `calc(100% - Npx)` — on en extrait
+				// N ; `background-size` donne la largeur de l'icône.
+				const ecart = /calc\(100% - ([\d.]+)px\)/.exec( cs.backgroundPosition );
+				const taille = /^([\d.]+)px/.exec( cs.backgroundSize );
+				const voie = ( ecart ? parseFloat( ecart[ 1 ] ) : 8 ) + ( taille ? parseFloat( taille[ 1 ] ) : 16 );
+
+				const selectionne = s.options[ s.selectedIndex ].textContent.trim();
+				const arrondi = ( v ) => Math.round( v * 10 ) / 10;
+
+				return {
+					nom: s.name,
+					selectionne,
+					voie: arrondi( voie ),
+					reserve: arrondi( parseFloat( cs.paddingInlineEnd ) ),
+					// Symptôme, pour le diagnostic seulement — voir ci-dessus.
+					recouvrementDuLibelleAffiche: arrondi(
+						parseFloat( cs.paddingInlineStart ) +
+							mesure.measureText( selectionne ).width -
+							( s.clientWidth - voie )
+					),
+				};
+			} );
+		} );
+		note( `chevron des selects : ${ JSON.stringify( chevrons ) }` );
+		egal(
+			[],
+			chevrons
+				.filter( ( c ) => c.reserve < c.voie )
+				.map( ( c ) => `${ c.nom } (réserve ${ c.reserve } px < voie ${ c.voie } px)` ),
+			'§7 : chaque select réserve à droite au moins la voie du chevron de wp-admin — aucun libellé affiché ne peut passer sous la flèche'
+		);
+
+		const lignesJournal = await historique.page.locator( '.massifs-historique-table tbody tr' ).count();
+		assert( lignesJournal > 0, 'l’historique porte des lignes après la publication', '> 0', lignesJournal );
+
+		const premiere = await texteSource( historique.page.locator( '.massifs-historique-table tbody tr' ).first() );
+		note( `première ligne d’historique : ${ premiere }` );
+		assert(
+			premiere.includes( COMPTE_GESTIONNAIRE.login ) || premiere.toLowerCase().includes( 'gestionnaire' ),
+			'§12 : la ligne d’historique nomme QUI a écrit',
+			`un libellé du compte ${ COMPTE_GESTIONNAIRE.login }`,
+			premiere
+		);
+		assert( /\d{4}-\d{2}-\d{2}|\d{1,2}\s\w+\s\d{4}/.test( premiere ), '§12 : la ligne d’historique porte QUAND', 'une date', premiere );
+
+		// L'export CSV : un bouton de soumission qui détourne le formulaire de
+		// filtres par `formaction`, donc SANS JavaScript, et qui emporte les filtres
+		// saisis. C'est ce que le contrat #15 §4.1 décrit.
+		const boutonExport = historique.page.locator( 'button[name="action"][value="massifs_exporter_historique"]' );
+		egal( 1, await boutonExport.count(), 'l’écran d’historique propose l’export CSV, par un bouton de formulaire' );
+		egal(
+			`${ BASE }/wp-admin/admin-post.php`,
+			await boutonExport.getAttribute( 'formaction' ),
+			'§4.1 : l’export part sur admin-post.php — un lien qui fonctionne sans JavaScript'
+		);
+		egal(
+			1,
+			await historique.page.locator( 'form.massifs-historique-filtres input[name="_wpnonce"]' ).count(),
+			'§4.1 : le formulaire d’export porte son nonce'
+		);
+
+		// Et il exporte réellement, avec la session du gestionnaire.
+		const csv = await historique.page.evaluate( async () => {
+			const formulaire = document.querySelector( 'form.massifs-historique-filtres' );
+			const parametres = new URLSearchParams( new FormData( formulaire ) );
+			parametres.set( 'action', 'massifs_exporter_historique' );
+			const reponse = await fetch( `/wp-admin/admin-post.php?${ parametres }`, { credentials: 'same-origin' } );
+			return { statut: reponse.status, type: reponse.headers.get( 'content-type' ) ?? '', corps: ( await reponse.text() ).slice( 0, 400 ) };
+		} );
+		egal( 200, csv.statut, 'l’export CSV répond au gestionnaire' );
+		assert( csv.type.includes( 'csv' ), 'l’export est servi en text/csv', 'text/csv', csv.type );
+		assert(
+			csv.corps.split( '\n' ).length > 1,
+			'l’export porte un en-tête et au moins une ligne',
+			'≥ 2 lignes',
+			csv.corps.slice( 0, 120 )
+		);
+		// Interdit 8 du contrat #13 : ni secret, ni code de secours, ni IP.
+		assert(
+			! /totp|secours|\b(?:\d{1,3}\.){3}\d{1,3}\b/i.test( csv.corps ),
+			'interdit 8 : l’export CSV ne porte ni secret, ni code de secours, ni adresse IP',
+			'aucun',
+			csv.corps.slice( 0, 200 )
+		);
+		note( `première ligne du CSV : ${ csv.corps.split( '\n' )[ 0 ] }` );
+
+		// ---- 6 bis. LE DÉFAUT DE DOMAINE CORRIGÉ PAR #15, ÉPROUVÉ DANS L'ÉCRAN
+		//
+		// Le gestionnaire vient d'écrire une SECONDE fois sur les mêmes couples
+		// (massif, jour) — la fabrique avait posé une première journée complète. Le
+		// journal porte donc, pour chaque massif, une première publication PUIS une
+		// modification. C'est exactement la configuration où la dérivation par
+		// parcours du lot 1 mentait : filtrée par auteur, ou coupée par une
+		// frontière de page, elle déclarait « Première publication » sur une
+		// correction. On lit l'écran à cheval sur la frontière.
+		// L'auteur visé est CELUI QUI VIENT DE PUBLIER, jamais « la première option
+		// de la liste » : l'ordre du sélecteur est un détail de rendu, et s'y fier
+		// ferait filtrer sur le compte de la fabrique le jour où il change.
+		const optionsAuteur = await historique.page.$$eval( 'select[name="auteur"] option', ( options ) =>
+			options.map( ( o ) => ( { valeur: o.value, libelle: o.textContent.trim() } ) )
+		);
+		note( `auteurs proposés au filtre : ${ JSON.stringify( optionsAuteur ) }` );
+		const auteurId = Number(
+			optionsAuteur.find( ( o ) => o.valeur !== '0' && /gestionnaire/i.test( o.libelle ) )?.valeur ?? 0
+		);
+		assert( auteurId > 0, 'le gestionnaire qui vient de publier figure dans le filtre « auteur »', '> 0', auteurId );
+
+		const lire = async ( parametres ) => {
+			const vue = await contexte.newPage();
+			await vue.goto( `${ BASE }/wp-admin/admin.php?page=massifs-historique&${ parametres }`, { waitUntil: 'load' } );
+			const lignes = await vue.$$eval( '.massifs-historique-table tbody tr', ( trs ) =>
+				trs.map( ( tr ) => ( {
+					reference: ( tr.querySelector( '.massifs-historique-cellule--reference' )?.textContent ?? '' ).trim(),
+					massif: ( tr.querySelector( '.massifs-historique-cellule--massif' )?.textContent ?? '' ).trim(),
+					premiere: tr.classList.contains( 'massifs-historique-ligne--premiere' ),
+					transition: ( tr.querySelector( '.massifs-historique-cellule--niveau' )?.textContent ?? '' ).replace( /\s+/g, ' ' ).trim(),
+				} ) )
+			);
+			const resume = ( await vue.locator( '.massifs-historique-resume' ).textContent() ?? '' ).replace( /\s+/g, ' ' ).trim();
+			await vue.close();
+			return { lignes, resume };
+		};
+
+		// Frontière volontairement placée AU MILIEU des 25 modifications : page 1 =
+		// 20 lignes, page 2 = les suivantes.
+		const page1 = await lire( `auteur=${ auteurId }&par_page=20&paged=1` );
+		const page2 = await lire( `auteur=${ auteurId }&par_page=20&paged=2` );
+		note( `page 1 : ${ page1.lignes.length } lignes — ${ page1.resume }` );
+		note( `page 2 : ${ page2.lignes.length } lignes — ${ page2.resume }` );
+
+		assert( page1.lignes.length === 20, 'filtre par auteur, page 1 : la pagination coupe bien à 20 lignes', 20, page1.lignes.length );
+		assert( page2.lignes.length > 0, 'filtre par auteur, page 2 : la frontière est réellement franchie', '> 0 ligne', page2.lignes.length );
+
+		const references = [ ...page1.lignes, ...page2.lignes ].map( ( l ) => l.reference );
+		egal( references.length, new Set( references ).size, 'PAGINATION : aucune ligne n’apparaît deux fois de part et d’autre de la frontière' );
+
+		// Les 25 lignes du second passage sont des MODIFICATIONS. Aucune ne doit se
+		// déclarer « première publication » — ni sous le filtre d'auteur, ni à la
+		// frontière de page. C'est le défaut de domaine que #15 a corrigé.
+		const modifications = [ ...page1.lignes, ...page2.lignes ].filter( ( l ) =>
+			/remplac/i.test( l.transition )
+		);
+		const mensonges = [ ...page1.lignes, ...page2.lignes ].filter(
+			( l ) => l.premiere && /remplac/i.test( l.transition )
+		);
+		note( `lignes portant une transition « remplacé par » : ${ modifications.length } sur ${ references.length }` );
+		egal( [], mensonges.map( ( l ) => l.massif ), 'contrat #15 §0.2 : AUCUNE correction ne se déclare « première publication », ni sous filtre d’auteur ni à la frontière de page' );
+		assert(
+			modifications.length > 0,
+			'le journal filtré porte bien des corrections — sans quoi l’assertion précédente serait vide de sens',
+			'> 0 transition',
+			modifications.length
+		);
+
+		await historique.page.close();
+
+		// L'export est REFUSÉ à un anonyme, jusque dans son verbe : `admin_post_`
+		// sans variante `nopriv`.
+		const sansSession = await navigateur.newContext();
+		try {
+			const nu = await sansSession.request.get(
+				`${ BASE }/wp-admin/admin-post.php?action=massifs_exporter_historique`,
+				{ failOnStatusCode: false }
+			);
+			const corpsNu = await nu.text();
+			assert(
+				! ( nu.headers()[ 'content-type' ] ?? '' ).includes( 'csv' ),
+				'l’export CSV n’est JAMAIS servi sans capacité',
+				'aucun text/csv',
+				`${ nu.status() } ${ nu.headers()[ 'content-type' ] } — ${ corpsNu.slice( 0, 120 ) }`
+			);
+		} finally {
+			await sansSession.close();
+		}
+
+		// ---- 7. Accessibilité automatisée sur les deux écrans du portail
+		const axeSource = readFileSync( resoudre( 'axe-core' ).replace( /index\.js$/, 'axe.min.js' ), 'utf8' );
+		for ( const [ nom, url ] of [
+			[ 'écran de publication', '/wp-admin/admin.php?page=massifs-publication&massifs_jour=aujourd_hui' ],
+			[ 'écran d’historique', '/wp-admin/admin.php?page=massifs-historique' ],
+		] ) {
+			const vue = await contexte.newPage();
+			await vue.goto( BASE + url, { waitUntil: 'load' } );
+			await vue.addScriptTag( { content: axeSource } );
+			const resultat = await vue.evaluate( () =>
+				window.axe.run( document, { resultTypes: [ 'violations' ] } ).then( ( r ) =>
+					r.violations.map( ( v ) => ( { id: v.id, impact: v.impact, n: v.nodes.length, cible: v.nodes[ 0 ]?.target?.join( ' ' ) ?? '' } ) )
+				)
+			);
+			const bloquantes = resultat.filter( ( v ) => [ 'critical', 'serious' ].includes( v.impact ) );
+			note( `axe-core sur ${ nom } : ${ resultat.length } violation(s) — ${ JSON.stringify( resultat ) }` );
+			egal( [], bloquantes, `axe-core : aucune violation bloquante sur l’${ nom }` );
+
+			// lang="fr" : le cœur le sert, mais un écran qui l'aurait perdu ne serait
+			// pas annoncé dans la bonne langue.
+			egal( 'fr-FR', await vue.evaluate( () => document.documentElement.lang ), `${ nom } : la page est annoncée en français` );
+			await vue.close();
+		}
+
+		// ---- 7 bis. JAVASCRIPT COUPÉ — le portail publie quand même
+		//
+		// Contrainte n° 3 du brief, appliquée au portail : l'écran est complet sans
+		// une ligne de JavaScript. Le vérifier en comptant les scripts enfilés ne
+		// suffit pas — c'est une preuve d'absence, pas de fonctionnement. On coupe
+		// le moteur et on publie pour de bon.
+		const sansJs = await navigateur.newContext( { javaScriptEnabled: false } );
+		try {
+			await sansJs.addCookies( await contexte.cookies() );
+			const vue = await sansJs.newPage();
+			await vue.goto( `${ BASE }/wp-admin/admin.php?page=massifs-publication&massifs_jour=demain`, { waitUntil: 'load' } );
+
+			egal( 25, await vue.locator( '.massifs-liste__element' ).count(), 'sans JS : les 25 massifs sont rendus par PHP' );
+			egal( 50, await vue.locator( 'input.massifs-segmentee__radio' ).count(), 'sans JS : les 50 radios sont là' );
+			egal( 2, await vue.locator( 'nav.massifs-jours a' ).count(), 'sans JS : le sélecteur de jour est fait de deux LIENS, pas de contrôles de formulaire' );
+
+			// « Tout interdire » puis publier : deux soumissions HTML, zéro script.
+			await vue.locator( 'button[value="preremplir_interdit"]' ).click();
+			await vue.waitForLoadState( 'load' );
+			const preremplis = await vue.locator( 'input.massifs-segmentee__radio[value="interdit"]:checked' ).count();
+			egal( 25, preremplis, 'sans JS : le pré-remplissage « Tout interdire » coche les 25 massifs — c’est le serveur qui le fait' );
+
+			// LA SOUMISSION EST CONSTRUITE DEPUIS LE FORMULAIRE SERVI, puis envoyée
+			// par le contexte — cookies compris.
+			//
+			// Pourquoi pas un `click()` : l'écran de publication fait plus de 5 000 px
+			// de haut une fois sa feuille de style absente, et le moteur
+			// d'actionnabilité de Playwright n'y stabilise jamais le bouton (« waiting
+			// for element to be stable », mesuré). Ce n'est PAS un défaut du produit —
+			// un humain fait défiler et clique. Construire la charge utile depuis le
+			// balisage réel éprouve exactement ce que la contrainte n° 3 promet : le
+			// `action`, la `method`, les champs cachés et les 25 radios rendus par PHP
+			// suffisent à publier. Ce que cette voie NE prouve pas, et qui est dit
+			// plutôt que sous-entendu : le geste de clic lui-même.
+			const soumission = await vue.evaluate( () => {
+				const formulaire = document.querySelector( 'form.massifs-ecran__formulaire' );
+				const bouton = formulaire.querySelector( 'button[type="submit"]' );
+				const corps = new URLSearchParams( new FormData( formulaire ) );
+				// La valeur du bouton soumis n'entre dans `FormData` que si le
+				// navigateur l'a activé : on la pose comme le ferait un clic.
+				corps.set( bouton.name, bouton.value );
+				// `formulaire.action` NE DONNE PAS l'attribut : le formulaire porte un
+				// champ caché nommé `action` (le nom de l'action `admin-post.php`), et
+				// la recherche par nom d'un HTMLFormElement le renvoie à sa place. Il
+				// faut lire l'attribut. C'est un piège classique, et il est ici garanti
+				// par le contrat #14 §2, qui IMPOSE ce nom de champ.
+				return {
+					action: formulaire.getAttribute( 'action' ),
+					methode: ( formulaire.getAttribute( 'method' ) ?? '' ).toLowerCase(),
+					corps: corps.toString(),
+				};
+			} );
+			egal( 'post', soumission.methode, 'sans JS : le formulaire de publication est en POST' );
+			assert(
+				soumission.action.endsWith( '/wp-admin/admin-post.php' ),
+				'sans JS : il poste sur admin-post.php, jamais sur une route REST',
+				'…/wp-admin/admin-post.php',
+				soumission.action
+			);
+
+			const reponse = await sansJs.request.post( soumission.action, {
+				headers: { 'content-type': 'application/x-www-form-urlencoded' },
+				data: soumission.corps,
+				maxRedirects: 0,
+				failOnStatusCode: false,
+			} );
+			egal( 303, reponse.status(), 'sans JS : la publication répond 303 See Other — le seul code qui force un GET sur tous les agents' );
+			const destination = reponse.headers().location ?? '';
+			note( `sans JS, redirection PRG : ${ destination }` );
+			assert(
+				destination.includes( 'massifs_resultat=' ) && destination.includes( '#massifs-recapitulatif' ),
+				'sans JS : la redirection porte le jeton de rapport ET le fragment contractuel',
+				'…&massifs_resultat=…#massifs-recapitulatif',
+				destination
+			);
+
+			await vue.goto( destination, { waitUntil: 'load' } );
+			egal( 1, await vue.locator( '#massifs-recapitulatif' ).count(), 'sans JS : le récapitulatif est rendu' );
+			note( `sans JS, récapitulatif : ${ await texteSource( vue.locator( '#massifs-recapitulatif' ) ) }` );
+			egal( 25, await vue.locator( 'input.massifs-segmentee__radio[value="interdit"]:checked' ).count(), 'sans JS : après publication, l’écran rend l’état réellement enregistré' );
+
+			// Et la page publique du LENDEMAIN porte bien ce qu'on vient d'écrire.
+			const vitrine = await sansJs.newPage();
+			await vitrine.goto( BASE + '/', { waitUntil: 'load' } );
+			egal( 1, await vitrine.locator( '.bandeau-non-officialite' ).count(), 'sans JS : le bandeau de non-officialité reste servi' );
+			await vitrine.close();
+			await vue.close();
+		} finally {
+			await sansJs.close();
+		}
+
+		// ---- 8. Mobile réel 360 px sur les deux écrans du portail
+		const mobile = await navigateur.newContext( { viewport: { width: 360, height: 780 } } );
+		try {
+			// La session vit dans `contexte` : on la recopie, cookies compris.
+			await mobile.addCookies( await contexte.cookies() );
+			for ( const [ nom, url ] of [
+				[ 'écran de publication', '/wp-admin/admin.php?page=massifs-publication&massifs_jour=aujourd_hui' ],
+				[ 'écran d’historique', '/wp-admin/admin.php?page=massifs-historique' ],
+			] ) {
+				const vue = await mobile.newPage();
+				await vue.goto( BASE + url, { waitUntil: 'load' } );
+				const mesure = await vue.evaluate( () => ( {
+					defilement: document.documentElement.scrollWidth,
+					fenetre: window.innerWidth,
+					// wp-admin pose lui-même une largeur minimale ; on mesure NOTRE
+					// racine, celle que l'issue possède, en plus du document.
+					notre: ( () => {
+						const racine = document.querySelector( '.massifs-ecran, .massifs-historique' );
+						return racine ? Math.ceil( racine.getBoundingClientRect().right ) : -1;
+					} )(),
+				} ) );
+				note( `${ nom } à 360 px : ${ JSON.stringify( mesure ) }` );
+				assert(
+					mesure.notre > 0 && mesure.notre <= mesure.fenetre + 1,
+					`360 px : la racine de l’${ nom } tient dans la fenêtre`,
+					`≤ ${ mesure.fenetre } px`,
+					`${ mesure.notre } px`
+				);
+				// LA MESURE QUI COMPTE : le §12 dit « mobile réel 360 px », c'est-à-dire
+				// pas de défilement horizontal de la PAGE. Mesurer la seule racine de
+				// l'écran laisserait passer un tableau ou un champ qui déborde à
+				// l'intérieur — c'est exactement ce qui se produit quand la feuille de
+				// style n'est pas servie et que la zone défilante ne défile plus.
+				assert(
+					mesure.defilement <= mesure.fenetre + 1,
+					`360 px : l’${ nom } n’impose AUCUN défilement horizontal à la page`,
+					`scrollWidth ≤ ${ mesure.fenetre } px`,
+					`${ mesure.defilement } px`
+				);
+				await vue.close();
+			}
+		} finally {
+			await mobile.close();
+		}
+	} finally {
+		await contexte.close();
+	}
+}
+
+async function s29_portailEcrituresRefusees( navigateur ) {
+	scenario( '29 — portail : aucune écriture sans authentification, et la lecture publique intacte (§5.4, contrat #13)' );
+
+	poserEtat( 'jour-nominal' );
+
+	const anonyme = await navigateur.newContext();
+	try {
+		// NON-RÉGRESSION : la lecture publique reste ouverte. C'est l'interdit 3 du
+		// contrat #13 — un `rest_authentication_errors` global casserait la carte.
+		const lecture = await anonyme.request.get( `${ BASE }/wp-json/massifs/v1/statuts`, { failOnStatusCode: false } );
+		egal( 200, lecture.status(), 'GET /wp-json/massifs/v1/statuts reste servi en ANONYME — la carte et l’open data survivent au portail' );
+		const charge = await lecture.json();
+		egal( 25, Array.isArray( charge.massifs ) ? charge.massifs.length : -1, 'la lecture publique rend toujours les 25 massifs' );
+
+		// Écriture REST anonyme. LA SONDE PORTE UN CORPS VALIDE : un POST sans
+		// paramètre sort en 400 `rest_missing_callback_param`, le cœur validant les
+		// arguments requis AVANT la permission — un 400 ne prouverait rien de la
+		// garde.
+		const corpsValide = {
+			jour: 'aujourd_hui',
+			statuts: [ { massif: 'sainte-victoire', niveau: 'autorise' } ],
+			niveaux: { 'sainte-victoire': 'autorise' },
+			massifs: { 'sainte-victoire': 'autorise' },
+			empreinte: '0'.repeat( 40 ),
+		};
+
+		for ( const route of [ '/wp-json/massifs-portail/v1/publication', '/wp-json/massifs/v1/portail/historique' ] ) {
+			for ( const methode of [ 'POST', 'PUT', 'PATCH', 'DELETE' ] ) {
+				const reponse = await anonyme.request.fetch( BASE + route, {
+					method: methode,
+					data: corpsValide,
+					failOnStatusCode: false,
+				} );
+				const statut = reponse.status();
+				assert(
+					[ 401, 403, 404, 405 ].includes( statut ),
+					`${ methode } ${ route } en anonyme est refusé`,
+					'401 | 403 | 404 | 405',
+					statut
+				);
+				assert(
+					statut !== 200 && statut !== 201,
+					`${ methode } ${ route } en anonyme n’écrit RIEN`,
+					'jamais 2xx',
+					statut
+				);
+			}
+		}
+
+		// La route d'écriture, sondée avec un corps valide : 401, pas 400.
+		const ecriture = await anonyme.request.post( `${ BASE }/wp-json/massifs-portail/v1/publication`, {
+			data: corpsValide,
+			failOnStatusCode: false,
+		} );
+		egal( 401, ecriture.status(), 'POST /massifs-portail/v1/publication en anonyme, AVEC un corps valide, répond 401 — la garde mord avant l’écriture' );
+		const erreur = await ecriture.json();
+		note( `refus REST : ${ JSON.stringify( erreur.code ?? erreur ) }` );
+
+		// La lecture SENSIBLE de l'historique est gardée elle aussi : c'est le point
+		// que le garde global du contrat #13 ne couvre PAS, et que #15 devait poser.
+		const journal = await anonyme.request.get( `${ BASE }/wp-json/massifs/v1/portail/historique`, { failOnStatusCode: false } );
+		assert( [ 401, 403 ].includes( journal.status() ), 'GET /massifs/v1/portail/historique en anonyme est refusé — l’historique n’est pas une donnée ouverte', '401 | 403', journal.status() );
+
+		// admin-post.php : l'autre porte d'écriture, celle du formulaire.
+		for ( const action of [ 'massifs_publier_statuts', 'massifs_exporter_historique' ] ) {
+			const post = await anonyme.request.post( `${ BASE }/wp-admin/admin-post.php`, {
+				form: { action, massifs_jour: 'aujourd_hui', massifs_intention: 'publier' },
+				failOnStatusCode: false,
+				maxRedirects: 0,
+			} );
+			const corps = await post.text();
+			assert(
+				post.status() !== 200 || /n(?:’|')avez pas|autorisation|connect/i.test( corps ),
+				`admin-post.php?action=${ action } en anonyme n’exécute rien`,
+				'un refus',
+				`${ post.status() } — ${ corps.slice( 0, 120 ) }`
+			);
+			// Sans `nopriv`, le cœur répond « 0 » ou redirige : aucune de ces
+			// réponses ne doit porter le récapitulatif d'une publication réussie.
+			assert(
+				! corps.includes( 'massifs-recapitulatif' ),
+				`admin-post.php?action=${ action } en anonyme ne rend aucun récapitulatif de publication`,
+				'aucun',
+				corps.slice( 0, 160 )
+			);
+		}
+
+		// Et aucun cookie n'a été posé au visiteur anonyme, sur aucune de ces portes.
+		egal( [], ( await anonyme.cookies() ).map( ( c ) => c.name ), '§2 : sonder les portes du portail ne pose aucun cookie au visiteur anonyme' );
+	} finally {
+		await anonyme.close();
+	}
+}
+
+async function s30_deuxFacteursEtSuspension( navigateur ) {
+	scenario( '30 — second facteur qui redirige sans jamais refuser, et suspension qui tue la session (contrat #13)' );
+
+	// ---- Jambe 1 : la RAMPE. Administrateur EXIGÉ mais NON ENRÔLÉ.
+	//
+	// C'est la propriété la plus lourde de conséquences du lot : un refus
+	// enfermerait dehors l'administrateur de production, sans poignée intérieure.
+	retirerTotp( COMPTE_ADMIN.login );
+	purgerEcluse();
+
+	const rampe = await navigateur.newContext();
+	try {
+		const trace = await connexion( rampe, COMPTE_ADMIN );
+
+		assert(
+			! trace.etape2,
+			'RAMPE : un administrateur non enrôlé ne se voit PAS demander un code qu’il ne peut pas produire',
+			'aucune étape 2',
+			trace.urlEtape2
+		);
+		assert(
+			( await rampe.cookies() ).some( ( c ) => c.name.startsWith( 'wordpress_logged_in_' ) ),
+			'RAMPE : la connexion ABOUTIT — la 2FA redirige, elle ne refuse jamais',
+			'wordpress_logged_in_*',
+			( await rampe.cookies() ).map( ( c ) => c.name ).join( ', ' ) || '(aucun)'
+		);
+
+		const vue = await rampe.newPage();
+		await vue.goto( `${ BASE }/wp-admin/users.php`, { waitUntil: 'load' } );
+		assert(
+			vue.url().includes( 'profile.php' ),
+			'RAMPE : tout écran d’administration renvoie vers l’enrôlement, sur le profil',
+			'…/wp-admin/profile.php#massifs-2fa',
+			vue.url()
+		);
+		egal( 1, await vue.locator( '#massifs-2fa' ).count(), 'RAMPE : la section d’enrôlement est bien rendue sur le profil' );
+		assert(
+			( await vue.content() ).includes( 'otpauth://' ),
+			'RAMPE : le secret est proposé en texte ET en URI otpauth — lisible par un lecteur d’écran (A-7)',
+			'une URI otpauth://',
+			'absente'
+		);
+		// A-8 : `plugins.php` est redirigé aussi, sans quoi l'administrateur enfermé
+		// ne pourrait même pas désactiver l'extension pour en sortir.
+		await vue.goto( `${ BASE }/wp-admin/plugins.php`, { waitUntil: 'load' } );
+		assert( vue.url().includes( 'profile.php' ), 'RAMPE : plugins.php est redirigé lui aussi — d’où l’existence de MASSIFS_DESACTIVER_2FA', 'profile.php', vue.url() );
+		await vue.close();
+	} finally {
+		await rampe.close();
+	}
+
+	// ---- Jambe 2 : le second facteur ARMÉ, éprouvé de bout en bout
+	enrolerTotp( COMPTE_ADMIN.login );
+	purgerEcluse();
+
+	const avecFacteur = await navigateur.newContext();
+	try {
+		const page = await avecFacteur.newPage();
+		await page.goto( `${ BASE }/wp-login.php`, { waitUntil: 'load' } );
+		await page.fill( '#user_login', COMPTE_ADMIN.login );
+		await page.fill( '#user_pass', COMPTE_ADMIN.motDePasse );
+		await page.click( '#wp-submit' );
+		await page.waitForLoadState( 'load' );
+
+		assert(
+			page.url().includes( 'action=massifs_2fa' ),
+			'2FA : le mot de passe seul mène à l’étape 2, jamais à l’administration',
+			'wp-login.php?action=massifs_2fa',
+			page.url()
+		);
+		egal(
+			[],
+			( await avecFacteur.cookies() ).filter( ( c ) => c.name.startsWith( 'wordpress_logged_in_' ) ).map( ( c ) => c.name ),
+			'2FA : AUCUN cookie de session n’est posé à l’étape 1 — le mot de passe seul n’ouvre rien'
+		);
+
+		// Un code faux : refusé, et l'étape 2 reste l'étape 2.
+		await page.fill( '#massifs-2fa-code', '000000' );
+		await page.click( 'button[type="submit"]' );
+		await page.waitForLoadState( 'load' );
+		assert( page.url().includes( 'action=massifs_2fa' ), '2FA : un code faux ne fait pas entrer', 'toujours l’étape 2', page.url() );
+		egal(
+			[],
+			( await avecFacteur.cookies() ).filter( ( c ) => c.name.startsWith( 'wordpress_logged_in_' ) ).map( ( c ) => c.name ),
+			'2FA : un code faux ne pose aucun cookie de session'
+		);
+
+		// Le bon code, calculé ici, par une implémentation indépendante.
+		const code = await codeTotp( SECRET_TOTP_RECETTE );
+		await page.fill( '#massifs-2fa-code', code );
+		await page.click( 'button[type="submit"]' );
+		await page.waitForLoadState( 'load' );
+		assert(
+			! page.url().includes( 'wp-login.php' ),
+			'2FA : le code calculé par une implémentation INDÉPENDANTE de la RFC 6238 est accepté',
+			'une URL d’administration',
+			page.url()
+		);
+		assert(
+			( await avecFacteur.cookies() ).some( ( c ) => c.name.startsWith( 'wordpress_logged_in_' ) ),
+			'2FA : la session s’ouvre seulement après le second facteur',
+			'wordpress_logged_in_*',
+			( await avecFacteur.cookies() ).map( ( c ) => c.name ).join( ', ' ) || '(aucun)'
+		);
+
+		// Enrôlé, l'administrateur n'est plus renvoyé au profil : il atteint ses
+		// écrans. C'est ce qui rend le scénario `gravatar` exécutable.
+		const users = await page.goto( `${ BASE }/wp-admin/users.php`, { waitUntil: 'load' } );
+		egal( 200, users.status(), 'ENRÔLÉ : l’administrateur atteint users.php — la rampe s’efface une fois le facteur armé' );
+
+		// A-17, anti-rejeu : le MÊME code ne sert pas deux fois.
+		const rejeu = await navigateur.newContext();
+		try {
+			const autre = await rejeu.newPage();
+			await autre.goto( `${ BASE }/wp-login.php`, { waitUntil: 'load' } );
+			await autre.fill( '#user_login', COMPTE_ADMIN.login );
+			await autre.fill( '#user_pass', COMPTE_ADMIN.motDePasse );
+			await autre.click( '#wp-submit' );
+			await autre.waitForLoadState( 'load' );
+			await autre.fill( '#massifs-2fa-code', code );
+			await autre.click( 'button[type="submit"]' );
+			await autre.waitForLoadState( 'load' );
+			assert(
+				autre.url().includes( 'action=massifs_2fa' ),
+				'A-17 : le même code REJOUÉ est refusé — un code intercepté ne vaut pas trois tentatives',
+				'toujours l’étape 2',
+				autre.url()
+			);
+			egal(
+				[],
+				( await rejeu.cookies() ).filter( ( c ) => c.name.startsWith( 'wordpress_logged_in_' ) ).map( ( c ) => c.name ),
+				'A-17 : le rejeu n’ouvre aucune session'
+			);
+			await autre.close();
+		} finally {
+			await rejeu.close();
+		}
+
+		// ---- Jambe 3 : la SUSPENSION tue la session EN COURS
+		//
+		// A-16 : « une suspension qui laisse vivre la session en cours n'est pas une
+		// suspension : le compte continuerait de publier des statuts pendant des
+		// heures. »
+		const gestionnaire = await navigateur.newContext();
+		try {
+			purgerEcluse();
+			await connexion( gestionnaire, COMPTE_GESTIONNAIRE );
+			const sienne = await gestionnaire.newPage();
+			const avant = await sienne.goto( `${ BASE }/wp-admin/admin.php?page=massifs-publication`, { waitUntil: 'load' } );
+			egal( 200, avant.status(), 'le gestionnaire a bien une session vivante sur son écran de publication' );
+
+			// La suspension passe par le point de passage du contrat #13, celui que
+			// l'écran Utilisateurs déclenche — jamais un `update_user_meta` nu.
+			const sortie = wp( [
+				'eval',
+				`wp_set_current_user( (int) get_user_by( 'login', '${ COMPTE_ADMIN.login }' )->ID );` +
+					`$c = get_user_by( 'login', '${ COMPTE_GESTIONNAIRE.login }' );` +
+					'$r = \\Massifs\\Security\\Roles\\Comptes::suspendre( (int) $c->ID );' +
+					"echo is_wp_error( $r ) ? 'ERREUR:' . $r->get_error_message() : 'SUSPENDU';",
+			] );
+			assert( sortie.includes( 'SUSPENDU' ), 'l’administrateur suspend le compte gestionnaire', 'SUSPENDU', sortie.trim() );
+
+			// La requête SUIVANTE, avec le cookie déjà en main.
+			const apres = await sienne.goto( `${ BASE }/wp-admin/admin.php?page=massifs-publication`, { waitUntil: 'load' } );
+			const corps = await sienne.content();
+			const dehors =
+				sienne.url().includes( 'wp-login.php' ) ||
+				apres.status() === 403 ||
+				/n(?:’|')avez pas (?:l(?:’|')autorisation|les droits)|Désolé, vous n(?:’|')avez pas/i.test( corps );
+			assert(
+				dehors,
+				'A-16 : SUSPENSION — la session en cours est tuée, le compte suspendu ne publie plus une seule seconde',
+				'déconnecté ou refusé',
+				`${ apres.status() } — ${ sienne.url() }`
+			);
+
+			// Et la connexion suivante est refusée, avec le message distinct du §11.
+			const relance = await navigateur.newContext();
+			try {
+				const rentrer = await relance.newPage();
+				await rentrer.goto( `${ BASE }/wp-login.php`, { waitUntil: 'load' } );
+				await rentrer.fill( '#user_login', COMPTE_GESTIONNAIRE.login );
+				await rentrer.fill( '#user_pass', COMPTE_GESTIONNAIRE.motDePasse );
+				await rentrer.click( '#wp-submit' );
+				await rentrer.waitForLoadState( 'load' );
+				const texte = ( await rentrer.content() ).replace( /\s+/g, ' ' );
+				assert(
+					rentrer.url().includes( 'wp-login.php' ),
+					'SUSPENSION : le compte suspendu ne peut plus se reconnecter',
+					'wp-login.php',
+					rentrer.url()
+				);
+				assert(
+					texte.includes( 'Ce compte est suspendu' ),
+					'SUSPENSION : le message contractuel du §11 est servi, distinct de l’échec d’identifiants',
+					'« Ce compte est suspendu. Contactez un administrateur. »',
+					texte.slice( texte.indexOf( 'login_error' ), texte.indexOf( 'login_error' ) + 220 )
+				);
+				await rentrer.close();
+			} finally {
+				await relance.close();
+			}
+
+			await sienne.close();
+		} finally {
+			// REMISE EN ÉTAT : sans elle, le compte de démonstration resterait
+			// suspendu et tous les scénarios suivants échoueraient pour une raison
+			// qui n'est pas la leur.
+			const retabli = wp( [
+				'eval',
+				`wp_set_current_user( (int) get_user_by( 'login', '${ COMPTE_ADMIN.login }' )->ID );` +
+					`$c = get_user_by( 'login', '${ COMPTE_GESTIONNAIRE.login }' );` +
+					'$r = \\Massifs\\Security\\Roles\\Comptes::retablir( (int) $c->ID );' +
+					"echo massifs_compte_est_suspendu( (int) $c->ID ) ? 'ENCORE_SUSPENDU' : 'RETABLI';",
+			] );
+			assert( retabli.includes( 'RETABLI' ), 'remise en état : le compte de démonstration est rétabli', 'RETABLI', retabli.trim() );
+			await gestionnaire.close();
+		}
+
+		await page.close();
+	} finally {
+		await avecFacteur.close();
+		// Le second facteur de recette est retiré : la stack repart comme elle est
+		// arrivée, et l'administrateur de démonstration n'est pas laissé enrôlé sur
+		// un secret écrit dans un fichier du dépôt.
+		retirerTotp( COMPTE_ADMIN.login );
+		purgerEcluse();
+	}
+
+	// ---- Jambe 4 : l'écluse, sur le VRAI formulaire de connexion
+	//
+	// Le scénario PHP `60-portail-journal-exact` éprouve l'algèbre de l'écluse en
+	// pilotant l'IP par filtre — c'est le seul moyen de simuler deux origines. Ce
+	// qu'il ne peut pas dire, c'est que l'écluse est réellement GREFFÉE sur
+	// `wp-login.php`. C'est ce qui se mesure ici, en frappant le vrai formulaire.
+	//
+	// SEUIL VISÉ : le couple (identifiant × IP), 5 essais. On reste sous le seuil
+	// d'IP (10) pour éprouver la GRANULARITÉ — c'est l'arbitrage A-13 : le verrou
+	// ne doit pas être une arme contre le compte de démonstration.
+	const ecluse = await navigateur.newContext();
+	try {
+		/**
+		 * Une tentative de connexion, et le message que le formulaire rend.
+		 *
+		 * @param {string} login Identifiant soumis.
+		 * @param {string} motDePasse Mot de passe soumis.
+		 * @return {Promise<object>} URL d'arrivée et message d'erreur.
+		 */
+		const tenter = async ( login, motDePasse ) => {
+			const vue = await ecluse.newPage();
+			await vue.goto( `${ BASE }/wp-login.php`, { waitUntil: 'load' } );
+			await vue.fill( '#user_login', login );
+			await vue.fill( '#user_pass', motDePasse );
+			await vue.click( '#wp-submit' );
+			await vue.waitForLoadState( 'load' );
+			// Une connexion RÉUSSIE ne rend aucun `#login_error` : lire le texte du
+			// localisateur attendrait alors trente secondes et interromprait le
+			// scénario. On compte d'abord.
+			const message =
+				( await vue.locator( '#login_error' ).count() ) > 0
+					? await texteSource( vue.locator( '#login_error' ) )
+					: '';
+			const url = vue.url();
+			await vue.close();
+			return { message, url };
+		};
+
+		// UNIFORMITÉ DU MESSAGE (A-18). Le cœur distingue `invalid_username` de
+		// `incorrect_password`, ce qui offre l'énumération des comptes sur le
+		// formulaire ; #13 l'écrase.
+		//
+		// La propriété à éprouver n'est PAS le texte exact — le cœur préfixe
+		// « Erreur : » à toute notice de connexion, et exiger l'absence de ce
+		// préfixe testerait WordPress, pas nous. La propriété est l'IDENTITÉ
+		// RIGOUREUSE des deux messages : compte inexistant et mot de passe faux
+		// doivent être indiscernables.
+		const compteInexistant = await tenter( 'ce-compte-nexiste-pas-recette', 'peu-importe' );
+		const motDePasseFaux = await tenter( COMPTE_GESTIONNAIRE.login, 'mauvais-mot-de-passe-0' );
+		note( `compte inexistant : « ${ compteInexistant.message } »` );
+		note( `mot de passe faux : « ${ motDePasseFaux.message } »` );
+		egal(
+			compteInexistant.message,
+			motDePasseFaux.message,
+			'A-18 : identifiant inexistant et mot de passe faux rendent un message RIGOUREUSEMENT identique — le formulaire n’énumère pas les comptes'
+		);
+		assert(
+			motDePasseFaux.message.includes( 'Identifiant ou mot de passe incorrect.' ),
+			'A-18 : c’est bien la chaîne contractuelle du §11 qui est servie',
+			'…Identifiant ou mot de passe incorrect.',
+			motDePasseFaux.message
+		);
+
+		let dernierMessage = motDePasseFaux.message;
+		// Le seuil du couple est de 5 : deux tentatives sont déjà consommées
+		// ci-dessus sur cet identifiant, il en reste trois à faire.
+		for ( let essai = 2; essai <= 5; essai += 1 ) {
+			dernierMessage = ( await tenter( COMPTE_GESTIONNAIRE.login, `mauvais-mot-de-passe-${ essai }` ) ).message;
+		}
+
+		note( `message au 5ᵉ échec : ${ dernierMessage }` );
+		assert(
+			/\d/.test( dernierMessage ),
+			'FORCE BRUTE : au franchissement du seuil, le formulaire annonce un DÉLAI CHIFFRÉ — l’utilisateur légitime sait combien attendre',
+			'un message portant un nombre de minutes',
+			dernierMessage
+		);
+
+		// LA LIGNE DE DoD « force brute bloquée ». Une fois le verrou posé, la
+		// tentative SUIVANTE doit être refusée — y compris, et surtout, avec le BON
+		// mot de passe : c'est ce qui distingue un verrou d'un simple message.
+		// L'arbitrage A-14 en fait même la raison d'être de la priorité 1 :
+		// « rejette une requête verrouillée SANS JAMAIS VÉRIFIER LE MOT DE PASSE ».
+		const encoreFaux = await tenter( COMPTE_GESTIONNAIRE.login, 'mauvais-mot-de-passe-6' );
+		note( `tentative suivant le verrou (mot de passe faux) : « ${ encoreFaux.message } »` );
+		assert(
+			/\d/.test( encoreFaux.message ),
+			'FORCE BRUTE : une fois le verrou posé, la tentative SUIVANTE est barrée et le délai est rappelé',
+			'un message de verrouillage portant un délai',
+			encoreFaux.message
+		);
+
+		const bonMotDePasse = await tenter( COMPTE_GESTIONNAIRE.login, COMPTE_GESTIONNAIRE.motDePasse );
+		assert(
+			bonMotDePasse.url.includes( 'wp-login.php' ),
+			'FORCE BRUTE : le verrou tient même contre le bon mot de passe — aucun oracle n’est offert',
+			'wp-login.php',
+			bonMotDePasse.url
+		);
+		egal(
+			[],
+			( await ecluse.cookies() ).filter( ( c ) => c.name.startsWith( 'wordpress_logged_in_' ) ).map( ( c ) => c.name ),
+			'FORCE BRUTE : aucune session n’est ouverte pendant le verrou'
+		);
+
+		// A-13, ÉPROUVÉ SUR LE FORMULAIRE : le verrou porte sur le COUPLE
+		// (identifiant × origine), pas sur l'identifiant. Depuis la MÊME origine, un
+		// autre compte reste joignable — a fortiori depuis une autre origine. Le
+		// compte de démonstration ne peut donc pas être éteint par un tiers.
+		const autreCompte = await tenter( COMPTE_ADMIN.login, 'un-mot-de-passe-faux' );
+		note( `message pour l’autre compte, même origine : « ${ autreCompte.message } »` );
+		egal(
+			motDePasseFaux.message,
+			autreCompte.message,
+			'A-13 : le verrou d’un identifiant n’atteint PAS un autre identifiant depuis la même origine — le compte de démonstration n’est pas éteignable à volonté'
+		);
+	} finally {
+		// REMISE EN ÉTAT INDISPENSABLE : sans elle, l'origine de la recette reste
+		// verrouillée quinze minutes et TOUS les scénarios suivants échouent à la
+		// connexion pour une raison qui n'est pas la leur.
+		purgerEcluse();
+		await ecluse.close();
+	}
+
+	// La purge est vérifiée, pas supposée.
+	const apresPurge = await navigateur.newContext();
+	try {
+		await connexion( apresPurge, COMPTE_GESTIONNAIRE );
+		assert(
+			( await apresPurge.cookies() ).some( ( c ) => c.name.startsWith( 'wordpress_logged_in_' ) ),
+			'remise en état : l’écluse est purgée, le compte de démonstration se reconnecte',
+			'wordpress_logged_in_*',
+			( await apresPurge.cookies() ).map( ( c ) => c.name ).join( ', ' ) || '(aucun)'
+		);
+	} finally {
+		await apresPurge.close();
+	}
+
+	// ---- Jambe 5 : L'ÉTAPE 2 DU SECOND FACTEUR SOUS VERROU (correctif `2ffba8d`)
+	//
+	// LE TROU QUE CETTE JAMBE FERME. L'étape 2 ne traverse PAS `authenticate` :
+	// elle est servie par `Deuxfacteurs::traiter()`, qui appelle directement
+	// `wp_set_auth_cookie()`. Les trois greffes de l'écluse (priorités 1, 40 et
+	// 100) n'y sont donc d'aucun secours. Un jeton d'étape 2 obtenu AVANT un
+	// verrou, présenté avec le bon code PENDANT ce verrou, ouvrait une session —
+	// le verrou était contournable en deux temps par qui connaît le mot de passe.
+	// D'où `Ecluse::attente()` opposé en TÊTE de `traiter()`, avant le comptage
+	// des essais et avant toute vérification du code.
+	//
+	// Ce chemin est INOBSERVABLE en PHP : la seule preuve est qu'aucun cookie de
+	// session n'est posé par une vraie soumission du vrai formulaire d'étape 2.
+	//
+	// LE SECOND FACTEUR EST RÉARMÉ ICI. La jambe 2 le retire dans son `finally`
+	// pour ne pas laisser la stack enrôlée sur un secret du dépôt. Sans ce
+	// réarmement, la connexion de l'administrateur emprunte la RAMPE — elle
+	// aboutit directement sur `profile.php`, il n'y a pas d'étape 2, et la jambe
+	// mesurerait le vide en se croyant verte. C'est exactement ce qui est arrivé
+	// à sa première exécution, le 16 août 2026.
+	purgerEcluse();
+	enrolerTotp( COMPTE_ADMIN.login );
+
+	const etape2 = await navigateur.newContext();
+	const bourreau = await navigateur.newContext();
+	try {
+		const vue = await etape2.newPage();
+		await vue.goto( `${ BASE }/wp-login.php`, { waitUntil: 'load' } );
+		await vue.fill( '#user_login', COMPTE_ADMIN.login );
+		await vue.fill( '#user_pass', COMPTE_ADMIN.motDePasse );
+		await vue.click( '#wp-submit' );
+		await vue.waitForLoadState( 'load' );
+
+		assert(
+			vue.url().includes( 'action=massifs_2fa' ),
+			'ÉTAPE 2 SOUS VERROU : le jeton d’étape 2 est obtenu AVANT le verrou — c’est la prémisse du contournement',
+			'wp-login.php?action=massifs_2fa',
+			vue.url()
+		);
+		egal(
+			[],
+			( await etape2.cookies() ).filter( ( c ) => c.name.startsWith( 'wordpress_logged_in_' ) ).map( ( c ) => c.name ),
+			'ÉTAPE 2 SOUS VERROU : aucune session à ce stade — le mot de passe seul n’ouvre rien'
+		);
+
+		// Le verrou est posé APRÈS, depuis la même origine, sur le couple
+		// (identifiant × IP) : cinq échecs, seuil du couple. On passe par le VRAI
+		// formulaire, jamais par un verrou écrit à la main — un verrou posé de
+		// l'extérieur ne prouverait pas que le chemin réel y mène.
+		for ( let essai = 1; essai <= 5; essai += 1 ) {
+			const frappe = await bourreau.newPage();
+			await frappe.goto( `${ BASE }/wp-login.php`, { waitUntil: 'load' } );
+			await frappe.fill( '#user_login', COMPTE_ADMIN.login );
+			await frappe.fill( '#user_pass', `verrou-etape2-${ essai }` );
+			await frappe.click( '#wp-submit' );
+			await frappe.waitForLoadState( 'load' );
+			await frappe.close();
+		}
+
+		// Et maintenant le BON code, sur le jeton légitime obtenu avant le verrou.
+		const codeSousVerrou = await codeTotp( SECRET_TOTP_RECETTE );
+		await vue.fill( '#massifs-2fa-code', codeSousVerrou );
+		await vue.click( 'button[type="submit"]' );
+		await vue.waitForLoadState( 'load' );
+
+		// L'étape 2 rend ses erreurs dans son propre bloc `#massifs-2fa-erreur`,
+		// jamais dans le `#login_error` du cœur — elle ne traverse pas
+		// `wp_login_form()`. Viser `#login_error` ici rendait une chaîne vide, et
+		// l'assertion du délai chiffré était rouge pour une raison de recette.
+		const messageSousVerrou =
+			( await vue.locator( '#massifs-2fa-erreur' ).count() ) > 0
+				? await texteSource( vue.locator( '#massifs-2fa-erreur' ) )
+				: '';
+		note( `étape 2 présentée sous verrou : « ${ messageSousVerrou } » → ${ vue.url() }` );
+
+		egal(
+			[],
+			( await etape2.cookies() ).filter( ( c ) => c.name.startsWith( 'wordpress_logged_in_' ) ).map( ( c ) => c.name ),
+			'ÉTAPE 2 SOUS VERROU : AUCUNE SESSION n’est ouverte — un jeton d’étape 2 antérieur au verrou ne le contourne pas'
+		);
+		assert(
+			vue.url().includes( 'wp-login.php' ),
+			'ÉTAPE 2 SOUS VERROU : le bon code ne mène pas à l’administration',
+			'wp-login.php',
+			vue.url()
+		);
+		// Le message doit être celui de l'écluse — chiffré —, pas « Code incorrect » :
+		// si c'était « Code incorrect », le refus viendrait de la vérification du
+		// code et non du verrou, et l'assertion précédente passerait pour une
+		// mauvaise raison.
+		assert(
+			/\d/.test( messageSousVerrou ) && messageSousVerrou.includes( 'tentatives' ),
+			'ÉTAPE 2 SOUS VERROU : c’est bien le VERROU qui refuse, avec son délai chiffré — pas la vérification du code',
+			'le message de l’écluse, portant un délai',
+			messageSousVerrou
+		);
+		await vue.close();
+	} finally {
+		purgerEcluse();
+		await bourreau.close();
+		await etape2.close();
+	}
+
+	// CONTRÔLE OBLIGATOIRE : sans lui, la jambe ci-dessus passerait aussi si le
+	// second facteur était tout simplement CASSÉ. On rejoue la même séquence,
+	// verrou levé, et la session DOIT s'ouvrir.
+	//
+	// Le code est renouvelé au pas suivant si nécessaire : l'anti-rejeu A-17
+	// refuserait un code déjà présenté, et le refus serait alors imputé au verrou
+	// par erreur.
+	const temoin = await navigateur.newContext();
+	try {
+		const vue = await temoin.newPage();
+		await vue.goto( `${ BASE }/wp-login.php`, { waitUntil: 'load' } );
+		await vue.fill( '#user_login', COMPTE_ADMIN.login );
+		await vue.fill( '#user_pass', COMPTE_ADMIN.motDePasse );
+		await vue.click( '#wp-submit' );
+		await vue.waitForLoadState( 'load' );
+
+		// GARDE DU TÉMOIN : sans elle, un administrateur DÉSENRÔLÉ passerait par la
+		// rampe, arriverait sur `profile.php` avec un cookie, et le témoin serait
+		// vert sans qu'aucune étape 2 n'ait eu lieu — il ne contrôlerait plus rien.
+		assert(
+			vue.url().includes( 'action=massifs_2fa' ),
+			'TÉMOIN : la séquence passe bien par une étape 2 — le contrôle porte sur le même chemin que la jambe sous verrou',
+			'wp-login.php?action=massifs_2fa',
+			vue.url()
+		);
+
+		// Attendre la fenêtre TOTP suivante garantit un code jamais présenté.
+		const resteMs = ( 30 - ( Math.floor( Date.now() / 1000 ) % 30 ) ) * 1000 + 1500;
+		await vue.waitForTimeout( resteMs );
+
+		await vue.fill( '#massifs-2fa-code', await codeTotp( SECRET_TOTP_RECETTE ) );
+		await vue.click( 'button[type="submit"]' );
+		await vue.waitForLoadState( 'load' );
+
+		assert(
+			( await temoin.cookies() ).some( ( c ) => c.name.startsWith( 'wordpress_logged_in_' ) ),
+			'TÉMOIN : verrou levé, la MÊME séquence d’étape 2 ouvre bien une session — le refus précédent venait du verrou, pas d’un second facteur cassé',
+			'wordpress_logged_in_*',
+			( await temoin.cookies() ).map( ( c ) => c.name ).join( ', ' ) || '(aucun)'
+		);
+	} finally {
+		purgerEcluse();
+		// La stack repart désenrôlée, comme la jambe 2 la laissait.
+		retirerTotp( COMPTE_ADMIN.login );
+		await temoin.close();
+	}
+}
+
+async function s31_carteSelectionEtPaliers( navigateur ) {
+	scenario( '31 — carte : le massif sélectionné garde son aplat et son motif, à tous les paliers (issue #50)' );
+
+	poserEtat( 'jour-complet', 20 );
+
+	/**
+	 * Relève ce qui est réellement peint sur un massif et sur le cerne.
+	 *
+	 * @param {import('playwright-core').Page} page Page chargée.
+	 * @param {string} nom Nom du massif observé, tel qu'il ouvre son `aria-label`.
+	 * @return {Promise<object>} Relevé.
+	 */
+	const relever = ( page, nom ) =>
+		page.evaluate( ( nomMassif ) => {
+			const racine = document.querySelector( '.carte' );
+			const style = getComputedStyle( racine );
+			// Les tracés ne portent PAS de `data-code` : leur seule prise stable est
+			// l'`aria-label`, composé côté serveur de « <Massif> — <libellé du
+			// niveau> ». C'est aussi ce qu'un lecteur d'écran reçoit.
+			const massif = [ ...document.querySelectorAll( 'path.carte__massif' ) ].find( ( p ) =>
+				( p.getAttribute( 'aria-label' ) ?? '' ).toLowerCase().startsWith( nomMassif.toLowerCase() )
+			);
+			const interdit = document.querySelector( 'path.carte__massif--interdit' );
+
+			const cerne = document.querySelector( 'path.carte__cerne' );
+			const separateur = document.querySelector( 'path.carte__cerne-separateur' );
+			const paneCerne = document.querySelector( '.carte__pane--cerne' );
+			const paneMassifs = document.querySelector( '.carte__pane--massifs' );
+
+			const mesure = ( element ) => {
+				if ( ! element ) {
+					return null;
+				}
+				const s = getComputedStyle( element );
+				return { fill: s.fill, stroke: s.stroke, epaisseur: s.strokeWidth, join: s.strokeLinejoin };
+			};
+
+			return {
+				paliers: [ ...racine.classList ].filter( ( c ) => c.startsWith( 'carte--echelle-' ) ),
+				jetons: {
+					lisere: style.getPropertyValue( '--carte-lisere' ).trim(),
+					survol: style.getPropertyValue( '--carte-survol' ).trim(),
+					cerne: style.getPropertyValue( '--carte-cerne' ).trim(),
+					cerneClair: style.getPropertyValue( '--carte-cerne-clair' ).trim(),
+				},
+				massif: mesure( massif ),
+				massifLabel: massif ? massif.getAttribute( 'aria-label' ) : null,
+				massifClasses: massif ? [ ...massif.classList ] : [],
+				// Le motif est ce qui empêche l'information d'être portée par la
+				// couleur seule : sur un massif interdit, le `fill` DOIT rester une
+				// référence de `<pattern>`, sélection comprise.
+				interdit: mesure( interdit ),
+				cerne: mesure( cerne ),
+				separateur: mesure( separateur ),
+				cerneEpaisseurEcran: cerne ? Number( getComputedStyle( cerne ).strokeWidth.replace( 'px', '' ) ) : null,
+				separateurEpaisseurEcran: separateur ? Number( getComputedStyle( separateur ).strokeWidth.replace( 'px', '' ) ) : null,
+				zIndexCerne: paneCerne ? getComputedStyle( paneCerne ).zIndex : null,
+				zIndexMassifs: paneMassifs ? getComputedStyle( paneMassifs ).zIndex : null,
+				ordreDom: paneCerne && paneMassifs
+					? ( paneCerne.compareDocumentPosition( paneMassifs ) & Node.DOCUMENT_POSITION_FOLLOWING ? 'cerne avant massifs' : 'massifs avant cerne' )
+					: null,
+				panneauOuvert: racine.classList.contains( 'carte--panneau-ouvert' ),
+				zoom: window.__massifsZoomRecette ?? null,
+			};
+		}, nom );
+
+	const contexte = await navigateur.newContext( { viewport: { width: 1280, height: 900 } } );
+	try {
+		const page = await contexte.newPage();
+		const erreursJs = [];
+		page.on( 'pageerror', ( e ) => erreursJs.push( e.message ) );
+		await page.goto( BASE + '/', { waitUntil: 'networkidle' } );
+		await page.waitForSelector( '.carte--prete', { timeout: 20000 } );
+
+		// Le zoom réel est lu sur l'instance Leaflet quand elle est joignable ;
+		// sinon, la classe de palier fait foi — c'est elle qui porte le contrat.
+		await page.evaluate( () => {
+			const conteneur = document.querySelector( '.leaflet-container' );
+			window.__massifsZoomRecette = conteneur && conteneur._leaflet_id && window.L
+				? null
+				: null;
+		} );
+
+		const regagnas = page.locator( 'path.carte__massif' ).filter( { has: page.locator( 'title' ) } );
+		note( `tracés de massif présents : ${ await page.locator( 'path.carte__massif' ).count() }` );
+
+		// Regagnas est nommé par le contrat #50 §9 : c'est le massif filamenteux sur
+		// lequel le défaut a été mesuré. On le retrouve par son `aria-label`, la
+		// seule prise stable côté serveur.
+		const cible = page.locator( 'path.carte__massif' ).filter( { hasText: /Regagnas/i } ).first();
+		const parLabel = page.locator( 'path.carte__massif[aria-label*="Regagnas" i]' ).first();
+		const selecteur = ( await parLabel.count() ) > 0 ? parLabel : cible;
+		assert( ( await selecteur.count() ) > 0, 'contrat #50 §9 : le tracé de Regagnas est identifiable dans la carte servie', '≥ 1 tracé', 0 );
+
+		// ---- Palier DÉPARTEMENT, Regagnas sélectionné. C'EST L'ASSERTION QUI MANQUAIT.
+		const avant = await relever( page, 'Regagnas' );
+		note( `au cadrage initial : paliers=${ JSON.stringify( avant.paliers ) } jetons=${ JSON.stringify( avant.jetons ) }` );
+		egal( 1, avant.paliers.length, 'exactement UNE classe de palier sur la racine de la carte' );
+
+		await selecteur.click();
+		await page.waitForTimeout( 300 );
+		const apres = await relever( page, 'Regagnas' );
+		note( `Regagnas sélectionné : ${ JSON.stringify( { paliers: apres.paliers, massif: apres.massif, cerne: apres.cerne, separateur: apres.separateur } ) }` );
+
+		assert( apres.panneauOuvert, 'la sélection ouvre le panneau du massif', '.carte--panneau-ouvert', 'absente' );
+
+		// L'aplat de statut et son motif restent ENTIERS : le `fill` du polygone
+		// n'est ni écrasé, ni recouvert, et il reste soit une couleur de statut soit
+		// une référence de motif.
+		assert(
+			apres.massif && apres.massif.fill !== 'none' && ! TRANSPARENT.has( apres.massif.fill ),
+			'contrat #50 §9.1 : l’aplat de statut du massif SÉLECTIONNÉ reste peint',
+			'un fill non transparent',
+			JSON.stringify( apres.massif )
+		);
+		egal( avant.massif?.fill, apres.massif?.fill, 'contrat #50 §9.1 : la sélection ne CHANGE PAS l’aplat de statut' );
+		note( `massif observé : ${ apres.massifLabel } — classes ${ JSON.stringify( apres.massifClasses ) }` );
+
+		// LE MOTIF, pas seulement la couleur. Sur un massif interdit, le `fill` doit
+		// rester une référence de `<pattern>` : c'est ce qui empêche l'information
+		// d'être portée par la couleur seule, sélection comprise (§12, §8 du brief).
+		assert(
+			apres.interdit && /url\(/.test( apres.interdit.fill ),
+			'§12 : un massif INTERDIT garde son motif — l’information n’est jamais portée par la couleur seule, sélection comprise',
+			'un fill url(#…) de <pattern>',
+			JSON.stringify( apres.interdit )
+		);
+
+		// Les deux couches du cerne : `fill: none`, invariant I-50.1. Un `fill` ici
+		// remplirait l'anneau et recouvrirait l'aplat.
+		egal( 'none', apres.cerne?.fill, 'I-50.1 : la couche charbon du cerne est fill:none' );
+		egal( 'none', apres.separateur?.fill, 'I-50.1 : la couche calcaire du cerne est fill:none' );
+		egal( 'round', apres.cerne?.join, 'I-50.3 : stroke-linejoin:round sur le cerne — pas de pointe de 52 px sur un angle aigu' );
+		egal( 'round', apres.separateur?.join, 'I-50.3 : stroke-linejoin:round sur le séparateur' );
+
+		// LE DÉFAUT DE LA v2.3, à l'endroit exact : au palier département, AUCUNE
+		// peinture claire n'est posée. `--carte-cerne-clair: 0`.
+		if ( apres.paliers.includes( 'carte--echelle-departement' ) ) {
+			egal( '0', apres.jetons.cerneClair, 'D5 / §9.2.a : au palier DÉPARTEMENT, --carte-cerne-clair vaut 0' );
+			egal( 0, apres.separateurEpaisseurEcran, 'contrat #50 §9.1 : AUCUN pixel calcaire n’est posé sur la carte au palier département — c’est l’assertion qui a manqué à la v2.3' );
+			assert(
+				apres.cerneEpaisseurEcran > 0,
+				'le cerne charbon, lui, est bien peint au palier département',
+				'> 0 px',
+				apres.cerneEpaisseurEcran
+			);
+		} else {
+			note( `cadrage initial hors palier département (${ apres.paliers.join( ',' ) }) : l’assertion du calcaire est portée par la boucle de paliers ci-dessous` );
+		}
+
+		// Empilement : le cerne passe SOUS les massifs. Deux mécanismes, tous deux
+		// vérifiés — z-index CSS et ordre d'insertion DOM (D4).
+		egal( '400', apres.zIndexCerne, 'D4 : le pane du cerne est en z-index 400' );
+		egal( '410', apres.zIndexMassifs, 'D4 : le pane des massifs est en z-index 410 — l’aplat n’est jamais recouvert' );
+		egal( 'cerne avant massifs', apres.ordreDom, 'D4 : les panes sont insérés dans l’ordre, secours si le z-index CSS n’arrive pas' );
+
+		// ---- Les trois paliers, par le chemin réel du zoom
+		const paliersVus = {};
+		for ( let cran = 0; cran < 8; cran += 1 ) {
+			const releve = await relever( page, 'Regagnas' );
+			const palier = releve.paliers[ 0 ] ?? '(aucun)';
+			if ( ! paliersVus[ palier ] ) {
+				paliersVus[ palier ] = releve;
+			}
+			// `+` est le chemin clavier réel de la carte, celui que le contrat #7 a
+			// réimplémenté : on ne touche pas l'API Leaflet directement.
+			await page.keyboard.press( '+' );
+			await page.waitForTimeout( 350 );
+		}
+		note( `paliers traversés : ${ Object.keys( paliersVus ).join( ' · ' ) }` );
+
+		for ( const attendu of [ 'carte--echelle-departement', 'carte--echelle-massif', 'carte--echelle-abords' ] ) {
+			assert( Boolean( paliersVus[ attendu ] ), `§9.2.a : le palier ${ attendu } est atteint par le zoom réel`, 'atteint', Object.keys( paliersVus ).join( ' · ' ) );
+		}
+
+		for ( const [ palier, releve ] of Object.entries( paliersVus ) ) {
+			if ( palier === '(aucun)' ) {
+				continue;
+			}
+			note( `${ palier } : lisere=${ releve.jetons.lisere } survol=${ releve.jetons.survol } cerne=${ releve.jetons.cerne } cerne-clair=${ releve.jetons.cerneClair }` );
+
+			// §10.2.a : le liseré ne descend JAMAIS sous 1,5 px, et 1,5 px n'existe
+			// qu'au palier département — mesuré, pas choisi.
+			const lisere = Number.parseFloat( releve.jetons.lisere );
+			assert(
+				Number.isFinite( lisere ) && lisere >= 1.5,
+				`§10.2.a : au palier ${ palier }, le liseré ne descend pas sous 1,5 px`,
+				'≥ 1.5 px',
+				releve.jetons.lisere
+			);
+
+			// L'aplat reste peint, à tous les paliers, sélection comprise.
+			assert(
+				releve.massif && releve.massif.fill !== 'none' && ! TRANSPARENT.has( releve.massif.fill ),
+				`au palier ${ palier }, l’aplat de statut reste peint`,
+				'un fill non transparent',
+				JSON.stringify( releve.massif )
+			);
+
+			// Le survol vaut 1,5 × le liseré du palier, ARRONDI AU DEMI-PIXEL
+			// SUPÉRIEUR (MASTER §9.2.a, règle de tenue 1 : « 1,5 → 2,5 · 2 → 3 ·
+			// 3 → 4,5 »). C'est un RAPPORT qui se recalcule, pas trois nombres — et
+			// l'arrondi fait partie de la règle : 1,5 × 1,5 = 2,25 donne bien 2,5.
+			const survol = Number.parseFloat( releve.jetons.survol );
+			const attenduSurvol = Math.ceil( ( lisere * 1.5 ) / 0.5 ) * 0.5;
+			assert(
+				Number.isFinite( survol ) && Math.abs( survol - attenduSurvol ) < 0.02,
+				`I-50.5 : au palier ${ palier }, le survol vaut 1,5 × le liseré, arrondi au demi-pixel supérieur`,
+				`${ attenduSurvol } px`,
+				releve.jetons.survol
+			);
+
+			// L'encre totale hors de la forme vaut `--carte-cerne` ÷ 2 : la seule
+			// valeur que MASTER §9.2.a demande de surveiller, parce que c'est elle
+			// qui fusionne d'un filament au suivant sur un massif comme Regagnas.
+			const halo = Number.parseFloat( releve.jetons.cerne ) / 2;
+			note( `${ palier } : encre hors de la forme = ${ halo } px` );
+			assert(
+				halo <= 6.5,
+				`§9.2.a : au palier ${ palier }, le halo du cerne reste sous le maximum tabulé (6,5 px, palier abords)`,
+				'≤ 6.5 px',
+				`${ halo } px`
+			);
+		}
+
+		egal(
+			'0',
+			paliersVus[ 'carte--echelle-departement' ]?.jetons.cerneClair,
+			'D5 : au palier département, et à lui seul, la couche calcaire est à zéro'
+		);
+		assert(
+			Number.parseFloat( paliersVus[ 'carte--echelle-abords' ]?.jetons.cerneClair ?? '0' ) > 0,
+			'D5 : au palier abords, la couche calcaire est bien peinte — le cerne se lit sur le fond',
+			'> 0',
+			paliersVus[ 'carte--echelle-abords' ]?.jetons.cerneClair
+		);
+
+		// ---- Échap ferme le panneau, ET LE CERNE RESTE (contrat #50 §9.6)
+		await page.keyboard.press( 'Escape' );
+		await page.waitForTimeout( 250 );
+		const apresEchap = await relever( page, 'Regagnas' );
+		assert( ! apresEchap.panneauOuvert, 'Échap ferme le panneau du massif', 'panneau fermé', 'toujours ouvert' );
+		assert(
+			apresEchap.cerne !== null,
+			'contrat #50 §9.6 : Échap ferme le panneau et LE CERNE RESTE — la sélection n’est pas perdue',
+			'les couches du cerne toujours présentes',
+			JSON.stringify( apresEchap.cerne )
+		);
+		assert(
+			apresEchap.massif && apresEchap.massif.fill !== 'none',
+			'après Échap, l’aplat de statut est toujours peint',
+			'un fill non transparent',
+			JSON.stringify( apresEchap.massif )
+		);
+
+		egal( [], erreursJs, 'aucune erreur JavaScript pendant tout le parcours de la carte' );
+		await page.close();
+	} finally {
+		await contexte.close();
+	}
+
+	// ---- 360 px, zoom texte 200 %, et forced-colors : les trois contrôles que la
+	// chaîne #50 n'a pas revérifiés après son correctif (§9.9 et §9.10).
+	for ( const [ nom, options ] of [
+		[ '360 px', { viewport: { width: 360, height: 780 } } ],
+		[ 'zoom texte 200 % (équivalent 320 px de contenu)', { viewport: { width: 320, height: 780 } } ],
+		[ 'forced-colors: active', { viewport: { width: 1280, height: 900 }, forcedColors: 'active' } ],
+	] ) {
+		const contexteMesure = await navigateur.newContext( options );
+		try {
+			const vue = await contexteMesure.newPage();
+			await vue.goto( BASE + '/', { waitUntil: 'networkidle' } );
+			await vue.waitForSelector( '.carte--prete', { timeout: 20000 } );
+
+			const cible = vue.locator( 'path.carte__massif[aria-label*="Regagnas" i]' ).first();
+			if ( ( await cible.count() ) > 0 ) {
+				await cible.click( { force: true } );
+				await vue.waitForTimeout( 300 );
+			}
+
+			const mesure = await vue.evaluate( () => {
+				const racine = document.querySelector( '.carte' );
+				const cerne = document.querySelector( 'path.carte__cerne' );
+				const separateur = document.querySelector( 'path.carte__cerne-separateur' );
+				const massif = document.querySelector( 'path.carte__massif' );
+				return {
+					defilement: document.documentElement.scrollWidth,
+					fenetre: window.innerWidth,
+					carteDroite: Math.ceil( racine.getBoundingClientRect().right ),
+					palier: [ ...racine.classList ].filter( ( c ) => c.startsWith( 'carte--echelle-' ) ),
+					cerneStroke: cerne ? getComputedStyle( cerne ).stroke : null,
+					separateurStroke: separateur ? getComputedStyle( separateur ).stroke : null,
+					massifFill: massif ? getComputedStyle( massif ).fill : null,
+					motifs: document.querySelectorAll( '.carte__pane--massifs pattern' ).length,
+				};
+			} );
+			note( `${ nom } : ${ JSON.stringify( mesure ) }` );
+
+			assert(
+				mesure.defilement <= mesure.fenetre + 1,
+				`§9.9 : à ${ nom }, aucun défilement horizontal`,
+				`scrollWidth ≤ ${ mesure.fenetre }`,
+				mesure.defilement
+			);
+			assert(
+				mesure.carteDroite <= mesure.fenetre + 1,
+				`§9.9 : à ${ nom }, la carte tient dans la fenêtre`,
+				`≤ ${ mesure.fenetre } px`,
+				mesure.carteDroite
+			);
+			egal( 1, mesure.palier.length, `${ nom } : exactement une classe de palier` );
+			assert(
+				mesure.motifs >= 3,
+				`${ nom } : les trois motifs de statut restent définis — l’information n’est jamais portée par la couleur seule`,
+				'≥ 3 <pattern>',
+				mesure.motifs
+			);
+
+			if ( options.forcedColors === 'active' ) {
+				// §9.10 : le cerne se reconstruit en couleurs système. La seule chose
+				// qu'on peut affirmer sans mentir, c'est que le trait EXISTE encore et
+				// n'est pas transparent — Chromium n'expose pas le nom `CanvasText`.
+				assert(
+					mesure.cerneStroke && ! TRANSPARENT.has( mesure.cerneStroke ),
+					'§9.10 : sous forced-colors, le cerne garde un trait visible',
+					'un stroke non transparent',
+					mesure.cerneStroke
+				);
+				note( `sous forced-colors : cerne=${ mesure.cerneStroke } séparateur=${ mesure.separateurStroke } aplat=${ mesure.massifFill }` );
+			}
+
+			await vue.close();
+		} finally {
+			await contexteMesure.close();
+		}
+	}
+}
+
 // ---------------------------------------------------------------- lancement
 
 const SCENARIOS = [
@@ -3921,6 +5832,10 @@ const SCENARIOS = [
 	[ 'carte-degradee', s25_carteEnEchecEtSansTuiles ],
 	[ 'carte-garde', s26_gardeCartePhpNEmportePasLeRepli ],
 	[ 'bandes', s27_bandesDeLEpic4 ],
+	[ 'portail', s28_portailGestionnaire ],
+	[ 'portail-anonyme', s29_portailEcrituresRefusees ],
+	[ '2fa', s30_deuxFacteursEtSuspension ],
+	[ 'carte-selection', s31_carteSelectionEtPaliers ],
 ];
 
 const filtre = ( process.argv.find( ( a ) => a.startsWith( '--filtre=' ) ) ?? '' ).slice( 9 );

@@ -68,8 +68,10 @@ la coquille.** Voir arbitrage A-6.
 
 Le §12 est la transcription **octet pour octet** de
 `wp-content/themes/massifs/assets/css/tokens.css`, dont le sha256 est
-`5ad802a3708fe1734845e7a76b46de5382f2421268542584cafa270d29aa3835`
-(**vérifié par le lead avant gel** : le fichier porte bien cette empreinte).
+`104efb21fefa0e42b55ba0707ead5755e940b2cd87e4b1cff4c70148aeec112f`
+(**empreinte ré-épinglée le 15 août 2026** par l'amendement v2.4 de `MASTER.md`, chaîne #50, et
+enregistrée au contrat #4 ; celle gelée à l'origine ici,
+`5ad802a3708fe1734845e7a76b46de5382f2421268542584cafa270d29aa3835`, est **caduque**).
 
 - Ne pas ouvrir le bloc, ne pas le relire « pour vérifier », ne rien y modifier.
 - **Piège nommé** : la ligne 1325, *à l'intérieur* de la clôture de code, porte
@@ -111,7 +113,7 @@ le capture. Il est **sans rapport** avec le nombre de massifs. Grep d'acceptatio
 
 ### 5. Aucune invention
 
-Aucune valeur hexadécimale, aucun des 111 jetons, aucune mesure du §10, aucun libellé officiel n'est
+Aucune valeur hexadécimale, aucun des 116 jetons (111 au gel de ce contrat), aucune mesure du §10, aucun libellé officiel n'est
 approché. Aucune commune n'est nommée. Aucun contrat gelé n'est rouvert.
 
 ### 6. L'ancrage du sujet est MAINTENU
@@ -285,8 +287,10 @@ Après la passe, sur `design-system/MASTER.md` **seul** :
   touche jamais » : c'est le compte attendu qui était faux, jamais le fichier. Aucune occurrence ne doit
   être supprimée pour faire passer un grep — la note du §11.4 est précisément ce qui explique la
   divergence volontaire entre `U+2019` et `U+0027`.
-- sha256 de `wp-content/themes/massifs/assets/css/tokens.css` → **inchangé**,
-  `5ad802a3708fe1734845e7a76b46de5382f2421268542584cafa270d29aa3835`
+- sha256 de `wp-content/themes/massifs/assets/css/tokens.css` → **inchangé par la passe #21**.
+  Valait alors `5ad802a3708fe1734845e7a76b46de5382f2421268542584cafa270d29aa3835` ; vaut
+  `104efb21fefa0e42b55ba0707ead5755e940b2cd87e4b1cff4c70148aeec112f` depuis l'amendement v2.4
+  (chaîne #50), qui n'est **pas** le fait de cette chaîne.
 
 ---
 
