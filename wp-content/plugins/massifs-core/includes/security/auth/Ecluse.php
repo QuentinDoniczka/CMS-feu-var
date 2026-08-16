@@ -38,6 +38,25 @@
  * nous n'avons pas besoin : ce n'est pas un SIEM. AUCUNE IP EN CLAIR N'EST STOCKÉE,
  * NI JOURNALISÉE, NI EXPORTÉE (interdit 8).
  *
+ * COMMENT LE VERROU EST RÉELLEMENT OPPOSÉ — CEINTURE ET BRETELLES
+ *
+ * Un `WP_Error` renvoyé en priorité 1 est SILENCIEUSEMENT IGNORÉ par le cœur : ses
+ * rappels de priorité 20 ne se court-circuitent que sur un `WP_User`. Le refus repose
+ * donc sur deux mécanismes indépendants, et il faut les deux :
+ *
+ *   `barrer()`     priorité 1   → retire les trois rappels de mot de passe du cœur,
+ *                                 dans la branche verrouillée SEULEMENT. C'est ce qui
+ *                                 garantit qu'AUCUN HACHAGE N'EST CALCULÉ.
+ *   `constater()`  priorité 40  → coupe court sur verrou actif, avant que `Deuxfacteurs`
+ *                                 (50) ne puisse rediriger et `exit`, et avant que quoi
+ *                                 que ce soit ne prenne la tentative pour un succès.
+ *   `reaffirmer()` priorité 100 → après le dernier rappel du cœur (99). Refuse même un
+ *                                 `WP_User` parfaitement valide. C'est le filet fermé :
+ *                                 il ne dépend du bon comportement d'aucun autre rappel.
+ *
+ * Et la purge (`sur_connexion()`) REFUSE DE S'EXÉCUTER pendant un verrou vivant : sans
+ * cela, qui connaît le mot de passe effacerait son propre verrou.
+ *
  * POURQUOI `X-Forwarded-For` N'EST PAS HONORÉ
  *
  * C'est un en-tête FALSIFIABLE : le lire par défaut rendrait l'écluse triviale à
@@ -111,12 +130,54 @@ final class Ecluse {
 	);
 
 	/**
+	 * Rappels du cœur qui vérifient un mot de passe sur `authenticate`.
+	 *
+	 * Tous en priorité 20, enregistrés par `wp-includes/default-filters.php`.
+	 *
+	 * @var array<string, int>
+	 */
+	private const RAPPELS_MOT_DE_PASSE_COEUR = array(
+		'wp_authenticate_username_password'    => 20,
+		'wp_authenticate_email_password'       => 20,
+		'wp_authenticate_application_password' => 20,
+	);
+
+	/**
+	 * Rappels du cœur RÉELLEMENT retirés par la tentative en cours.
+	 *
+	 * Mémorisés pour être remis en place à l'issue de la même chaîne, et EUX SEULS :
+	 * un site qui aurait délibérément désenregistré l'un d'eux ne doit pas se le voir
+	 * ressusciter par nous.
+	 *
+	 * @var array<string, int>
+	 */
+	private static array $rappels_desarmes = array();
+
+	/**
 	 * Refuse une tentative provenant d'une origine verrouillée.
 	 *
-	 * PRIORITÉ 1 SUR `authenticate`, AVANT LE CŒUR (priorité 20). Une requête
-	 * verrouillée est rejetée SANS QUE LE MOT DE PASSE SOIT JAMAIS VÉRIFIÉ : aucun
-	 * calcul de hachage offert à l'attaquant, aucun oracle de temps de réponse,
-	 * aucune charge inutile sur le serveur.
+	 * PRIORITÉ 1 SUR `authenticate`, AVANT LE CŒUR (priorité 20).
+	 *
+	 * ┌────────────────────────────────────────────────────────────────────────┐
+	 * │  RENVOYER UN `WP_Error` NE SUFFIT PAS, ET NE L'A JAMAIS FAIT.          │
+	 * │                                                                        │
+	 * │  `wp_authenticate_username_password()` ne se court-circuite que sur un │
+	 * │  `WP_User` (« if ( $user instanceof WP_User ) { return $user; } »).    │
+	 * │  UN `WP_Error` ENTRANT EST PUREMENT IGNORÉ : le cœur enchaîne sur      │
+	 * │  `get_user_by()` puis `wp_check_password()` et RENVOIE LE COMPTE si le │
+	 * │  mot de passe est bon — le verrou était annoncé, jamais opposé.        │
+	 * └────────────────────────────────────────────────────────────────────────┘
+	 *
+	 * D'où le désarmement explicite des trois rappels du cœur, UNIQUEMENT dans la
+	 * branche verrouillée. C'est lui, et lui seul, qui tient la promesse d'origine :
+	 * une requête verrouillée est rejetée SANS QU'AUCUN HACHAGE DE MOT DE PASSE NE
+	 * SOIT CALCULÉ — aucun oracle de temps de réponse, aucune charge offerte à
+	 * l'attaquant.
+	 *
+	 * Ce désarmement est une mesure de coût, pas la mesure d'accès : le refus
+	 * d'accès, lui, est réaffirmé en priorité 100 par `reaffirmer()`, qui ne dépend
+	 * du comportement d'aucun autre rappel — et qui remet les rappels du cœur en
+	 * place, le désarmement ne devant durer que le temps de la tentative.
 	 *
 	 * @param mixed  $utilisateur Résultat courant de la chaîne d'authentification.
 	 * @param string $identifiant Identifiant soumis.
@@ -133,6 +194,41 @@ final class Ecluse {
 			return $utilisateur;
 		}
 
+		self::desarmer_verification_du_coeur();
+
+		return new WP_Error( self::CODE_REFUS, self::message( $attente ) );
+	}
+
+	/**
+	 * Réaffirme le refus en fin de chaîne, quoi qu'aient fait les autres rappels.
+	 *
+	 * PRIORITÉ 100, donc APRÈS le dernier rappel du cœur (`wp_authenticate_spam_check`,
+	 * priorité 99) et après tout ce que le projet enregistre.
+	 *
+	 * FILET FERMÉ, DÉLIBÉRÉMENT REDONDANT AVEC `barrer()`. Si un `WP_User` valide
+	 * arrive ici alors qu'un verrou est actif pour cette origine — parce qu'une
+	 * extension a réenregistré un rappel de mot de passe, parce que l'ordre des
+	 * priorités a bougé, parce que le désarmement de `barrer()` a été contourné —
+	 * IL EST REFUSÉ QUAND MÊME. Aucune session ne s'ouvre pendant un verrou, y
+	 * compris avec le bon mot de passe.
+	 *
+	 * @param mixed  $utilisateur  Résultat courant de la chaîne d'authentification.
+	 * @param string $identifiant  Identifiant soumis.
+	 * @param string $mot_de_passe Mot de passe soumis, jamais lu.
+	 *
+	 * @return mixed
+	 */
+	public static function reaffirmer( mixed $utilisateur, string $identifiant = '', string $mot_de_passe = '' ): mixed {
+		unset( $mot_de_passe );
+
+		self::rearmer_verification_du_coeur();
+
+		$attente = self::attente( $identifiant );
+
+		if ( $attente <= 0 ) {
+			return $utilisateur;
+		}
+
 		return new WP_Error( self::CODE_REFUS, self::message( $attente ) );
 	}
 
@@ -142,6 +238,22 @@ final class Ecluse {
 	 * Priorité 40 sur `authenticate` : après le cœur, qui a produit le code
 	 * d'erreur, et avant l'uniformisation du message (priorité 45), qui l'efface.
 	 *
+	 * VERROU ACTIF = SORTIE IMMÉDIATE PAR LE REFUS, avant toute autre lecture du
+	 * résultat courant. Deux pièges se ferment d'un coup :
+	 *
+	 *   1. Un `WP_User` produit par le cœur pendant un verrou n'atteint jamais la
+	 *      suite de la chaîne. Sans cela, `Deuxfacteurs` (priorité 50) redirigerait
+	 *      vers l'étape 2 en appelant `exit`, et la réaffirmation de la priorité 100
+	 *      ne s'exécuterait jamais.
+	 *   2. Rien de ce qui suit ne peut interpréter cette tentative comme un succès,
+	 *      donc rien ne peut purger le verrou que l'on est en train d'opposer. Un
+	 *      attaquant qui CONNAÎT le mot de passe ne doit pas pouvoir effacer son
+	 *      propre verrou en s'en servant.
+	 *
+	 * Le comptage n'en est pas affecté : pendant un verrou, `barrer()` a déjà
+	 * substitué notre propre code d'erreur, qui n'est pas comptabilisable — un
+	 * verrou ne s'auto-entretient jamais.
+	 *
 	 * @param mixed  $utilisateur  Résultat courant de la chaîne d'authentification.
 	 * @param string $identifiant  Identifiant soumis.
 	 * @param string $mot_de_passe Mot de passe soumis, jamais lu.
@@ -150,6 +262,12 @@ final class Ecluse {
 	 */
 	public static function constater( mixed $utilisateur, string $identifiant = '', string $mot_de_passe = '' ): mixed {
 		unset( $mot_de_passe );
+
+		$verrou = self::attente( $identifiant );
+
+		if ( $verrou > 0 ) {
+			return new WP_Error( self::CODE_REFUS, self::message( $verrou ) );
+		}
 
 		if ( ! is_wp_error( $utilisateur ) || ! self::est_comptabilisable( $utilisateur ) ) {
 			return $utilisateur;
@@ -215,11 +333,22 @@ final class Ecluse {
 	 * compteur à neuf : le prochain lapsus du même utilisateur légitime le
 	 * verrouillerait.
 	 *
+	 * ON NE PURGE JAMAIS PENDANT UN VERROU ACTIF. La chaîne `authenticate` est
+	 * censée rendre ce cas inatteignable, mais `wp_login` est une action publique :
+	 * l'étape 2 du second facteur l'émet elle-même, et n'importe quel chemin de
+	 * connexion l'émettra demain. Si un `wp_login` survenait malgré un verrou vivant,
+	 * purger reviendrait à offrir à qui connaît le mot de passe le moyen d'effacer
+	 * son propre verrou. Le verrou expire de lui-même ; la purge attendra.
+	 *
 	 * @param string $identifiant Identifiant connecté.
 	 * @param mixed  $utilisateur Compte connecté, non utilisé.
 	 */
 	public static function sur_connexion( string $identifiant, mixed $utilisateur = null ): void {
 		unset( $utilisateur );
+
+		if ( self::attente( $identifiant ) > 0 ) {
+			return;
+		}
 
 		$portees = self::portees( $identifiant );
 
@@ -382,6 +511,54 @@ final class Ecluse {
 		}
 
 		return $filtres;
+	}
+
+	/**
+	 * Retire les rappels du cœur qui vérifieraient le mot de passe.
+	 *
+	 * APPELÉ UNIQUEMENT DEPUIS LA BRANCHE VERROUILLÉE de `barrer()`, jamais
+	 * inconditionnellement : désarmer le cœur hors verrou rendrait toute connexion
+	 * impossible pour le reste de la requête.
+	 *
+	 * Retirer un rappel pendant l'itération de son propre crochet est un usage
+	 * explicitement pris en charge par `WP_Hook`, qui réajuste ses itérations en
+	 * cours (`_resort_active_iterations`). Le retrait vaut pour la requête entière,
+	 * ce qui est exactement l'effet recherché : une requête verrouillée ne doit
+	 * calculer aucun hachage, par aucun chemin.
+	 */
+	private static function desarmer_verification_du_coeur(): void {
+		foreach ( self::RAPPELS_MOT_DE_PASSE_COEUR as $rappel => $priorite ) {
+			if ( remove_filter( 'authenticate', $rappel, $priorite ) ) {
+				self::$rappels_desarmes[ $rappel ] = $priorite;
+			}
+		}
+	}
+
+	/**
+	 * Remet en place les rappels du cœur retirés par la tentative en cours.
+	 *
+	 * Appelé en fin de chaîne (priorité 100), donc BIEN APRÈS la priorité 20 : le
+	 * hachage n'a pas été calculé, et il ne le sera pas. `WP_Hook` n'exécute pas une
+	 * priorité inférieure réinsérée pendant l'itération en cours — il avance son
+	 * pointeur au-delà.
+	 *
+	 * POURQUOI REMETTRE : le retrait vaut sinon pour toute la durée du processus.
+	 * En requête web c'est sans conséquence (une seule chaîne `authenticate`), mais
+	 * en WP-CLI ou dans un processus qui authentifie deux fois, la seconde tentative
+	 * échouerait sans qu'aucun verrou ne s'y oppose — un faux refus silencieux, avec
+	 * le code générique `authentication_failed`. Le désarmement doit durer ce que dure
+	 * la tentative verrouillée, pas davantage.
+	 */
+	private static function rearmer_verification_du_coeur(): void {
+		if ( array() === self::$rappels_desarmes ) {
+			return;
+		}
+
+		foreach ( self::$rappels_desarmes as $rappel => $priorite ) {
+			add_filter( 'authenticate', $rappel, $priorite, 3 );
+		}
+
+		self::$rappels_desarmes = array();
 	}
 
 	/**

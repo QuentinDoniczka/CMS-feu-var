@@ -15,18 +15,29 @@
  * ┌──────────────────────────────────────────────────────────────────────────────┐
  * │  L'ORDRE DES PRIORITÉS SUR `authenticate` EST CONTRACTUEL.                    │
  * │                                                                               │
- * │   1  Ecluse::barrer                    verrou, AVANT toute vérification       │
- * │  20  (cœur) wp_authenticate_username_password                                 │
+ * │   1  Ecluse::barrer                    verrou : désarme le cœur, puis refuse  │
+ * │  20  (cœur) wp_authenticate_username_password / _email_ / _application_       │
  * │  30  AccesCompte::refuser_si_suspendu  seulement si l'on tient un WP_User     │
  * │  40  Ecluse::constater                 a besoin du code d'erreur d'origine    │
  * │  45  MessageConnexion::uniformiser     efface ce code d'origine               │
  * │  50  Deuxfacteurs::exiger_second_facteur                                      │
+ * │  99  (cœur) wp_authenticate_spam_check                                        │
+ * │ 100  Ecluse::reaffirmer                dernier mot du verrou, après le cœur   │
  * │                                                                               │
- * │  LA PRIORITÉ 1 EST LE POINT CENTRAL : une requête verrouillée est rejetée     │
- * │  SANS QUE LE MOT DE PASSE SOIT VÉRIFIÉ. Aucun calcul de hachage offert à      │
- * │  l'attaquant, aucun oracle de temps de réponse, aucune charge inutile.        │
- * │  Intervertir 40 et 45 rendrait le verrouillage décoratif : l'écluse ne        │
- * │  verrait plus que son propre code d'erreur et ne compterait plus rien.        │
+ * │  UN `WP_Error` RENVOYÉ EN PRIORITÉ 1 NE BLOQUE RIEN À LUI SEUL.               │
+ * │  `wp_authenticate_username_password()` ne se court-circuite que sur un        │
+ * │  `WP_User` ; un `WP_Error` entrant est ignoré et le cœur va jusqu'à           │
+ * │  `wp_check_password()`. Le verrouillage tient donc sur DEUX mécanismes        │
+ * │  indépendants, et il faut les deux :                                          │
+ * │                                                                               │
+ * │   • priorité 1, branche verrouillée UNIQUEMENT, `barrer` RETIRE les trois     │
+ * │     rappels de mot de passe du cœur — c'est ce qui rend vrai « aucun          │
+ * │     hachage calculé pendant un verrou », et rien d'autre ;                    │
+ * │   • priorité 100, APRÈS le cœur, `reaffirmer` réoppose le refus même face à   │
+ * │     un `WP_User` valide — filet fermé, indépendant du point précédent.        │
+ * │                                                                               │
+ * │  Intervertir 40 et 45 rendrait le comptage décoratif : l'écluse ne verrait    │
+ * │  plus que son propre code d'erreur et ne compterait plus rien.                │
  * └──────────────────────────────────────────────────────────────────────────────┘
  *
  * @package Massifs\Security\Auth
@@ -55,8 +66,15 @@ add_filter( 'authenticate', array( Ecluse::class, 'constater' ), 40, 3 );
 add_filter( 'authenticate', array( MessageConnexion::class, 'uniformiser' ), 45, 3 );
 add_filter( 'authenticate', array( Deuxfacteurs::class, 'exiger_second_facteur' ), 50, 3 );
 
+// Dernier mot du verrou, APRÈS `wp_authenticate_spam_check` (priorité 99, le dernier
+// rappel du cœur). Sans lui, un `WP_User` renvoyé par le cœur ouvrirait une session
+// malgré un verrou vivant : le refus de la priorité 1 est ignoré par le cœur.
+add_filter( 'authenticate', array( Ecluse::class, 'reaffirmer' ), 100, 3 );
+
 // Purge des compteurs après une connexion réussie, sans quoi neuf échecs suivis d'un
-// succès laisseraient l'utilisateur légitime à un lapsus du verrouillage.
+// succès laisseraient l'utilisateur légitime à un lapsus du verrouillage. La purge se
+// refuse d'elle-même pendant un verrou vivant : `wp_login` est une action publique, et
+// un succès survenu malgré un verrou ne doit jamais pouvoir l'effacer.
 add_action( 'wp_login', array( Ecluse::class, 'sur_connexion' ), 10, 2 );
 
 // Le formulaire de mot de passe oublié ne traverse pas `authenticate` : il est couvert
