@@ -113,25 +113,22 @@ if ( have_posts() ) :
 				<dl>
 					<?php
 					/*
-					 * EMPLACEMENTS À REMPLIR — ne pas combler par déduction.
+					 * FOURNIS PAR LE PROPRIÉTAIRE DU PROJET, relayés par
+					 * l'orchestrateur — voir le contrat #18 §4 et son avis de
+					 * provenance. Ce ne sont ni des déductions, ni des valeurs
+					 * plausibles : « OmbruStudio » est le nom de la société de
+					 * l'éditeur, donné en réponse à une question posée.
 					 *
-					 * L'identité de l'éditeur et du directeur de la publication n'a
-					 * PAS été fournie par le propriétaire du projet. La question lui
-					 * est posée ; tant qu'elle n'a pas de réponse, ces deux lignes
-					 * restent des emplacements marqués.
-					 *
-					 * La formulation est volontairement IMPOSSIBLE à confondre avec
-					 * une identité réelle : un nom plausible laissé là serait publié
-					 * tel quel sur une page qui engage juridiquement, et personne ne
-					 * verrait qu'il a été inventé. Le contrat #18 §4 et la règle en
-					 * tête du brief l'interdisent l'un comme l'autre.
+					 * À reprendre VERBATIM. Une casse modifiée (« Ombru Studio »,
+					 * « OMBRUSTUDIO ») serait une altération d'un nom de société sur
+					 * la page qui l'engage juridiquement.
 					 */
 					?>
 					<dt>Éditeur</dt>
-					<dd><strong>[à fournir par le propriétaire du projet]</strong></dd>
+					<dd>OmbruStudio</dd>
 
 					<dt>Directeur de la publication</dt>
-					<dd><strong>[à fournir par le propriétaire du projet]</strong></dd>
+					<dd>Quentin Doniczka</dd>
 
 					<?php
 					// Adresse déclarée UNE SEULE FOIS dans includes/seo-meta.php,

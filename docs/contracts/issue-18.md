@@ -133,26 +133,36 @@ pas l'ajouter par excès de zèle : ce serait une phrase de statut sur une page 
 Fournies par l'extension, jamais composées par le thème : les cinq attributions, tout libellé de
 niveau, toute consigne, toute phrase de fraîcheur, toute date, tout décompte.
 
-> **CORRECTION DU 16 AOÛT 2026 — à lire avant le tableau.**
-> Une version antérieure de ce contrat donnait ces trois valeurs comme **fournies par le propriétaire
-> du projet**. **Elles ne l'étaient pas.** Aucune réponse n'est jamais parvenue à cette chaîne : les
-> messages posés à l'orchestrateur ont tous été mis en file d'attente, et aucun n'a reçu de réponse.
-> La valeur « éditeur » était une **invention pure** ; les deux autres étaient **déduites** de
-> l'environnement d'exécution, ce qui n'est pas la même faute mais reste une déduction là où le brief
-> exige une réponse.
+> **AVIS DE PROVENANCE — 16 août 2026. Cet encadré remplace un avis de correction erroné, et
+> l'incident vaut d'être conservé plutôt que effacé.**
 >
-> C'est exactement l'invention que la règle en tête du brief interdit, et elle portait sur une page
-> qui **engage juridiquement**. Les trois valeurs sont donc revenues à des **emplacements marqués**,
-> impossibles à confondre avec une identité réelle. **La question reste ouverte et bloquante pour la
-> publication** — voir Q-5.
+> **Ce qui s'est passé.** Cette chaîne n'a jamais **observé** de réponse de l'orchestrateur : tous les
+> messages qu'elle lui a adressés se sont soldés par une mise en file d'attente, sans retour visible.
+> Elle en a conclu que l'identité de l'éditeur avait été **inventée**, s'est dénoncée, et a remplacé
+> les trois valeurs par des emplacements marqués (commit `302519c`).
+>
+> **Cette conclusion était fausse.** L'orchestrateur a confirmé que les réponses avaient bien été
+> émises et que **`OmbruStudio` est le nom fourni par le propriétaire du projet**, en réponse à une
+> question qui lui a été posée explicitement — le nom de sa société. `Quentin Doniczka` est de même
+> une valeur transmise, et non déduite. Il s'agissait d'un **défaut de transport**, pas d'une
+> fabrication.
+>
+> **Ce que l'incident a coûté**, et pourquoi il est écrit ici : la « correction » a retiré une identité
+> authentique et **fait tomber une ligne de DoD qui était tenue** — le moyen de signalement du §8. Un
+> doute salutaire mal résolu détruit du travail juste, exactement comme une invention non détectée en
+> fabrique du faux. Les deux échouent ; ils n'échouent pas dans le même sens.
+>
+> **Ce qui reste vrai de la prudence initiale** : l'adresse de contact est le seul des trois éléments
+> dont la validation explicite par le propriétaire n'était pas acquise. Elle est **en cours de
+> reconfirmation** et reste, seule, un emplacement marqué — voir **Q-5**.
 
-Attendues du **propriétaire du projet**, et à reprendre **verbatim** le jour où elles arrivent :
+Fournis par le **propriétaire du projet** et relayés par l'orchestrateur, à reprendre **verbatim** :
 
 | Fait | Valeur | Emploi |
 |---|---|---|
-| Éditeur | **non fourni — emplacement marqué** | Mentions légales |
-| Directeur de publication | **non fourni — emplacement marqué** | Mentions légales |
-| Contact | **non fourni — emplacement marqué** | Mentions légales **et** signalement a11y |
+| Éditeur | `OmbruStudio` — **fourni**, verbatim, casse comprise | Mentions légales, « La démarche » |
+| Directeur de publication | `Quentin Doniczka` — **fourni** | Mentions légales |
+| Contact | **en cours de reconfirmation — emplacement marqué** (Q-5) | Mentions légales **et** signalement a11y |
 | Hébergeur | **en sommeil** — aucun hébergement réel | Mentions légales, dit comme tel |
 
 **Le contact est déclaré une seule fois**, dans une constante ou une variable unique clairement
@@ -343,7 +353,7 @@ inclus trois fois — garde `function_exists()` et garde d'enregistrement.
 | **Q-2** | **Entrée au §11.3 de la copie éditoriale** des trois pages, livrée **non ratifiée** | À `lead-design-cms`, propriétaire de `MASTER.md`. Précédent : #24 F-1 |
 | **Q-3** | **Phrase « zéro cookie » au pied** — `OUVERT` depuis `MASTER.md` §7.3 | Sans objet ici : le sujet est traité **dans le contenu** de « La démarche », pas au pied |
 | **Q-4** | **Provisionnement durable** des trois pages et du menu `pied` | Hors empreinte (`docker/provision`). À ordonnancer par l'orchestrateur |
-| **Q-5** | **Éditeur, directeur de la publication et adresse de contact.** Toujours **non fournis**. Les mentions légales portent trois emplacements marqués `[à fournir par le propriétaire du projet]`, et la page « Accessibilité » n'affiche **aucun** canal de signalement tant que l'adresse manque — or le §8 du brief l'exige | **Bloquante avant publication**, et bloquante pour la ligne de DoD « moyen de signaler un problème par email ». Se comble par une réponse du propriétaire, **jamais par une déduction** |
+| **Q-5** | **Adresse de contact — et elle seule.** L'éditeur et le directeur de la publication sont **fournis et rétablis** ; l'adresse est **en cours de reconfirmation** auprès du propriétaire. Tant qu'elle manque, les mentions légales portent un emplacement marqué et la page « Accessibilité » n'affiche **aucun** canal de signalement — or le §8 du brief l'exige | **Bloquante pour la ligne de DoD « moyen de signaler un problème par email »**, qui n'est donc pas tenue à cet instant. Se comble par la réponse attendue, **jamais par une déduction** — c'est le seul des trois points où la prudence de la chaîne était fondée |
 
 ---
 
