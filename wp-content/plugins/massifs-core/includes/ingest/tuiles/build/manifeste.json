@@ -416,8 +416,8 @@
 		"largeur": 1600,
 		"hauteur": 1421,
 		"contours_massifs": 25,
-		"octets": 138964,
-		"sha256": "9aa6612eaa96d8fd2572c2a15d3b9362fcc4d42ec4501d2b757261bf796492f1"
+		"octets": 120768,
+		"sha256": "93d19dcc611178a8197f8629e13bb47c9e49f75995ae66a3ace8889713986474"
 	},
 	"outillage": {
 		"mapshaper": "0.6.102",

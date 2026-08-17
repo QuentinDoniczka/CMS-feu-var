@@ -32,11 +32,11 @@ if ( ! defined( 'ABSPATH' ) && ! defined( 'MASSIFS_VERIFICATION' ) ) {
 
 return array(
 	'schema'      => 1,
-	'genere_le'   => '2026-08-13T22:14:33Z',
+	'genere_le'   => '2026-08-17T08:53:00Z',
 	'mode'        => 'complet',
 	'pyramide'    => array(
-		'version'      => '197ba0d0',
-		'sha256'       => '197ba0d07ed48c3864d6bbe31ee031a0b0c04f8a5d10502c4704a0ebde18f6bf',
+		'version'      => '926dab38',
+		'sha256'       => '926dab383762e68434643f4d7c8fc9ea2636b586386f330a5e4ca8215e231665',
 		'octets'       => 546780,
 		'nombre'       => 280,
 		'zoom_min'     => 5,
@@ -51,9 +51,9 @@ return array(
 		),
 	),
 	'statique'    => array(
-		'version'          => '197ba0d0',
-		'sha256'           => '9aa6612eaa96d8fd2572c2a15d3b9362fcc4d42ec4501d2b757261bf796492f1',
-		'octets'           => 138964,
+		'version'          => '926dab38',
+		'sha256'           => '93d19dcc611178a8197f8629e13bb47c9e49f75995ae66a3ace8889713986474',
+		'octets'           => 120768,
 		'largeur'          => 1600,
 		'hauteur'          => 1421,
 		'contours_massifs' => 25,
