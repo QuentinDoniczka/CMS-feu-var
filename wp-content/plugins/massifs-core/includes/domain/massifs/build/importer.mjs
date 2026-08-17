@@ -77,10 +77,25 @@ export const SCHEMA = 2;
  * Paramètres de simplification. Le paramètre `interval` de Douglas-Peucker EST
  * la borne de déviation : la mesurer après coup rend la garantie §4.1 opposable
  * au lieu d'être postulée.
+ *
+ * `ilots_min_m2` ne touche pas au tracé — il retire des anneaux entiers avant la
+ * simplification. Le jeu source porte 1 129 anneaux dont 884 sous 25 hectares :
+ * à l'écran, chacun apposait son liseré et la carte se lisait comme du bruit.
+ * DP ne pouvait rien y faire, il supprime des sommets LE LONG d'une ligne mais
+ * ne fusionne ni ne retire jamais un anneau.
+ *
+ * Visvalingam pondéré a été mesuré comme alternative et ÉCARTÉ : il effondre bien
+ * les petits anneaux, mais déplace les frontières hors de toute borne utile —
+ * 1 454 m d'écart maximal dès 90 m d'intervalle, 1 997 m à 250 m, et un massif
+ * (Rougadou) faux de 52,9 % en surface. Un écart de 2 km n'est pas « visuellement
+ * fidèle à la carte officielle ». L'algorithme ne change pas ; seuls les îlots
+ * détachés cessent d'être dessinés, ce qui laisse l'écart maximal à 93,6 m,
+ * soit 1,7 pixel au zoom 11.
  */
 export const SIMPLIFICATION = {
 	algorithme: 'douglas-peucker',
 	intervalle_m: 90,
+	ilots_min_m2: 250000,
 	precision_decimales: 4,
 	zoom_max: 11,
 };
@@ -101,8 +116,21 @@ export const SEUILS = {
 	octets_bruts_max: 307200,
 	ecart_max_m: 120,
 	ecart_surface_global_abs_pct_max: 0.5,
-	ecart_surface_massif_abs_pct_max: 3,
-	surface_anneaux_supprimes_pct_max: 0.5,
+	// Relevés de 3 % et 0,5 % en même temps que l'arrivée de
+	// `SIMPLIFICATION.ilots_min_m2`. Ces deux seuils ne bornent pas une déformation
+	// du tracé — l'écart maximal, lui, n'a pas bougé d'un mètre — mais la surface
+	// que le filtre d'îlots retire volontairement.
+	//
+	// Mesuré au seuil de 25 ha : 4,19 % de la surface totale retirée, et un seul
+	// massif réellement touché, Rougadou, constellation de petites parcelles qui
+	// tombe à un anneau et perd 19,15 % ; tous les autres restent sous 4,5 %. Les
+	// 25 massifs restent dessinés — aucun ne disparaît.
+	//
+	// La marge au-dessus du mesuré est délibérément courte : ces seuils gardent un
+	// choix assumé, pas une tolérance. Un écart qui les dépasse signale que le jeu
+	// source a changé de structure, et doit être regardé.
+	ecart_surface_massif_abs_pct_max: 22,
+	surface_anneaux_supprimes_pct_max: 5,
 	features_attendues: 25,
 	code_regex: '^[a-z0-9_-]{1,64}$',
 	identifiant_prefecture_regex: '^\\d{3,4}$',
@@ -1255,9 +1283,14 @@ function simplifier( sourceFC ) {
 		} )
 	);
 
+	// L'ordre compte : les îlots sont retirés AVANT la simplification, sinon le
+	// lissage les déforme d'abord et le filtre trie ensuite sur des aires qui ne
+	// sont plus celles de la source.
 	const arguments_ = [
 		CHEMINS.mapshaper,
 		entree,
+		'-filter-islands',
+		`min-area=${ SIMPLIFICATION.ilots_min_m2 }`,
 		'-simplify',
 		'dp',
 		`interval=${ SIMPLIFICATION.intervalle_m }`,
@@ -1460,6 +1493,10 @@ export async function importer() {
 			tool: `mapshaper ${ mapshaper }`,
 			algorithm: 'Douglas-Peucker',
 			interval_m: SIMPLIFICATION.intervalle_m,
+			// Appliqué AVANT la simplification : filtrer après ferait trier le seuil
+			// sur des aires déjà déformées par le lissage. Ne déplace aucun sommet —
+			// l'écart maximal est identique avec et sans.
+			filter_islands_min_area_m2: SIMPLIFICATION.ilots_min_m2,
 			keep_shapes: true,
 			output_coordinate_precision_deg: Number( `0.${ '0'.repeat( SIMPLIFICATION.precision_decimales - 1 ) }1` ),
 			topology_preserved: true,
