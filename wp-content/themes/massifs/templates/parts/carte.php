@@ -209,11 +209,11 @@ try {
 		),
 		'indisponible'      => array(
 			'etat'  => 'indisponible',
-			'texte' => 'Information du jour non disponible. Consultez la carte officielle de la préfecture.',
+			'texte' => 'Information de demain non disponible. Consultez la carte officielle de la préfecture.',
 		),
 		'hors_saison'       => array(
 			'etat'  => 'hors_saison',
-			'texte' => 'Dispositif estival inactif.',
+			'texte' => 'Dispositif estival inactif demain.',
 		),
 		'non_encore_publie' => array(
 			'etat'  => 'non_encore_publie',
@@ -225,7 +225,7 @@ try {
 
 	$message_suivant = array(
 		'etat'  => 'indisponible',
-		'texte' => 'Information du jour non disponible. Consultez la carte officielle de la préfecture.',
+		'texte' => 'Information de demain non disponible. Consultez la carte officielle de la préfecture.',
 	);
 }
 
@@ -630,17 +630,6 @@ $demain_publie = 'disponible' === $message_suivant['etat'];
 ?>
 <button type="button" class="carte__jour-bouton" data-bascule="<?php echo esc_attr( $jour_suivant ); ?>" aria-pressed="false"<?php echo $demain_publie ? '' : ' aria-disabled="true" aria-describedby="carte-message"'; ?>>Demain</button>
 </div>
-</div>
-<?php
-/*
- * La toile. `role="group"` et non `role="application"` : les 25 polygones sont
- * des `<path role="button">` que Leaflet crée dans un `<svg>` interne, et ce
- * groupe leur donne un nom accessible commun. Elle est masquée jusqu'à ce que
- * `carte.js` l'ait démasquée : un conteneur en `display: none` mesure 0 × 0, et
- * Leaflet initialisé dessus ne rendrait rien.
- */
-?>
-<div class="carte__toile" role="group" aria-label="Carte des massifs" aria-describedby="carte-aide" hidden></div>
 <?php
 /*
  * Phrase §11.3 du sélecteur (arbitrage A-3). Sa seule PRÉSENCE dit que demain
@@ -652,16 +641,39 @@ $demain_publie = 'disponible' === $message_suivant['etat'];
  * passage sur « Aujourd'hui » la masquerait définitivement, le bouton
  * « Demain » désactivé ne pouvant plus la ramener.
  *
- * Elle reste masquée dans le HTML servi et c'est `carte.js` qui la démasque
- * avec la barre, sans interaction : elle est SŒUR de `.carte__barre` et non
- * fille (carte.css l. 308-311), elle serait sinon visible sans JavaScript, où
- * aucun sélecteur de jour n'existe — « Information du jour non disponible »
- * y contredirait la liste des statuts du jour rendue juste au-dessus.
+ * FILLE de `.carte__barre` et placée après `.carte__jours` — A-20 amendé le
+ * 18 août 2026 (chaîne #37), dans `docs/contracts/issue-7.md`. Elle cesse
+ * d'être élément de grille de la racine, et le bloc `@media (min-width:
+ * 56.25rem)` de `carte.css` n'est PAS ouvert : c'est la décision, pas un
+ * oubli. La recette littérale de l'issue — une troisième rangée de grille —
+ * RÉGRESSE dans le cas nominal : quand demain est publié, la garde ci-dessous
+ * ne rend pas ce nœud, il est ABSENT DU DOM, et le placement automatique
+ * trouve la rangée libre pour y poser `.carte__attribution`, ENTRE la barre de
+ * jour et la toile.
+ *
+ * Ce qui ne bouge pas, et c'est la moitié opposable d'A-20 : le nœud reste
+ * masqué dans le HTML servi, `carte.js` SEUL le démasque, au même instant que
+ * la barre, avant `L.map` et sans aucune interaction. Sans JavaScript il est
+ * désormais verrouillé DEUX fois plutôt qu'une — la barre porte `hidden`, et
+ * `.carte [hidden] { display: none !important }` masque tout le sous-arbre —,
+ * donc « Information de demain non disponible » ne peut pas paraître là où
+ * aucun sélecteur de jour n'existe.
  */
 ?>
 <?php if ( '' !== $message_suivant['texte'] ) : ?>
 <p class="carte__message" id="carte-message" hidden><?php echo esc_html( $message_suivant['texte'] ); ?><?php if ( '' !== $reprise_texte ) : ?> Reprise le <time datetime="<?php echo esc_attr( $reprise_brute ); ?>"><?php echo esc_html( $reprise_texte ); ?></time>.<?php endif; ?></p>
 <?php endif; ?>
+</div>
+<?php
+/*
+ * La toile. `role="group"` et non `role="application"` : les 25 polygones sont
+ * des `<path role="button">` que Leaflet crée dans un `<svg>` interne, et ce
+ * groupe leur donne un nom accessible commun. Elle est masquée jusqu'à ce que
+ * `carte.js` l'ait démasquée : un conteneur en `display: none` mesure 0 × 0, et
+ * Leaflet initialisé dessus ne rendrait rien.
+ */
+?>
+<div class="carte__toile" role="group" aria-label="Carte des massifs" aria-describedby="carte-aide" hidden></div>
 <?php if ( '' !== $attribution_texte ) : ?>
 <p class="carte__attribution" data-attribution="statuts" hidden><?php echo esc_html( $attribution_texte ); ?></p>
 <?php endif; ?>

@@ -609,7 +609,42 @@ deux termes.
   hauteur posée sur elle serait inerte jusqu'au JS et la bande sauterait de 0 à ~700 px — l'assertion de
   recette 3 tomberait. **Confirmé. Ni le PHP ni le JS ne posent de hauteur sur `.carte__toile`.**
 
-### A-20 · La phrase §11.3 du sélecteur est démasquée **par le JS**, pas rendue visible par PHP
+### A-20 · La phrase §11.3 du sélecteur est démasquée **par le JS**, pas rendue visible par PHP — **amendée le 18 août 2026 (chaîne #37)**
+
+> **Amendement — lire ceci avant toute correction.** La moitié « `.carte__message` est **frère** de
+> `.carte__barre`, pas fils » et l'inférence qui la suivait — « rendu visible par PHP, il paraîtrait donc
+> **JavaScript désactivé** » présentée comme une conséquence du fait d'être **fils** — sont **fausses**, et
+> elles ont été recopiées telles quelles dans un commentaire de `templates/parts/carte.php`. Fils de
+> `.carte__barre`, le nœud est **plus** protégé, pas moins : la barre porte `hidden`, et
+> `.carte [hidden] { display: none !important }` (`assets/css/carte.css` §1) masque **tout le sous-arbre**.
+> Sans JavaScript, un `.carte__message` fils de la barre est donc verrouillé **deux fois** — par le
+> `hidden` de son parent et par le sien — là où le frère ne l'était qu'une. Le contrat d'application est
+> `docs/contracts/issue-37.md`.
+>
+> **Ce qui est retiré** : la clause « frère et non fils » comme *motif* ; l'inférence « fils ⇒ visible sans
+> JavaScript » ; et, avec elles, la **position** du nœud — 3e enfant structurel de `.carte`, rendu **sous**
+> `.carte__toile`, à ~640 px du bouton « Demain » qu'il explique par `aria-describedby`.
+>
+> **Ce qui survit à l'amendement, entier et opposable** : *le nœud reste `hidden` dans le HTML servi, et
+> `carte.js` seul le démasque — au même instant que la barre, avant `L.map`, sans aucune interaction.* Ce
+> que A-20 a réellement refusé, c'est **de retirer le `hidden` en PHP**, et ce refus tient intégralement :
+> une phrase qui ne nomme pas son jour, rendue sans sélecteur de jour, affirme le jour affiché — la règle
+> de sécurité produit du §4.2. Survit aussi, mot pour mot, la première des deux conséquences ci-dessous :
+> **`.carte__message` ne porte pas `data-jour`.**
+>
+> **Ce qui est ajouté** : `.carte__message` devient **fils de `.carte__barre`, après `.carte__jours`**. Il
+> cesse d'être élément de grille et élément flex de la racine ; le bloc `@media (min-width: 56.25rem)` de
+> `carte.css` **n'est pas ouvert**. Motif mesuré, et non déduit : la recette prescrite par l'issue #37
+> (`grid-template-rows: auto auto 1fr` + `.carte__toile { grid-row: 3 }`) **régresse dans le cas nominal**
+> — quand demain est publié, `.carte__message` est **absent du DOM** (`carte.php`, garde
+> `'' !== $message_suivant['texte']`), le curseur de placement automatique trouve la ligne 2 libre et y
+> pose `.carte__attribution`, **entre la barre de jour et la toile**. Vérifié dans Chrome à 1200 px et
+> 900 px : `attribution.top` 559 contre `toile.top` 598. La disposition retenue place l'attribution **sous**
+> la toile dans les deux cas de DOM et à toutes les largeurs.
+>
+> **La seconde conséquence est reformulée, pas retirée** : le nœud occupe désormais sa hauteur **dans la
+> barre** et non dans la colonne flex de la racine — toujours **avant la mesure de la toile**, donc aucune
+> `invalidateSize()` n'est requise et l'assertion de recette 3 reste tenue.
 
 Défaut trouvé par `refacto-cms` : `.carte__message` n'avait **aucun chemin d'affichage visuel**. Le nœud
 n'est rendu que quand le bouton « Demain » porte `aria-disabled`, or `carte.js` n'appelle jamais

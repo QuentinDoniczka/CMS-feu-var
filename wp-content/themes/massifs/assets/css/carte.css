@@ -386,12 +386,27 @@
   border-width: var(--bord-selection);
 }
 
-/* Phrase §11.3 du sélecteur — SŒUR de la barre, pas fille : elle porte donc sa
-   propre gouttière, sans quoi elle toucherait le bord à 360 px.
-   --c-charbon-doux sur --c-carte-fond : 6,82:1, conforme AA. AUCUN `display`
-   ici : l'élément porte `hidden`. */
+/* Phrase §11.3 du sélecteur — FILLE de la barre, dernier enfant, après
+   .carte__jours. La gouttière vient donc de .carte__barre et n'est PLUS reposée
+   ici : la reposer la doublerait à 360 px.
+   `flex-basis: 100%` est ce qui l'exile sur sa propre ligne dans le
+   `flex-wrap: wrap` de la barre — sa taille hypothétique occupe la ligne
+   entière, aucune rangée ne peut donc la partager avec .carte__jours, à TOUTE
+   largeur. Ce 100 % n'est pas un littéral nu : c'est une des valeurs
+   STRUCTURELLES que l'en-tête autorise, celle-là même que .carte emploie en
+   `inline-size`. Préféré à `inline-size: 100%`, qui n'agirait que par le détour
+   de `flex-basis: auto` et qu'un `flex:` posé plus tard neutraliserait en
+   silence.
+   Gain acquis sans rien écrire : `.carte__barre > * { min-inline-size: 0 }`
+   couvre désormais le message — le garde-fou n° 1 contre le défilement
+   horizontal à 360 px, qu'il n'avait pas en frère de la barre.
+   --c-charbon-doux sur --c-calcaire, l'aplat OPAQUE de la barre : 7,29:1,
+   conforme AA. Ratio déjà publié pour cette paire (MASTER §4.2, la table de
+   palette ; le §7 ci-dessous le cite à l'identique) ; il remplace le
+   6,82:1 mesuré sur --c-carte-fond, qui n'est plus la surface sous-jacente.
+   AUCUN `display` ici : l'élément porte `hidden`. */
 .carte__message {
-  padding-inline: var(--gouttiere);
+  flex-basis: 100%;
   font-size: var(--fs-200);
   color: var(--c-charbon-doux);
 }
@@ -639,7 +654,15 @@
    placement automatique ; seules la toile et le panneau sont épinglés à la
    ligne 2, ce qui les met côte à côte quel que soit le nombre d'attributions
    rendues (une, deux, ou aucune). Les trois enfants hors flux (.carte__defs,
-   .carte__aide, .carte__annonce) ne sont pas des éléments de grille. */
+   .carte__aide, .carte__annonce) ne sont pas des éléments de grille.
+   #37 — CE BLOC N'EST PAS OUVERT, et son absence du diff est la DÉCISION, pas
+   un oubli. La reprise de grille prescrite par l'issue (`auto auto 1fr`,
+   `.carte__toile { grid-row: 3 }`) régresse dans le cas NOMINAL : demain publié,
+   `.carte__message` est ABSENT du DOM et le placement automatique pose alors
+   `.carte__attribution` dans la ligne 2 restée libre, AU-DESSUS de la toile
+   (mesuré dans Chrome, `top` 559 contre 598, à 900 px comme à 1200 px). Le
+   message étant désormais fils de la barre, il n'est plus élément de grille et
+   la question est close définitivement — contrat #37, A-37.1. */
 @media (min-width: 56.25rem) {
   .carte--prete {
     display: grid;
