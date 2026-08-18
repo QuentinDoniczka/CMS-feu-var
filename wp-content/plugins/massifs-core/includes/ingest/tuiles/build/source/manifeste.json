@@ -1,11 +1,12 @@
 {
 	"a_propos": "Provenance de l'archive OpenStreetMap du fond de carte. ÉMIS PAR `npm run recuperer`, jamais édité à la main. Données © les contributeurs d'OpenStreetMap, sous Open Database License 1.0.",
-	"extrait_le": "2026-08-13T21:44:46Z",
+	"extrait_le": "2026-08-17T22:33:34Z",
 	"points_acces": {
 		"terre": "https://overpass-api.de/api/interpreter",
 		"vegetation": "https://overpass-api.de/api/interpreter",
 		"eau": "https://overpass-api.de/api/interpreter",
-		"routes": "https://overpass-api.de/api/interpreter"
+		"routes": "https://overpass-api.de/api/interpreter",
+		"toponymes": "https://overpass.kumi.systems/api/interpreter"
 	},
 	"agent": "massifs-fond-de-carte/1.0 (+https://github.com/QuentinDoniczka/CMS-feu-var)",
 	"bbox": {
@@ -18,7 +19,8 @@
 		"terre": "[out:json][timeout:900][bbox:43.15731,4.65642,43.90238,5.81325];relation[\"boundary\"=\"administrative\"][\"admin_level\"=\"6\"][\"ref\"=\"13\"];out geom;",
 		"vegetation": "[out:json][timeout:900][bbox:43.15731,4.65642,43.90238,5.81325];(way[\"landuse\"=\"forest\"];relation[\"landuse\"=\"forest\"];way[\"natural\"=\"wood\"];relation[\"natural\"=\"wood\"];way[\"natural\"=\"scrub\"];relation[\"natural\"=\"scrub\"];);out geom;",
 		"eau": "[out:json][timeout:900][bbox:43.15731,4.65642,43.90238,5.81325];(way[\"natural\"=\"water\"];relation[\"natural\"=\"water\"];way[\"waterway\"=\"riverbank\"];);out geom;",
-		"routes": "[out:json][timeout:900][bbox:43.15731,4.65642,43.90238,5.81325];(way[\"highway\"~\"^(motorway|trunk|primary)$\"];);out geom;"
+		"routes": "[out:json][timeout:900][bbox:43.15731,4.65642,43.90238,5.81325];(way[\"highway\"~\"^(motorway|trunk|primary)$\"];);out geom;",
+		"toponymes": "[out:json][timeout:900][bbox:43.15731,4.65642,43.90238,5.81325];node[\"place\"~\"^(city|town|village)$\"];out geom;"
 	},
 	"normalisation": {
 		"decimales": 5,
@@ -94,23 +96,51 @@
 			"precision=0.00001",
 			"format=geojson",
 			"source/_travail-routes.out.json"
+		],
+		"toponymes": [
+			"node",
+			"node_modules/mapshaper/bin/mapshaper",
+			"source/_travail-toponymes.json",
+			"-clip",
+			"source/_travail-terre.json",
+			"-filter-fields",
+			"nom,classe,population",
+			"-o",
+			"precision=0.00001",
+			"format=geojson",
+			"source/_travail-toponymes.out.json"
 		]
 	},
 	"comptes_overpass": {
 		"terre": 1,
-		"vegetation": 12076,
-		"eau": 4885,
-		"routes": 8861
+		"vegetation": 12075,
+		"eau": 4886,
+		"routes": 8865,
+		"toponymes": 199
 	},
 	"comptes_normalises": {
 		"terre": 19,
-		"vegetation": 5722,
+		"vegetation": 5721,
 		"eau": 1314,
-		"routes": 6647
+		"routes": 6651,
+		"toponymes": 126
+	},
+	"toponymes": {
+		"retournes": 199,
+		"sans_nom": 0,
+		"classe_hors_liste": 0,
+		"coordonnee_non_finie": 0,
+		"retenus_avant_clip": 199,
+		"retenus_apres_clip": 126,
+		"par_classe": {
+			"city": 2,
+			"town": 29,
+			"village": 95
+		}
 	},
 	"archive": {
 		"fichier": "wp-content/plugins/massifs-core/includes/ingest/tuiles/build/source/osm-13.json",
-		"sha256": "88ddfbb8aef64840964b311aef22965cd0d9fc454537ec2cdadc2bc525a786a4",
-		"octets": 4074777
+		"sha256": "f3b18ef9900557358230deb516053e93ef4d22323e4bbe2cbbdea8764a05f0fa",
+		"octets": 4094229
 	}
 }

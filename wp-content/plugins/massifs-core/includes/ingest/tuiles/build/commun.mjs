@@ -52,6 +52,14 @@ export const CHEMINS = {
 	referentiel: path.join( EXTENSION, 'data/massifs-13.php' ),
 	geometrie: path.join( EXTENSION, 'data/massifs-13.geometrie.json' ),
 	tokens: path.join( THEME, 'assets/css/tokens.css' ),
+	// Deuxième fichier de thème lu au BUILD, sur le même patron que `tokens.css`
+	// et pour la même raison : couplage symétrique, borné au build, délibéré
+	// (arbitrage A-3 du contrat #9). Le build lisait déjà les jetons et écrivait
+	// le PNG ; il lit maintenant la police dont il cuit les contours de glyphes.
+	// Sa `sha256`, son `nomPostScript` et son `upem` sont consignés au manifeste et
+	// relus par la recette (I-71.7) : un fichier de thème cuit dans les octets sans
+	// être contrôlé serait exactement le trou que I-9.7 ferme pour les couleurs.
+	police_texte: path.join( THEME, 'assets/fonts/atkinson-hyperlegible-next-var.woff2' ),
 	// Amorce du module de lecture : la recette charge la SURFACE PUBLIQUE, pas
 	// seulement les métadonnées — un renommage de clé casserait le thème sans
 	// toucher un octet d'artefact.
@@ -88,6 +96,47 @@ export const LARGEUR_STATIQUE = 1600;
 
 /** Plafond dur de l'image statique, en octets transférés (contrat #9 §2). */
 export const PLAFOND_STATIQUE_OCTETS = 150 * 1024;
+
+/**
+ * EMPRISE DÉCLARÉE de la pyramide, en coordonnées ENTIÈRES DE TUILE à z12.
+ *
+ * POURQUOI DES ENTIERS DE TUILE ET NON QUATRE DEGRÉS. `grille()` calcule
+ * `Math.floor( norm · 2^z )`. L'identité
+ * `floor( floor( a · 2¹² ) / 2^(12−z) ) === floor( a · 2^z )` fait dériver z5 à
+ * z11 des entiers z12 par simple décalage `x0 >> (12 − z)` : emboîtement PROUVÉ,
+ * aucun flottant, et aucun décalage d'une colonne quand un bord tombe pile sur
+ * une frontière de tuile. `bboxDeGrille( grilleDeclaree( 12 ) )` rend alors
+ * exactement l'emprise déclarée — DÉCLARÉ === PUBLIÉ, propriété que quatre
+ * degrés n'auraient pas donnée.
+ *
+ * D'OÙ VIENNENT CES QUATRE ENTIERS. `MARGE_DECLAREE_DEG` appliquée aux quatre
+ * bords de `massifs_emprise()['bbox']`, arrondie vers l'extérieur à la grille
+ * z12, UNE FOIS, le 17 août 2026, puis GELÉE. Elle n'est jamais réévaluée au
+ * build : la réévaluer rétablirait très exactement le couplage que l'issue #71
+ * supprime. Marges résiduelles obtenues : ouest 0,08611° · est 0,07542° ·
+ * nord 0,05881° · sud 0,08842°. Seul le bord sud franchit une frontière de tuile
+ * (y1 1502 → 1503), d'où z12 15 × 14 = 210 et 295 tuiles au total.
+ *
+ * LES CHANGER EST UNE DÉCISION, prise par un humain et écrite : elle re-cuit les
+ * 295 tuiles, déplace la bbox publiée et bouge les dimensions de l'image
+ * statique. Un sommet du référentiel qui sort de cette emprise ARRÊTE le build
+ * (I-71.4) ; le remède est de décider une nouvelle emprise, jamais de la
+ * recalculer depuis la géométrie.
+ */
+export const EMPRISE_DECLAREE = Object.freeze( { zoom: 12, x0: 2100, x1: 2114, y0: 1490, y1: 1503 } );
+
+/** Marge appliquée UNE FOIS pour dériver `EMPRISE_DECLAREE`. Documentaire : jamais relue par le build. */
+export const MARGE_DECLAREE_DEG = 0.05;
+
+/**
+ * Marge résiduelle au-dessous de laquelle le build AVERTIT, sans jamais échouer.
+ *
+ * Même ordre de grandeur et même sens que `DEBORDEMENT_MAX_DEG` — « un cheveu
+ * dans cette projection » — et délibérément PAS fusionnée avec lui : l'un borne
+ * un écart département/référentiel à la récupération, l'autre signale que
+ * l'emprise déclarée se resserre. Deux faits, deux noms.
+ */
+export const MARGE_MIN_DEG = 0.02;
 
 /** Modes de build. Énumération fermée : tout ce qui n'est pas `complet` est `degrade`. */
 export const MODE_COMPLET = 'complet';
@@ -138,8 +187,18 @@ export const JETONS_STATUT = Object.freeze( [ '--statut-autorise', '--statut-int
  * « limite » recopierait la même géométrie pour la retracer par-dessus — deux
  * représentations d'un même contour finissent par diverger.
  *
- * `--c-carte-encre` n'a AUCUN consommateur en v1 : les toponymes sont écartés
- * (arbitrage A-9, `OUVERT`). Absence délibérée, pas défaut.
+ * `--c-carte-encre` a désormais un consommateur DÉCLARÉ, et un seul : l'encre des
+ * toponymes cuits (#71, qui renverse l'arbitrage A-9 du contrat #9). Aucune couche
+ * de fond ne l'emploie, aucun contour non plus — les contours sont en
+ * `--c-charbon`.
+ *
+ * NE PAS EN DÉDUIRE que compter les pixels d'index encre compte l'encre des
+ * toponymes : l'arbitrage A-5 du contrat #71 le supposait, et LA MESURE L'A
+ * INFIRMÉ. `--c-carte-encre` est le plus proche voisin d'une bande de la rampe
+ * d'anticrénelage charbon -> terre, et `PALIERS = 0` y fait tomber la frange des
+ * 25 contours : la toile SANS étiquette en porte déjà des dizaines de milliers.
+ * Ce coût est ANTÉRIEUR à #71. C'est pourquoi `TOPONYMES.couverture_encre_max` se
+ * mesure DANS LES BOÎTES d'étiquette, où C-e interdit tout pixel charbon.
  */
 export const COUCHES = Object.freeze( [
 	{ nom: 'terre', surfacique: true, remplissage: '--c-carte-terre', trait: '--c-carte-trait' },
@@ -149,16 +208,41 @@ export const COUCHES = Object.freeze( [
 ] );
 
 /**
+ * Couche PONCTUELLE des toponymes.
+ *
+ * Elle n'entre délibérément PAS dans `COUCHES`, qui est documenté comme « les
+ * couches du fond, dans l'ordre de PEINTURE » : chacun de ses membres porte un
+ * `remplissage`/`trait` et passe par `cheminSvg()`. Les toponymes ne sont ni
+ * peints par `cheminSvg`, ni simplifiés, ni filtrés par aire, et ils PORTENT DES
+ * ATTRIBUTS. Les glisser dans `COUCHES` imposerait un `if ( 'toponymes' === … )
+ * continue;` dans cinq boucles — la forme même du code qui pourrit. Une constante
+ * séparée, traitée explicitement, plus une liste dérivée pour les seules boucles
+ * de récupération et d'archive.
+ */
+export const COUCHE_TOPONYMES = Object.freeze( { nom: 'toponymes', ponctuel: true } );
+
+/** Toutes les couches de la SOURCE : les quatre géométriques, plus les toponymes. */
+export const COUCHES_SOURCE = Object.freeze( [ ...COUCHES, COUCHE_TOPONYMES ] );
+
+/** Classes `place` retenues, DANS L'ORDRE DE RANG. `hamlet`, `suburb`, `locality` sont exclus. */
+export const CLASSES_TOPONYMES = Object.freeze( [ 'city', 'town', 'village' ] );
+
+/**
  * Couches retenues pour l'IMAGE STATIQUE — mitigation (2) du §2 du contrat #9.
  *
- * La mitigation (1) ne suffit pas : à 7 couleurs, l'image complète pèse encore
- * 177 824 o pour un plafond de 153 600 o. Le §2 impose alors « supprimer les
- * couches de fond les moins informatives », AVANT de toucher à la largeur. Poids
- * mesurés, à 1600 px et 7 couleurs :
+ * La mitigation (1) ne suffit pas : à 7 couleurs, l'image complète dépasse encore
+ * le plafond de 153 600 o. Le §2 impose alors « supprimer les couches de fond les
+ * moins informatives », AVANT de toucher à la largeur.
  *
- *   terre + vegetation + eau + routes -> 177 824 o
- *   sans routes                       -> 164 709 o
- *   sans routes ni vegetation         -> 142 464 o   RETENU
+ * ÉCARTS ENTRE COUCHES, et non poids absolus — les écarts sont stables, les poids
+ * se périment au premier changement d'emprise, comme #71 vient de le montrer :
+ *
+ *   retrait de `routes`     -> −13 115 o
+ *   retrait de `vegetation` -> −22 245 o
+ *
+ * Mesures du build initial du 13 août 2026, ORDRE DE GRANDEUR, NON NORMATIVES. Le
+ * poids courant de l'artefact vit dans `build/reference.json`, clé
+ * `statique.octets`, et dans aucune prose.
  *
  * L'ordre de retrait n'est pas arbitraire. `routes` part la première : le §4.2 de
  * `MASTER.md` dit d'elle qu'elle n'est « jamais porteur d'une limite qui compte »
@@ -192,6 +276,9 @@ export const SELECTEURS = Object.freeze( {
 	vegetation:
 		'(way["landuse"="forest"];relation["landuse"="forest"];way["natural"="wood"];relation["natural"="wood"];way["natural"="scrub"];relation["natural"="scrub"];)',
 	routes: '(way["highway"~"^(motorway|trunk|primary)$"];)',
+	// Règle de sélection GELÉE au §3 du contrat #71. `hamlet`, `suburb` et
+	// `locality` sont exclus : à z ≤ 12 ils saturent la toile sans rien orienter.
+	toponymes: 'node["place"~"^(city|town|village)$"]',
 } );
 
 /**
@@ -249,6 +336,14 @@ export const BORNES_OSM = Object.freeze( {
 	eau: { plancher: 2000, plafond: 15000 },
 	vegetation: { plancher: 5000, plafond: 40000 },
 	routes: { plancher: 4000, plafond: 30000 },
+	// Mesurées le 18 août 2026 par la procédure en deux passes du §8 du contrat
+	// #71 : première passe sous une enveloppe de vraisemblance large, lecture de
+	// `comptes_overpass.toponymes`, resserrement à n/2 et 3n, seconde passe. Les
+	// bornes ci-dessous sont celles de la SECONDE passe, éprouvées sur une charge
+	// réelle — c'est cette archive-là qui est commitée. Première passe :
+	// n = 199 éléments retournés, dont 2 `place=city` (Marseille et Aix), d'où
+	// 199/2 = 100 et 3 x 199 = 597.
+	toponymes: { plancher: 100, plafond: 597 },
 } );
 
 /**
@@ -287,6 +382,138 @@ export const DESSIN = Object.freeze( {
 	routes_mpp_max: 250,
 	trait_px: 1,
 	contour_px: 2,
+} );
+
+/**
+ * Réglages d'étiquetage des toponymes. Chacun est DÉRIVÉ ou MESURÉ, aucun choisi.
+ *
+ *   - `zoom_min_etiquettes: 9` — RÈGLE, PAS RÉGLAGE. À z8 la région utile du
+ *     département fait 210 x 188 px ; un seul mot en occuperait plus de la moitié.
+ *     Aucune étiquette n'est cuite à z5–z8 ;
+ *   - `densite_par_mpx: 25` — une étiquette par bloc de ~200 x 200 px. Appliquée à
+ *     `airePlacementMpx( emprise, z )` avec `Math.round` — et non `Math.floor`,
+ *     parce que 3,95 n'est pas 3 ;
+ *   - `zoom_percu_statique: 10` — arbitrage A-8 du contrat #71, RÉVISÉ le 18 août
+ *     2026 sur mesure. Il valait 9, sur deux prévisions que la mesure a infirmées :
+ *       (i) A-7 annonçait un coût NUL pour l'exclusion des intérieurs de massif.
+ *           Mesuré, elle coûte 3 noms sur 4 : Aix-en-Provence, Martigues et Aubagne
+ *           sont rejetés AUX CINQ ANCRES, par les DEUX moitiés de A-7
+ *           indépendamment — ils sont contre Sainte-Victoire, la Côte Bleue et le
+ *           Garlaban. À z9 la feuille ne portait plus que « Marseille » ;
+ *       (ii) A-8 redoutait ≈ 143 000 o pour 16 étiquettes, soit 93 % du plafond.
+ *           Mesuré, une étiquette coûte 464 o : six en coûtent ≈ 2 800, et la
+ *           statique tient à ≈ 71 % du plafond. La prévision était fausse d'un
+ *           facteur ≈ 30.
+ *     Une image de repli portant un seul nom n'honore la règle « la statique est
+ *     l'équivalent de la carte » que formellement. Le degré de liberté reste CE
+ *     SEUL ENTIER : la correction honnête est de le bouger et de RE-MESURER,
+ *     jamais de choisir des noms à la main ;
+ *   - `corps_px: 19` — PYRAMIDE. DEUX dérivations indépendantes, et c'est le
+ *     plancher le plus haut qui l'emporte (arbitrage A-1) :
+ *       (i) OPTIQUE — `carte.js` pose `zoomSnap: 0.25`, donc `L.GridLayer` charge
+ *           `Math.round( zoom )` et met le reste à l'échelle en CSS. Le facteur
+ *           garanti est 0,7071 (et vaut exactement cela sur la vue initiale
+ *           desktop, z 9,5). Une étiquette cuite à 13 px ne rend donc pas 13 px
+ *           CSS mais 9,2. Pour tenir le plus petit corps du système, `--fs-100` =
+ *           13 px, il faut 13 / 0,7071 = 18,4, d'où 19 ;
+ *       (ii) TYPOGRAPHIQUE — à 13 px les hampes d'Atkinson mesurent ~1,3–1,6 px :
+ *           une hampe à cheval sur une frontière de pixel peut se quantifier
+ *           ENTIÈREMENT en `--c-carte-trait` (4,17:1), et l'étiquette perd alors
+ *           son cœur à 6,82:1. C'est la seconde raison, et c'est ce que le
+ *           contrôle C-g rend assertable ;
+ *     La pyramide n'a AUCUN plafond d'octets (§10 du brief : « hors fond de
+ *     carte »), donc rien n'argumente en faveur du plus petit nombre ;
+ *   - `facteur_z12: 2` — une tuile z12 est TOUJOURS rendue à l'échelle de z11
+ *     (F-11 + A-7 du contrat #9). Corps, halo et padding sont multipliés ; le jeu
+ *     de noms et les ancres géographiques sont IDENTIQUES (I-71.9). Sans quoi un
+ *     écran ordinaire et un écran dense afficheraient des NOMS DIFFÉRENTS ;
+ *   - `halo_px: 1.5` / `halo_statique_px: 2` — D-28 avait rejeté un halo calcaire
+ *     de 4 px parce qu'il REMPLISSAIT LA BOÎTE ENGLOBANTE d'une petite forme. Les
+ *     rapports ici sont 1,5/19 = 0,079 et 2/28 = 0,071 : un ordre de grandeur sous
+ *     le mode de défaillance de D-28. C'est le RAPPORT qui compte, pas le pixel ;
+ *   - `corps_statique_px: 28` et `corps_min_statique_px: 25` — le plancher est
+ *     DÉRIVÉ : 1600 px sur les 186 mm utiles de l'A4 (§13 de `MASTER.md`) font
+ *     218,5 ppp ; 8 pt = 8/72 in x 218,5 = 24,3 px. C'est un PLANCHER, donc il
+ *     s'arrondit VERS LE HAUT : 25. `corps_statique_px = 28` le franchit de 12 % ;
+ *   - `marge_contour_px: 6` — `DESSIN.contour_px` (2) + `halo_statique_px` (2) +
+ *     2 px de fond pur, pour que halo et contour ne se touchent pas même après
+ *     l'étalement d'un pixel par la quantification ;
+ *   - `ecart_min_statique_px: 14` — cible 3 px CSS. 2 px CSS est le seuil où deux
+ *     marques FUSIONNENT, et la cible est « n'approche jamais la fusion » ; et
+ *     0,225 est le bout OPTIMISTE du facteur d'affichage — l'image vit dans
+ *     `.bande--carte`, dont les gouttières le ramènent vers ≈ 0,205. 3 / 0,225 =
+ *     13,3, d'où 14, qui rend 2,9 px CSS à 0,225 et 2,7 px à 0,205 ;
+ *   - `etiquettes_statique_max: 6` — écrit comme une GARDE derrière le moteur
+ *     « statique = jeu du zoom perçu », qui rendait 4 noms à z9. DEPUIS LA RÉVISION
+ *     DE `zoom_percu_statique` À 10, ce plafond MORD : le zoom perçu propose 16
+ *     candidats et six sont retenus. Ce n'est plus un filet, c'est le nombre
+ *     d'étiquettes de la feuille — et c'est la valeur à bouger, avec
+ *     `zoom_percu_statique`, si le rendu regardé dans Chrome demande autre chose ;
+ *   - `couverture_encre_max: 0.005` — 0,5 % de la toile, comptés sur l'index de
+ *     palette `--c-carte-encre` DANS LES BOÎTES D'ÉTIQUETTE. L'arbitrage A-5 les
+ *     comptait sur la toile entière, sur la prémisse que ce jeton n'a aucun autre
+ *     consommateur dans la statique ; MESURE À L'APPUI, LA PRÉMISSE EST FAUSSE — la
+ *     toile SANS étiquette en porte déjà des dizaines de milliers, l'encre étant le
+ *     plus proche voisin d'une bande de la rampe d'anticrénelage charbon → terre.
+ *     Ce coût est ANTÉRIEUR à #71. Compter dans les boîtes rétablit l'exactitude
+ *     visée, à plafond et dénominateur inchangés : C-e interdit tout pixel charbon à
+ *     moins de `marge_contour_px` d'une boîte, donc aucune frange de contour n'y
+ *     entre. Le halo n'est PAS borné : il est couleur de fond, invisible sur le
+ *     fond, et le borner serait borner la mauvaise chose ;
+ *   - `facteur_360: 0.225` — 360 / 1600, le facteur d'affichage sur la plus petite
+ *     fenêtre servie ;
+ *   - `plage_luma_min_360` / `luma_moyenne_min_360` — MESURÉS PUIS GELÉS, jamais
+ *     prédits : c'est le style de la maison, celui de `PALIERS` et de
+ *     `COUCHES_STATIQUE`. Le build IMPRIME les deux nombres par étiquette ; la
+ *     valeur gelée est le MINIMUM MESURÉ MOINS 20 %, dans le même commit, datée au
+ *     §7 du README ;
+ *   - `recul_sombres_max_360: 0.05` — seconde moitié de C-f. Le compte de pixels
+ *     sombres HORS DES BOÎTES d'étiquette, après réduction à 360 px, ne recule pas
+ *     de plus de 5 % contre la même image SANS étiquettes — hors des boîtes, sans
+ *     quoi l'encre des toponymes se compterait elle-même et le contrôle serait
+ *     circulaire. Le vrai risque n'est pas que les noms soient
+ *     illisibles — ils le sont, et c'est assumé — c'est qu'ils NOIENT ce qui
+ *     compte, les 25 contours ;
+ *   - `ancrages` — `C` d'abord : un nom seul se centre sur son point, et AUCUN
+ *     point n'est dessiné (une pastille serait une marque nouvelle sur une carte
+ *     dont les marques sont gouvernées par `MASTER.md`). Les quatre autres ne
+ *     servent qu'après collision.
+ */
+export const TOPONYMES = Object.freeze( {
+	zoom_min_etiquettes: 9,
+	densite_par_mpx: 25,
+	zoom_percu_statique: 10,
+	corps_px: 19,
+	facteur_z12: 2,
+	halo_px: 1.5,
+	padding_px: 3,
+	corps_statique_px: 28,
+	corps_min_statique_px: 25,
+	halo_statique_px: 2,
+	padding_statique_px: 4,
+	marge_contour_px: 6,
+	ecart_min_statique_px: 14,
+	etiquettes_statique_max: 6,
+	couverture_encre_max: 0.005,
+	facteur_360: 0.225,
+	// MESURÉS le 18 août 2026, puis gelés au MINIMUM MESURÉ MOINS 20 %, sur les SIX
+	// étiquettes de la statique : plage minimale 112,4 (Istres) -> 89, moyenne
+	// minimale 199,7 (Marignane) -> 159. Étendue mesurée : plage de 112,4 à 144,6,
+	// moyenne de 199,7 à 207,0.
+	//
+	// Les valeurs précédentes (115 et 162) venaient d'un échantillon d'UNE étiquette,
+	// quand `zoom_percu_statique` valait 9 ; passer à 10 a fait entrer des noms plus
+	// courts et plus serrés, dont la plage est plus basse. LE SEUIL SUIT LA MESURE,
+	// jamais l'inverse — et c'est le build qui l'a imposé, en refusant d'émettre sous
+	// l'ancien seuil plutôt qu'en le rabotant.
+	//
+	// La prédiction de vraisemblance du §5 du contrat #71 donnait ≈ 69 et ≈ 207 : la
+	// plage mesurée la dépasse largement, ce qui est le bon sens de l'écart — une
+	// plage de 20 aurait signalé un défaut de pipeline.
+	plage_luma_min_360: 89,
+	luma_moyenne_min_360: 159,
+	recul_sombres_max_360: 0.05,
+	ancrages: [ 'C', 'N', 'S', 'E', 'O' ],
 } );
 
 /**
@@ -538,7 +765,14 @@ export function mapshaper( arguments_ ) {
 	];
 }
 
-/** Écrit une FeatureCollection de travail. */
+/**
+ * Écrit une FeatureCollection de travail, PROPRIÉTÉS EFFACÉES.
+ *
+ * L'effacement est une GARANTIE, pas une commodité : `preparer()` s'y appuie, et
+ * `lireFc()` ne relit que des géométries parce que mapshaper, sans attribut à
+ * rendre, émet une `GeometryCollection`. Un appelant qui pourrait la désactiver
+ * ferait de cette garantie une option — d'où `ecrireFcPoints()`, séparée.
+ */
 export function ecrireFc( chemin, geometries ) {
 	fs.writeFileSync(
 		chemin,
@@ -547,6 +781,95 @@ export function ecrireFc( chemin, geometries ) {
 			features: geometries.map( ( geometry ) => ( { type: 'Feature', properties: {}, geometry } ) ),
 		} )
 	);
+}
+
+/**
+ * Entité ponctuelle de toponyme, rendue en Feature GeoJSON : TROIS attributs, pas un
+ * de plus.
+ *
+ * Écrite une seule fois, pour le fichier de travail de mapshaper comme pour
+ * l'archive commitée : `lireFcPoints()` et `controlerPoint()` relisent les deux, et
+ * deux constructions distinctes de la même forme finiraient par diverger d'un champ.
+ *
+ * @param {object} entite `{ nom, classe, population, lon, lat }`.
+ */
+export function featurePoint( entite ) {
+	return {
+		type: 'Feature',
+		properties: { nom: entite.nom, classe: entite.classe, population: entite.population },
+		geometry: { type: 'Point', coordinates: [ entite.lon, entite.lat ] },
+	};
+}
+
+/**
+ * Écrit une FeatureCollection de POINTS porteuse de ses trois attributs.
+ *
+ * Deux fonctions nommées, une garantie chacune, plutôt qu'un paramètre ajouté à
+ * `ecrireFc()` : l'effacement des propriétés y est une GARANTIE, énoncée en
+ * commentaire et sur laquelle `preparer()` s'appuie. Une garantie qu'un appelant
+ * peut désactiver n'est plus une garantie.
+ *
+ * @param {string}   chemin  Fichier de sortie.
+ * @param {object[]} entites `{ nom, classe, population, lon, lat }`.
+ */
+export function ecrireFcPoints( chemin, entites ) {
+	fs.writeFileSync( chemin, JSON.stringify( { type: 'FeatureCollection', features: entites.map( ( entite ) => featurePoint( entite ) ) } ) );
+}
+
+/**
+ * Relit une FeatureCollection de points et en contrôle la forme, entité par entité.
+ *
+ * C'est la PREMIÈRE couche dont les attributs portent l'information : un
+ * dénombrement seul ne peut pas attraper une charge où chaque `nom` serait arrivé
+ * vide — laquelle produirait MOINS D'ÉTIQUETTES AU LIEU D'UN ÉCHEC, exactement la
+ * dégradation silencieuse que ce module refuse partout ailleurs.
+ *
+ * @param {string} chemin Fichier à relire.
+ * @return {{nom:string,classe:string,population:number,lon:number,lat:number}[]}
+ */
+export function lireFcPoints( chemin ) {
+	const brut = JSON.parse( fs.readFileSync( chemin, 'utf8' ) );
+
+	if ( ! brut || 'FeatureCollection' !== brut.type || ! Array.isArray( brut.features ) ) {
+		throw new Arret( `Ni FeatureCollection de points dans ${ relatifAuDepot( chemin ) }` );
+	}
+
+	return brut.features.map( ( feature, rang ) => controlerPoint( feature, `${ relatifAuDepot( chemin ) }, entité ${ rang }` ) );
+}
+
+/**
+ * Contrôle d'une entité ponctuelle de toponyme, quelle que soit sa provenance.
+ *
+ * @param {object} feature Entité GeoJSON.
+ * @param {string} objet   Désignation, pour le message d'erreur.
+ */
+export function controlerPoint( feature, objet ) {
+	if ( ! feature || 'Feature' !== feature.type || ! feature.geometry || 'Point' !== feature.geometry.type ) {
+		throw new Arret( `Toponyme non ponctuel dans ${ objet }.` );
+	}
+
+	const proprietes = feature.properties || {};
+	const nom = 'string' === typeof proprietes.nom ? proprietes.nom : '';
+
+	if ( '' === nom.trim() ) {
+		throw new Arret( `Toponyme sans nom dans ${ objet }.` );
+	}
+
+	if ( ! CLASSES_TOPONYMES.includes( proprietes.classe ) ) {
+		throw new Arret( `Toponyme « ${ nom } » de classe « ${ proprietes.classe } », hors de [${ CLASSES_TOPONYMES.join( ', ' ) }], dans ${ objet }.` );
+	}
+
+	if ( ! Number.isInteger( proprietes.population ) || proprietes.population < 0 ) {
+		throw new Arret( `Toponyme « ${ nom } » : population « ${ proprietes.population } » non entière dans ${ objet }.` );
+	}
+
+	const [ lon, lat ] = feature.geometry.coordinates || [];
+
+	if ( ! Number.isFinite( lon ) || ! Number.isFinite( lat ) ) {
+		throw new Arret( `Toponyme « ${ nom } » : coordonnée non finie dans ${ objet }.` );
+	}
+
+	return { nom, classe: proprietes.classe, population: proprietes.population, lon, lat };
 }
 
 /**
@@ -598,19 +921,8 @@ export function latDeTuile( y, z ) {
 	return Math.atan( Math.sinh( Math.PI * ( 1 - ( 2 * y ) / Math.pow( 2, z ) ) ) ) / RADIAN;
 }
 
-/**
- * Grille de tuiles couvrant une emprise à un zoom donné.
- *
- * Aucun compte de tuiles n'est codé en dur nulle part : tout se recalcule ici,
- * depuis la seule emprise du référentiel.
- */
-export function grille( bbox, z ) {
-	const cote = Math.pow( 2, z );
-	const x0 = Math.floor( normX( bbox.ouest ) * cote );
-	const x1 = Math.floor( normX( bbox.est ) * cote );
-	const y0 = Math.floor( normY( bbox.nord ) * cote );
-	const y1 = Math.floor( normY( bbox.sud ) * cote );
-
+/** Forme commune d'une grille, à partir de ses quatre entiers de tuile. */
+function formerGrille( z, x0, x1, y0, y1 ) {
 	return {
 		zoom: z,
 		x0,
@@ -625,12 +937,63 @@ export function grille( bbox, z ) {
 	};
 }
 
-/** Les grilles de tous les zooms de la pyramide, du plus large au plus fin. */
-export function grilles( bbox ) {
+/**
+ * Grille de tuiles couvrant une emprise DONNÉE à un zoom donné.
+ *
+ * CE N'EST PLUS LA GRILLE DE LA PYRAMIDE — celle-là est `grilleDeclaree()`, et
+ * elle ne dérive d'aucune géométrie. Cette fonction a exactement UN appelant,
+ * `verifier.mjs`, qui s'en sert pour formuler le non-débordement AU NIVEAU DE LA
+ * TUILE : `grille( emprise, 12 )` doit être contenue dans `EMPRISE_DECLAREE` sur
+ * ses quatre bords. C'est la seconde formulation, indépendante, de la propriété
+ * que `construire.mjs` énonce sommet par sommet — deux énoncés d'une même
+ * propriété, dans deux scripts, sur le patron déjà en service pour le parseur
+ * d'emprise validé par la lecture PHP qui fait autorité.
+ *
+ * NE PAS LA SUPPRIMER comme « morte » : sans elle, le contrôle de la recette
+ * n'aurait plus de référent calculable.
+ */
+export function grille( bbox, z ) {
+	const cote = Math.pow( 2, z );
+
+	return formerGrille(
+		z,
+		Math.floor( normX( bbox.ouest ) * cote ),
+		Math.floor( normX( bbox.est ) * cote ),
+		Math.floor( normY( bbox.nord ) * cote ),
+		Math.floor( normY( bbox.sud ) * cote )
+	);
+}
+
+/**
+ * Grille DÉCLARÉE d'un zoom, dérivée de `EMPRISE_DECLAREE` par décalage entier.
+ *
+ * Aucun flottant, aucune projection : l'emboîtement des huit zooms est une
+ * propriété arithmétique, pas un résultat de calcul en virgule flottante. La
+ * forme rendue est exactement celle de `grille()`, pour que rien en aval n'ait à
+ * distinguer les deux.
+ */
+export function grilleDeclaree( z ) {
+	if ( ! Number.isInteger( z ) || z < ZOOM_MIN || z > EMPRISE_DECLAREE.zoom ) {
+		throw new Arret( `Zoom ${ z } hors de l'emprise déclarée : elle est posée à z${ EMPRISE_DECLAREE.zoom }, et la pyramide part de z${ ZOOM_MIN }.` );
+	}
+
+	const decalage = EMPRISE_DECLAREE.zoom - z;
+
+	return formerGrille(
+		z,
+		EMPRISE_DECLAREE.x0 >> decalage,
+		EMPRISE_DECLAREE.x1 >> decalage,
+		EMPRISE_DECLAREE.y0 >> decalage,
+		EMPRISE_DECLAREE.y1 >> decalage
+	);
+}
+
+/** Les grilles déclarées de tous les zooms de la pyramide, du plus large au plus fin. */
+export function grillesDeclarees() {
 	const sortie = [];
 
 	for ( let z = ZOOM_MIN; z <= ZOOM_MAX; z += 1 ) {
-		sortie.push( grille( bbox, z ) );
+		sortie.push( grilleDeclaree( z ) );
 	}
 
 	return sortie;
@@ -651,6 +1014,92 @@ export function bboxDeGrille( g ) {
 		est: lonDeTuile( g.x1 + 1, g.zoom ),
 		nord: latDeTuile( g.y0, g.zoom ),
 	};
+}
+
+/**
+ * Emprise géographique de la pyramide, telle que `massifs_fond_de_carte()` la
+ * publie en `bbox`.
+ *
+ * Elle est prise sur la grille déclarée du zoom le plus fin, qui EST l'emprise
+ * déclarée : déclaré === publié, à l'octet. La phrase « sur-ensemble strict de
+ * `massifs_emprise()['bbox']` » du §1.1 du contrat #9 reste vraie mot pour mot,
+ * mais elle est devenue un CONTRÔLE en sortie ≠ 0 et non plus une définition.
+ */
+export function bboxDeclaree() {
+	return bboxDeGrille( grilleDeclaree( EMPRISE_DECLAREE.zoom ) );
+}
+
+/**
+ * Aire de PLACEMENT d'un zoom, en mégapixels de toile.
+ *
+ * C'est l'aire, en pixels de toile au zoom `z`, de `massifs_emprise()['bbox']` —
+ * JAMAIS celle de la toile entière, JAMAIS celle de l'emprise déclarée. La
+ * précision est normative : la toile z9 fait 0,393 Mpx contre 0,158 Mpx pour
+ * l'emprise du référentiel, et écrire `g.largeur_px * g.hauteur_px` livrerait
+ * 2,5 FOIS TROP D'ÉTIQUETTES. La bonne référence est l'emprise du référentiel
+ * parce que la requête Overpass est émise sur elle : aucun candidat n'existe
+ * au-dehors, et une densité rapportée à une surface sans candidat est une
+ * densité fausse.
+ *
+ * @param {object} bbox Emprise du référentiel.
+ * @param {number} z    Zoom.
+ * @return {number} Aire en mégapixels.
+ */
+export function airePlacementMpx( bbox, z ) {
+	const cote = Math.pow( 2, z ) * TAILLE_TUILE;
+
+	return ( ( normX( bbox.est ) - normX( bbox.ouest ) ) * cote * ( ( normY( bbox.sud ) - normY( bbox.nord ) ) * cote ) ) / 1e6;
+}
+
+/**
+ * Luma sRGB PONDÉRÉE, non linéarisée.
+ *
+ * Non linéarisée délibérément : on mesure une TEXTURE APPARENTE, pas une
+ * photométrie. Linéariser rendrait des nombres physiquement plus justes et
+ * perceptuellement moins pertinents pour la question posée — « l'étiquette
+ * survit-elle à la réduction ? ».
+ */
+export function luma( r, v, b ) {
+	return 0.2126 * r + 0.7152 * v + 0.0722 * b;
+}
+
+/**
+ * Écart minimal entre deux boîtes `[x0, y0, x1, y1]`, négatif si elles se recouvrent.
+ *
+ * Une seule formule, partagée par le solveur de placement et par la recette : deux
+ * copies ne mesureraient pas forcément la même chose le jour où l'une bougerait, et
+ * C-b se contrôlerait alors contre un écart qui n'est plus celui qui a été posé.
+ */
+export function ecartBoites( a, b ) {
+	return Math.max( a[ 0 ] - b[ 2 ], b[ 0 ] - a[ 2 ], a[ 1 ] - b[ 3 ], b[ 1 ] - a[ 3 ] );
+}
+
+/**
+ * Le point est-il dans l'anneau ? Lancer de rayon.
+ *
+ * Deux appelants, deux référentiels, UNE question : `recuperer.mjs` rattache un
+ * trou à son anneau extérieur, en degrés ; `verifier.mjs` teste le centre d'une
+ * boîte d'étiquette, en pixels de toile. Deux copies de ce test cesseraient un jour
+ * de répondre pareil sur un cas limite, et l'une des deux serait alors fausse sans
+ * que rien ne le dise.
+ *
+ * @param {number[]}   point  `[x, y]`.
+ * @param {number[][]} anneau Anneau, `[[x, y], …]`.
+ * @return {boolean}
+ */
+export function dansAnneau( [ x, y ], anneau ) {
+	let dedans = false;
+
+	for ( let i = 0, j = anneau.length - 1; i < anneau.length; j = i, i += 1 ) {
+		const [ xi, yi ] = anneau[ i ];
+		const [ xj, yj ] = anneau[ j ];
+
+		if ( yi > y !== yj > y && x < ( ( xj - xi ) * ( y - yi ) ) / ( yj - yi ) + xi ) {
+			dedans = ! dedans;
+		}
+	}
+
+	return dedans;
 }
 
 /** Résolution au sol, en mètres par pixel, à la latitude médiane de l'emprise. */
@@ -683,22 +1132,50 @@ export function versHexadecimal( [ r, v, b ] ) {
  *
  * VALEUR MESURÉE, PAS CHOISIE — c'est la mitigation (1) du §2 du contrat #9,
  * « réduire la palette indexée à 6-8 couleurs », appliquée AVANT les deux
- * suivantes. Poids de l'image statique à 1600 px, mesuré :
+ * suivantes. ÉCARTS mesurés sur l'image statique à 1600 px, le 13 août 2026,
+ * ordre de grandeur, non normatifs :
  *
- *   3 paliers, 70 couleurs -> 287 450 o
- *   1 palier,  28 couleurs -> 239 476 o  (et 183 566 o même réduite à terre + eau)
- *   0 palier,   7 couleurs -> 177 824 o
+ *   3 paliers (70 couleurs) -> 1 palier (28 couleurs)  −47 974 o
+ *   1 palier  (28 couleurs) -> 0 palier  (7 couleurs)  −61 652 o
  *
- * À 1 palier, aucune combinaison de couches ne tient sous le plafond de 153 600 o
- * — pas même la terre seule, à 164 460 o. Le plafond impose donc 0 palier, soit
- * exactement les 6-8 couleurs que le contrat prescrit.
+ * SUR L'ÉTAT ANTÉRIEUR À #71, 1 palier était hors d'atteinte, et de peu : les deux
+ * mesures à deux couches (terre + eau) donnaient un rapport de 1,2886, appliqué à
+ * une statique de 120 768 o, soit 155 641 o contre 153 600 — un dépassement de
+ * 1,3 %. `PALIERS = 0` était donc un RÉGLAGE TENU, pas une dette.
  *
- * Conséquence assumée : aucun anticrénelage. Les cinq aplats de fond sont si
- * proches en luminance que leurs frontières ne crénellent pas visiblement ; seul
- * le contour charbon durcit, et c'est pour lui que `DESSIN.contour_px` vaut 2
- * plutôt que 1,5 — une largeur entière rend un trait d'épaisseur CONSTANTE une
- * fois seuillé, là où 1,5 alternerait entre 1 et 2 pixels le long du tracé, ce
- * qui se lirait comme une différence entre massifs.
+ * DEPUIS #71 CE CALCUL A CHANGÉ, et il faut l'écrire plutôt que le laisser
+ * reposer : l'emprise déclarée a fait maigrir la statique, et le rapport de 1,2886
+ * appliqué à son poids courant retombe SOUS le plafond. 1 palier redeviendrait donc
+ * finançable en octets. AUCUN POIDS ABSOLU N'EST RECOPIÉ ICI — il s'est déjà
+ * périmé trois fois en cinq jours ; le poids courant vit dans `build/reference.json`,
+ * clé `statique.octets`, et dans aucune prose. 1 palier n'est pas activé pour
+ * autant : la palette est FERMÉE À 7 par l'interdit 9 du §7 du contrat #71, et
+ * 28 couleurs seraient une décision de design, pas un réglage de build. La
+ * justification a donc CHANGÉ DE NATURE — ce n'est plus le plafond d'octets qui
+ * tient `PALIERS = 0`, c'est la fermeture de la palette. À rouvrir par une révision
+ * de contrat, jamais ici.
+ *
+ * Conséquence assumée : aucun anticrénelage PALETTISÉ. Ce n'est pas l'absence
+ * d'anticrénelage : `resvg` lisse TOUJOURS le bord d'un tracé, et le
+ * quantificateur au plus proche voisin rabat ce dégradé sur la palette fermée. Il
+ * en sort une RAMPE ACCIDENTELLE À CINQ NIVEAUX entre l'encre et le fond —
+ * `--c-carte-encre` jusqu'à ~30 % vers le fond, puis `--c-carte-trait` jusqu'à
+ * ~80 %, `--c-carte-vegetation` jusqu'à ~91 %, `--c-carte-terre` jusqu'à ~96 %,
+ * `--c-carte-fond` au-delà. Elle est gratuite, elle est réelle, et c'est elle qui
+ * rend `PALIERS = 0` indolore POUR LE TEXTE.
+ *
+ * Une réserve doit l'accompagner, sans quoi un relecteur y lira un défaut AA : la
+ * frange d'un glyphe est peinte en `--c-carte-trait`, qui vaut 4,17:1 et N'EST PAS
+ * LE TEXTE. Le 6,82:1 repose sur le CŒUR du glyphe, en `--c-carte-encre` — ce que
+ * le contrôle C-g de la recette rend asserté au lieu qu'espéré, et qui est la
+ * seconde raison de `TOPONYMES.corps_px = 19`.
+ *
+ * Les cinq aplats de fond sont par ailleurs si proches en luminance que leurs
+ * frontières ne crénellent pas visiblement ; seul le contour charbon durcit, et
+ * c'est pour lui que `DESSIN.contour_px` vaut 2 plutôt que 1,5 — une largeur
+ * entière rend un trait d'épaisseur CONSTANTE une fois seuillé, là où 1,5
+ * alternerait entre 1 et 2 pixels le long du tracé, ce qui se lirait comme une
+ * différence entre massifs.
  */
 const PALIERS = 0;
 

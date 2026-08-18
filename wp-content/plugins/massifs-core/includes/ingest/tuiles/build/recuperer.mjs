@@ -33,14 +33,21 @@ import {
 	Arret,
 	BORNES_OSM,
 	CHEMINS,
+	CLASSES_TOPONYMES,
 	COUCHES,
+	COUCHES_SOURCE,
+	COUCHE_TOPONYMES,
 	DEBORDEMENT_MAX_DEG,
 	NORMALISATION,
 	POINTS_ACCES,
 	SELECTEURS,
+	dansAnneau,
 	ecrireFc,
+	ecrireFcPoints,
+	featurePoint,
 	lireEmprise,
 	lireFc,
+	lireFcPoints,
 	mapshaper,
 	nodeMajeur,
 	relatifAuDepot,
@@ -54,6 +61,17 @@ const DELAI_MS = 900000;
 /** Nombre d'essais par point d'accès, et attente entre deux essais. */
 const ESSAIS = 3;
 const ATTENTE_MS = 20000;
+
+/**
+ * Gardes d'attribut de la couche `toponymes`, gelées au §3 du contrat #71.
+ *
+ * Elles sont nommées plutôt qu'écrites au fil du code : chacune est citée DEUX fois,
+ * dans son test et dans son message, et un seuil recopié finit par ne plus dire ce
+ * que le code refuse.
+ */
+const REJETS_MAX = 0.2;
+const VILLES_MIN = 1;
+const VILLES_MAX = 10;
 
 const FACTEUR = Math.pow( 10, NORMALISATION.decimales );
 
@@ -204,28 +222,18 @@ function chainer( segments ) {
 	return anneaux;
 }
 
-/** Le point est-il dans l'anneau ? Sert à rattacher un trou à son anneau extérieur. */
-function dansAnneau( point, anneau ) {
-	let dedans = false;
-
-	for ( let i = 0, j = anneau.length - 1; i < anneau.length; j = i, i += 1 ) {
-		const [ xi, yi ] = anneau[ i ];
-		const [ xj, yj ] = anneau[ j ];
-
-		if ( yi > point[ 1 ] !== yj > point[ 1 ] && point[ 0 ] < ( ( xj - xi ) * ( point[ 1 ] - yi ) ) / ( yj - yi ) + xi ) {
-			dedans = ! dedans;
-		}
-	}
-
-	return dedans;
-}
-
 /**
  * Convertit une charge Overpass en géométries GeoJSON, sans aucune étiquette.
  *
- * Les tags ne sont PAS conservés : la couche est déjà l'information, et un
- * toponyme conservé dans l'archive finirait par se retrouver cuit dans une tuile
- * (arbitrage A-9, `OUVERT`).
+ * Les tags ne sont PAS conservés POUR LES QUATRE COUCHES GÉOMÉTRIQUES : là, la
+ * couche EST l'information, et un `name` traîné dans l'archive n'aurait aucun
+ * consommateur.
+ *
+ * La couche `toponymes` est l'exception, et elle est explicite plutôt
+ * qu'accidentelle : elle conserve EXACTEMENT TROIS CHAMPS — `nom`, `classe`,
+ * `population` — et rien d'autre, parce que #71 renverse l'arbitrage A-9 du
+ * contrat #9 et qu'un toponyme cuit dans une tuile est désormais le but. Voir
+ * `convertirPoints()`.
  */
 function convertir( charge, surfacique ) {
 	const geometries = [];
@@ -283,6 +291,64 @@ function convertir( charge, surfacique ) {
 	return geometries;
 }
 
+/**
+ * Convertit une charge Overpass de NŒUDS `place` en entités ponctuelles.
+ *
+ * Trois champs retenus, pas un de plus. `population` absente ou illisible vaut 0,
+ * sentinelle non ambiguë : une population réelle de 0 est impossible, et 0 range
+ * donc le toponyme en dernier sans jamais se confondre avec une valeur mesurée.
+ *
+ * Les rejets sont COMPTÉS, pas levés : un nœud isolé sans `name` est une réalité
+ * d'OSM, pas une charge amputée. C'est leur PROPORTION qui est contrôlée en aval.
+ *
+ * @param {object} charge Charge Overpass décodée.
+ * @return {{retenus:object[],sans_nom:number,classe_hors_liste:number,coordonnee_non_finie:number}}
+ */
+function convertirPoints( charge ) {
+	const retenus = [];
+	let sansNom = 0;
+	let classeHorsListe = 0;
+	let coordonneeNonFinie = 0;
+
+	for ( const element of charge.elements ) {
+		const tags = element.tags;
+
+		if ( ! tags || 'string' !== typeof tags.name || '' === tags.name.trim() ) {
+			sansNom += 1;
+			continue;
+		}
+
+		if ( ! CLASSES_TOPONYMES.includes( tags.place ) ) {
+			classeHorsListe += 1;
+			continue;
+		}
+
+		if ( ! Number.isFinite( element.lon ) || ! Number.isFinite( element.lat ) ) {
+			coordonneeNonFinie += 1;
+			continue;
+		}
+
+		const population = Number.parseInt( tags.population, 10 );
+
+		retenus.push( {
+			// LE NOM CUIT EST `tags.name` VERBATIM (I-71.3). Ni `name:fr`, ni
+			// `int_name`, ni chaîne de repli, ni abréviation, ni troncature, ni
+			// changement de casse, ni traduction, ni translittération, ni suffixe de
+			// désambiguïsation. Chacune de ces « améliorations » serait une invention
+			// au sens du §4.2 du brief. C'est la ligne de ce fichier la plus
+			// susceptible d'être retouchée plus tard : elle porte son propre
+			// commentaire disant qu'il ne faut pas.
+			nom: String( tags.name ),
+			classe: tags.place,
+			population: Number.isFinite( population ) && population >= 0 ? population : 0,
+			lon: arrondir( element.lon ),
+			lat: arrondir( element.lat ),
+		} );
+	}
+
+	return { retenus, sans_nom: sansNom, classe_hors_liste: classeHorsListe, coordonnee_non_finie: coordonneeNonFinie };
+}
+
 /** Emprise d'un jeu de géométries. */
 function empriseDe( geometries ) {
 	const bbox = { ouest: Infinity, sud: Infinity, est: -Infinity, nord: -Infinity };
@@ -323,7 +389,9 @@ async function principal() {
 
 	journal( `Emprise du référentiel : ${ bbox } (lue dans ${ relatifAuDepot( CHEMINS.referentiel ) })` );
 
-	for ( const couche of COUCHES ) {
+	let toponymes = null;
+
+	for ( const couche of COUCHES_SOURCE ) {
 		const requete = `[out:json][timeout:900][bbox:${ bbox }];${ SELECTEURS[ couche.nom ] };out geom;`;
 		requetes[ couche.nom ] = requete;
 
@@ -332,11 +400,62 @@ async function principal() {
 		const reponse = await interroger( requete );
 		const { charge, nombre } = decoder( couche.nom, reponse.texte );
 
-		brutes[ couche.nom ] = convertir( charge, couche.surfacique );
 		comptes[ couche.nom ] = nombre;
 		points[ couche.nom ] = reponse.point_acces;
 
+		if ( couche.ponctuel ) {
+			toponymes = convertirPoints( charge );
+
+			journal(
+				`  ${ couche.nom } — ${ nombre } éléments, ${ toponymes.retenus.length } retenus ` +
+					`(${ toponymes.sans_nom } sans nom, ${ toponymes.classe_hors_liste } hors classe, ${ toponymes.coordonnee_non_finie } coordonnée non finie), ` +
+					`${ Math.round( reponse.ms / 1000 ) } s`
+			);
+			continue;
+		}
+
+		brutes[ couche.nom ] = convertir( charge, couche.surfacique );
+
 		journal( `  ${ couche.nom } — ${ nombre } éléments, ${ brutes[ couche.nom ].length } géométries, ${ Math.round( reponse.ms / 1000 ) } s` );
+	}
+
+	/*
+	 * TROIS GARDES D'ATTRIBUT, et elles sont nécessaires. `toponymes` est la
+	 * première couche dont les ATTRIBUTS portent l'information : un dénombrement
+	 * seul ne peut pas attraper une charge où chaque `name` serait arrivé vide, et
+	 * cette charge-là produirait MOINS D'ÉTIQUETTES AU LIEU D'UN ÉCHEC. La
+	 * quatrième garde — `place=city` dans [1, 10] — est adoptée par l'arbitrage
+	 * A-9 du contrat #71 : Marseille et Aix sont structurellement présentes, et une
+	 * charge des Bouches-du-Rhône sans aucune `city` est tronquée. Le risque nommé
+	 * (un retaggage OSM la ferait rougir à tort) est ACCEPTÉ : cet échec-là est
+	 * bruyant, daté et réparable par une décision humaine écrite, quand le mode
+	 * inverse est silencieux.
+	 */
+	const rejetes = toponymes.sans_nom + toponymes.classe_hors_liste + toponymes.coordonnee_non_finie;
+	const proportion = 0 === comptes.toponymes ? 1 : rejetes / comptes.toponymes;
+
+	if ( proportion > REJETS_MAX ) {
+		throw new Arret(
+			`Couche « toponymes » : ${ rejetes } éléments rejetés sur ${ comptes.toponymes } retournés, soit ` +
+				`${ ( proportion * 100 ).toFixed( 1 ) } % — plafond ${ REJETS_MAX * 100 } %. Un nœud place=city|town|village a ` +
+				'essentiellement toujours un `name` : un cinquième d\'absences signale une charge abîmée. Rien n\'est écrit.'
+		);
+	}
+
+	if ( toponymes.coordonnee_non_finie > 0 ) {
+		throw new Arret(
+			`Couche « toponymes » : ${ toponymes.coordonnee_non_finie } élément(s) à lat/lon non finie. Rien n'est écrit.`
+		);
+	}
+
+	const villes = toponymes.retenus.filter( ( entite ) => 'city' === entite.classe ).length;
+
+	if ( villes < VILLES_MIN || villes > VILLES_MAX ) {
+		throw new Arret(
+			`Couche « toponymes » : ${ villes } nœud(s) place=city, hors de [${ VILLES_MIN }, ${ VILLES_MAX }]. Marseille et Aix sont ` +
+				'structurellement présentes dans les Bouches-du-Rhône : zéro signale une charge tronquée, et plus de dix ' +
+				'un retaggage OSM à constater par une décision écrite. Rien n\'est écrit.'
+		);
 	}
 
 	if ( 0 === brutes.terre.length ) {
@@ -370,6 +489,7 @@ async function principal() {
 	const cheminTerre = `${ travail }-terre.json`;
 	const couches = {};
 	const argv = {};
+	let retenusApresClip = [];
 
 	fs.mkdirSync( path.dirname( CHEMINS.archive ), { recursive: true } );
 	ecrireFc( cheminTerre, brutes.terre );
@@ -402,6 +522,41 @@ async function principal() {
 
 			journal( `  ${ couche.nom } — ${ couches[ couche.nom ].length } géométries après normalisation` );
 		}
+
+		/*
+		 * Les toponymes sont DÉCOUPÉS AU DÉPARTEMENT, comme les quatre autres
+		 * couches. Hors du département la carte est uniformément `--c-carte-fond`
+		 * (§4.2 de `MASTER.md`) : un nom de ville flottant sur un terrain que nous
+		 * avons délibérément effacé affirmerait une géographie retirée. L'emprise du
+		 * référentiel déborde sur le Vaucluse, le Gard et le Var — ce n'est pas
+		 * théorique.
+		 *
+		 * Par mapshaper, jamais à la main : le département est un multipolygone à
+		 * trous et à îles détachées, et `dansAnneau()` ne traite qu'un anneau. Pas de
+		 * `-simplify` (sans objet sur des points), pas de `-filter-islands`
+		 * (nuisible). `-filter-fields` gèle le jeu de champs pour que mapshaper ne
+		 * puisse pas ajouter un `id` et faire bouger les octets de l'archive.
+		 */
+		const entreeToponymes = `${ travail }-toponymes.json`;
+		const sortieToponymes = `${ travail }-toponymes.out.json`;
+
+		ecrireFcPoints( entreeToponymes, toponymes.retenus );
+
+		argv.toponymes = mapshaper( [
+			entreeToponymes,
+			'-clip',
+			cheminTerre,
+			'-filter-fields',
+			'nom,classe,population',
+			'-o',
+			`precision=0.${ '0'.repeat( NORMALISATION.decimales - 1 ) }1`,
+			'format=geojson',
+			sortieToponymes,
+		] );
+
+		retenusApresClip = lireFcPoints( sortieToponymes );
+
+		journal( `  toponymes — ${ retenusApresClip.length } points après découpe au département` );
 	} finally {
 		for ( const fichier of fs.readdirSync( path.dirname( CHEMINS.archive ) ) ) {
 			if ( fichier.startsWith( '_travail' ) ) {
@@ -410,17 +565,44 @@ async function principal() {
 		}
 	}
 
+	/*
+	 * PLANCHER APRÈS DÉCOUPE. Une découpe qui vide la couche signifie que le
+	 * polygone `terre` est faux — et cela ne doit surtout pas se manifester par
+	 * « une pyramide sans noms », qui est un artefact d'apparence normale.
+	 */
+	if ( retenusApresClip.length < BORNES_OSM.toponymes.plancher / 2 ) {
+		throw new Arret(
+			`Couche « toponymes » : ${ retenusApresClip.length } points après découpe au département, sous le plancher ` +
+				`de ${ BORNES_OSM.toponymes.plancher / 2 } (moitié du plancher de charge). Une découpe qui vide la couche ` +
+				'signifie que le polygone « terre » est faux. Rien n\'est écrit.'
+		);
+	}
+
+	const parClasse = Object.fromEntries(
+		CLASSES_TOPONYMES.map( ( classe ) => [ classe, retenusApresClip.filter( ( entite ) => classe === entite.classe ).length ] )
+	);
+
 	const archive = {
 		type: 'massifs-fond-de-carte-source',
 		version: 1,
 		extrait_le: extraitLe,
 		bbox: emprise,
-		couches: Object.fromEntries(
-			COUCHES.map( ( couche ) => [
-				couche.nom,
-				{ type: 'FeatureCollection', features: couches[ couche.nom ].map( ( geometry ) => ( { type: 'Feature', properties: {}, geometry } ) ) },
-			] )
-		),
+		couches: {
+			...Object.fromEntries(
+				COUCHES.map( ( couche ) => [
+					couche.nom,
+					{ type: 'FeatureCollection', features: couches[ couche.nom ].map( ( geometry ) => ( { type: 'Feature', properties: {}, geometry } ) ) },
+				] )
+			),
+			// `featurePoint()` et non une seconde construction de la même forme :
+			// `lireFcPoints()` et `controlerPoint()` relisent l'archive commitée comme le
+			// fichier de travail de mapshaper, et deux constructions distinctes de la
+			// même entité finiraient par diverger d'un champ.
+			[ COUCHE_TOPONYMES.nom ]: {
+				type: 'FeatureCollection',
+				features: retenusApresClip.map( ( entite ) => featurePoint( entite ) ),
+			},
+		},
 	};
 
 	const octets = Buffer.from( `${ JSON.stringify( archive ) }\n`, 'utf8' );
@@ -445,7 +627,22 @@ async function principal() {
 		outillage: { mapshaper: versionMapshaper(), node_major: nodeMajeur() },
 		mapshaper_argv: argv,
 		comptes_overpass: comptes,
-		comptes_normalises: Object.fromEntries( COUCHES.map( ( c ) => [ c.nom, couches[ c.nom ].length ] ) ),
+		comptes_normalises: {
+			...Object.fromEntries( COUCHES.map( ( c ) => [ c.nom, couches[ c.nom ].length ] ) ),
+			[ COUCHE_TOPONYMES.nom ]: retenusApresClip.length,
+		},
+		// Ce bloc est ce qui GÈLE `BORNES_OSM.toponymes` par la procédure en deux
+		// passes du §8 du contrat #71, et ce qu'un lecteur consulte avant d'y
+		// toucher. Sans lui, resserrer les bornes serait une invention.
+		toponymes: {
+			retournes: comptes.toponymes,
+			sans_nom: toponymes.sans_nom,
+			classe_hors_liste: toponymes.classe_hors_liste,
+			coordonnee_non_finie: toponymes.coordonnee_non_finie,
+			retenus_avant_clip: toponymes.retenus.length,
+			retenus_apres_clip: retenusApresClip.length,
+			par_classe: parClasse,
+		},
 		archive: {
 			fichier: relatifAuDepot( CHEMINS.archive ),
 			sha256: sha256( octets ),

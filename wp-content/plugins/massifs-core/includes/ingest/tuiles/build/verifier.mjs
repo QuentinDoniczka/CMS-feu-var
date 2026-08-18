@@ -44,31 +44,43 @@ import sharp from 'sharp';
 import {
 	ATTRIBUTION,
 	CHEMINS,
+	EMPRISE_DECLAREE,
 	EXTENSION,
 	FORMAT,
+	JETONS_CARTE,
 	JETONS_STATUT,
 	JETON_CONTOUR,
-	JETONS_CARTE,
 	LARGEUR_STATIQUE,
 	MODE_COMPLET,
 	PLAFOND_STATIQUE_OCTETS,
+	RACINE,
 	TAILLE_TUILE,
+	TOPONYMES,
 	ZOOM_MAX,
 	ZOOM_MIN,
-	bboxDeGrille,
+	airePlacementMpx,
+	bboxDeclaree,
+	dansAnneau,
 	divergencesJetons,
-	grilles,
+	ecartBoites,
+	grille,
+	grilleDeclaree,
+	grillesDeclarees,
 	jetonVersion,
 	jsonCanonique,
 	lireEmprise,
 	lireJetons,
+	luma,
 	nodeMajeur,
+	normX,
+	normY,
+	paletteAutorisee,
 	sha256,
 	versHexadecimal,
 	versRgb,
 	versionMapshaper,
-	paletteAutorisee,
 } from './commun.mjs';
+import { ouvrirPolice } from './etiquettes.mjs';
 import { CHUNKS_ATTENDUS, chunksPng } from './png8.mjs';
 
 /*
@@ -92,6 +104,52 @@ const PHP_RACINE = ( process.env.MASSIFS_PHP_RACINE || '' ).replace( /\/+$/, '' 
  */
 const REGENERER =
 	'si ce changement est voulu, régénérer les artefacts ET `reference.json` par `npm run construire`, dans le même commit';
+
+/**
+ * C-g — part minimale d'encre dans `encre + trait` sous laquelle une étiquette n'a
+ * pas de CŒUR à 6,82:1 et ne tient plus que par sa frange à 4,17:1.
+ *
+ * Seuil du §5 du contrat #71, écrit UNE fois : le contrôle et son intitulé le
+ * citaient tous deux, et un seuil recopié se désaccorde de sa propre mesure.
+ *
+ * Il vit ici et NON dans `TOPONYMES` : c'est un critère de RECETTE, pas un réglage
+ * de build. Inscrit dans `TOPONYMES`, il entrerait au manifeste, donc dans
+ * l'empreinte de version — et resserrer un seuil de contrôle changerait alors la
+ * version publiée sans qu'un seul pixel ait bougé.
+ */
+const COEUR_ENCRE_MIN = 0.35;
+
+/**
+ * Nombre de boîtes décodées par zoom pour C-g.
+ *
+ * Échantillon BORNÉ, pas exhaustif : le corps est constant sur les zooms résolus et
+ * doublé à `ZOOM_MAX`, donc chaque régime typographique est représenté dès les
+ * premières boîtes, et le coût de décodage des tuiles ne croît pas avec le carré du
+ * zoom — z11 en porte 63.
+ */
+const ECHANTILLON_BOITES = 8;
+
+/**
+ * Zoom dont le jeu est REPOSÉ à `ZOOM_MAX` : z12 ne résout rien, il reprend le jeu
+ * du zoom immédiatement inférieur, au double du corps (I-71.9).
+ */
+const ZOOM_JEU_SOURCE = ZOOM_MAX - 1;
+
+/**
+ * Zooms qui résolvent leur propre jeu d'étiquettes, et zooms qui n'en portent
+ * aucun — DÉRIVÉS de `TOPONYMES.zoom_min_etiquettes`, jamais écrits.
+ *
+ * Les listes `[ 9, 10, 11 ]` et `[ 5, 6, 7, 8 ]` étaient recopiées à quatre
+ * endroits : elles cesseraient d'être vraies au premier déplacement du zoom
+ * minimal d'étiquetage, et la recette contrôlerait alors des zooms qui ne sont plus
+ * étiquetés — en restant verte.
+ */
+const ZOOMS_RESOLUS = [];
+const ZOOMS_SANS_ETIQUETTE = [];
+
+for ( let zoom = ZOOM_MIN; zoom <= ZOOM_JEU_SOURCE; zoom += 1 ) {
+	( zoom < TOPONYMES.zoom_min_etiquettes ? ZOOMS_SANS_ETIQUETTE : ZOOMS_RESOLUS ).push( zoom );
+}
 
 /**
  * Clés du contrat, telles que l'avenant du 14 août 2026 (§13) les gèle.
@@ -325,41 +383,117 @@ controler(
 /* -------------------------------------------------------------------------- */
 
 const emprise = lireEmprise( CHEMINS.referentiel );
-const grillesAttendues = grilles( emprise );
+const grillesAttendues = grillesDeclarees();
 const nombreAttendu = grillesAttendues.reduce( ( total, g ) => total + g.nombre, 0 );
 
 controler(
-	'emprise : identique à celle du manifeste',
+	'emprise : référentiel identique à celui du manifeste',
 	jsonCanonique( emprise ) === jsonCanonique( manifeste.emprise ),
 	JSON.stringify( emprise )
+);
+
+// (a) — l'emprise déclarée du manifeste est bien celle du code. Sans ce contrôle,
+// un manifeste produit sous une autre emprise passerait tous les suivants, qui
+// se comparent entre eux.
+controler(
+	'emprise déclarée : identique à EMPRISE_DECLAREE',
+	jsonCanonique( { ...EMPRISE_DECLAREE } ) === jsonCanonique( manifeste.emprise_declaree ),
+	JSON.stringify( manifeste.emprise_declaree ),
+	'l\'emprise est une grandeur DÉCLARÉE : la changer est une décision écrite, qui re-cuit les tuiles et rejoue ce contrôle'
 );
 
 controler( 'pyramide : bornes de zoom', ZOOM_MIN === manifeste.pyramide.zoom_min && ZOOM_MAX === manifeste.pyramide.zoom_max, `z${ ZOOM_MIN }-z${ ZOOM_MAX }` );
 controler( 'pyramide : côté de tuile', TAILLE_TUILE === manifeste.pyramide.taille_tuile, `${ TAILLE_TUILE } px` );
 controler( 'pyramide : format', FORMAT === manifeste.pyramide.format, FORMAT );
 
+// (b) — chaque grille dérive de l'emprise déclarée par décalage entier.
 for ( const g of grillesAttendues ) {
-	const declaree = manifeste.pyramide.grilles.find( ( entree ) => entree.zoom === g.zoom );
+	const rendue = manifeste.pyramide.grilles.find( ( entree ) => entree.zoom === g.zoom );
 
 	controler(
-		`grille z${ g.zoom } : dénombrement recalculé depuis la bbox`,
-		Boolean( declaree ) && declaree.nombre === g.nombre && declaree.x0 === g.x0 && declaree.x1 === g.x1 && declaree.y0 === g.y0 && declaree.y1 === g.y1,
+		`grille z${ g.zoom } : dérivée de l'emprise déclarée par décalage entier`,
+		Boolean( rendue ) && rendue.nombre === g.nombre && rendue.x0 === g.x0 && rendue.x1 === g.x1 && rendue.y0 === g.y0 && rendue.y1 === g.y1,
 		`${ g.colonnes } x ${ g.lignes } = ${ g.nombre }`
 	);
 }
 
 controler( 'pyramide : dénombrement total', nombreAttendu === manifeste.pyramide.nombre, `${ manifeste.pyramide.nombre } tuiles` );
 
-const bboxAttendue = bboxDeGrille( grillesAttendues[ grillesAttendues.length - 1 ] );
+// (c) — DÉCLARÉ === PUBLIÉ : la bbox publiée est exactement l'emprise déclarée.
+const bboxAttendue = bboxDeclaree();
 
 controler(
-	'pyramide : emprise couverte alignée sur la grille du zoom le plus fin',
+	'pyramide : emprise publiée = emprise déclarée, à l\'octet',
 	jsonCanonique( bboxAttendue ) === jsonCanonique( manifeste.pyramide.bbox )
 );
 
+/*
+ * (d) — non-débordement AU NIVEAU DE LA TUILE. La phrase « sur-ensemble strict de
+ * `massifs_emprise()['bbox']` » du §1.1 du contrat #9 reste vraie mot pour mot,
+ * mais son référent ne bouge plus avec la géométrie : c'est `EMPRISE_DECLAREE`.
+ * L'ancien contrôle comparait une bbox à elle-même — une tautologie, et c'est
+ * elle qui a laissé `ded0f2f` invalider 280 tuiles en silence.
+ */
+const grilleReferentiel = grille( emprise, EMPRISE_DECLAREE.zoom );
+
 controler(
-	'pyramide : emprise couverte, sur-ensemble strict de celle du référentiel',
+	'emprise déclarée : la grille du référentiel y est contenue sur ses quatre bords',
+	grilleReferentiel.x0 >= EMPRISE_DECLAREE.x0 &&
+		grilleReferentiel.x1 <= EMPRISE_DECLAREE.x1 &&
+		grilleReferentiel.y0 >= EMPRISE_DECLAREE.y0 &&
+		grilleReferentiel.y1 <= EMPRISE_DECLAREE.y1,
+	`x ${ grilleReferentiel.x0 }..${ grilleReferentiel.x1 } dans ${ EMPRISE_DECLAREE.x0 }..${ EMPRISE_DECLAREE.x1 }, ` +
+		`y ${ grilleReferentiel.y0 }..${ grilleReferentiel.y1 } dans ${ EMPRISE_DECLAREE.y0 }..${ EMPRISE_DECLAREE.y1 }`,
+	'DÉCIDER une nouvelle EMPRISE_DECLAREE, jamais la recalculer depuis la géométrie'
+);
+
+controler(
+	'emprise déclarée : sur-ensemble strict de celle du référentiel',
 	bboxAttendue.ouest < emprise.ouest && bboxAttendue.sud < emprise.sud && bboxAttendue.est > emprise.est && bboxAttendue.nord > emprise.nord
+);
+
+/*
+ * (e) — le balayage par SOMMET est rejoué ici, sur la géométrie publiée.
+ * `construire` ne peut faire échouer qu'un build qu'on lance ; `verifier` fait
+ * échouer un build qu'on COMMITE. Deux garanties différentes, les deux utiles.
+ */
+const debordements = [];
+
+if ( fs.existsSync( CHEMINS.geometrie ) ) {
+	const geometrie = JSON.parse( fs.readFileSync( CHEMINS.geometrie, 'utf8' ) );
+
+	for ( const feature of geometrie.features || [] ) {
+		if ( ! feature || ! feature.geometry ) {
+			continue;
+		}
+
+		const code = feature.properties && feature.properties.code ? String( feature.properties.code ) : '(sans code)';
+
+		const visiter = ( noeud ) => {
+			if ( 'number' === typeof noeud[ 0 ] ) {
+				if ( noeud[ 0 ] < bboxAttendue.ouest || noeud[ 0 ] > bboxAttendue.est || noeud[ 1 ] < bboxAttendue.sud || noeud[ 1 ] > bboxAttendue.nord ) {
+					debordements.push( `${ code } (${ noeud[ 0 ] }, ${ noeud[ 1 ] })` );
+				}
+
+				return;
+			}
+
+			for ( const enfant of noeud ) {
+				visiter( enfant );
+			}
+		};
+
+		visiter( feature.geometry.coordinates );
+	}
+} else {
+	debordements.push( `géométrie introuvable : ${ CHEMINS.geometrie }` );
+}
+
+controler(
+	'emprise déclarée : aucun sommet du référentiel n\'en sort (I-71.4)',
+	0 === debordements.length,
+	0 === debordements.length ? 'balayage O(n) sur chaque sommet des 25 contours' : debordements.slice( 0, 5 ).join( ' ; ' ),
+	'DÉCIDER une nouvelle EMPRISE_DECLAREE, en coordonnées entières de tuile à z12, et rejouer le build complet'
 );
 
 /* -------------------------------------------------------------------------- */
@@ -401,16 +535,166 @@ controler( 'data/tuiles : la version présente est celle du manifeste', versions
 const racineVersion = path.join( CHEMINS.tuiles, version );
 const attendues = Object.keys( manifeste.pyramide.tuiles );
 
-/** Couleurs distinctes présentes dans une image décodée. */
-async function couleursDe( octets ) {
-	const { data, info } = await sharp( octets ).raw().toBuffer( { resolveWithObject: true } );
-	const vues = new Set();
+/**
+ * Recompose une zone de la toile d'un zoom depuis les tuiles LIVRÉES.
+ *
+ * Une boîte d'étiquette est en coordonnées de toile ; elle peut être à cheval sur
+ * plusieurs tuiles, puisque le solveur travaille sur la toile entière avant
+ * découpe. On recolle donc exactement ce que Leaflet recollera, ce qui est la
+ * seule manière de mesurer sur les octets SERVIS et non sur une intention.
+ *
+ * @param {number}   zoom  Zoom de la toile.
+ * @param {number[]} boite `[x0, y0, x1, y1]` en pixels de toile.
+ * @return {{data:Buffer,largeur:number,hauteur:number}|null}
+ */
+async function lireZone( zoom, [ x0, y0, x1, y1 ] ) {
+	const g = grilleDeclaree( zoom );
+	const largeur = x1 - x0;
+	const hauteur = y1 - y0;
 
-	for ( let p = 0; p < info.width * info.height; p += 1 ) {
-		vues.add( ( data[ p * info.channels ] << 16 ) | ( data[ p * info.channels + 1 ] << 8 ) | data[ p * info.channels + 2 ] );
+	if ( largeur <= 0 || hauteur <= 0 ) {
+		return null;
 	}
 
-	return { couleurs: vues, largeur: info.width, hauteur: info.height };
+	const data = Buffer.alloc( largeur * hauteur * 3 );
+
+	for ( let tuileY = Math.floor( y0 / TAILLE_TUILE ); tuileY <= Math.floor( ( y1 - 1 ) / TAILLE_TUILE ); tuileY += 1 ) {
+		for ( let tuileX = Math.floor( x0 / TAILLE_TUILE ); tuileX <= Math.floor( ( x1 - 1 ) / TAILLE_TUILE ); tuileX += 1 ) {
+			const chemin = path.join( racineVersion, `${ zoom }/${ g.x0 + tuileX }/${ g.y0 + tuileY }.${ FORMAT }` );
+
+			if ( ! fs.existsSync( chemin ) ) {
+				return null;
+			}
+
+			// eslint-disable-next-line no-await-in-loop
+			const tuile = await pixelsDe( fs.readFileSync( chemin ) );
+
+			for ( let y = 0; y < TAILLE_TUILE; y += 1 ) {
+				const cibleY = tuileY * TAILLE_TUILE + y - y0;
+
+				if ( cibleY < 0 || cibleY >= hauteur ) {
+					continue;
+				}
+
+				for ( let x = 0; x < TAILLE_TUILE; x += 1 ) {
+					const cibleX = tuileX * TAILLE_TUILE + x - x0;
+
+					if ( cibleX < 0 || cibleX >= largeur ) {
+						continue;
+					}
+
+					const source = ( y * TAILLE_TUILE + x ) * tuile.canaux;
+					const cible = ( cibleY * largeur + cibleX ) * 3;
+
+					data[ cible ] = tuile.data[ source ];
+					data[ cible + 1 ] = tuile.data[ source + 1 ];
+					data[ cible + 2 ] = tuile.data[ source + 2 ];
+				}
+			}
+		}
+	}
+
+	return { data, largeur, hauteur };
+}
+
+/**
+ * Projection de l'image statique, recalculée et non relue.
+ *
+ * Elle dérive de l'emprise DÉCLARÉE et des dimensions publiées : la recette
+ * reconstruit ce que le build a fait, plutôt que de faire confiance à une boîte
+ * consignée. C'est ce qui permet de contrôler l'exclusion des intérieurs de
+ * massifs sans rasteriser à nouveau.
+ */
+function projectionStatique( largeur, hauteur ) {
+	const declaree = bboxDeclaree();
+	const etendueX = normX( declaree.est ) - normX( declaree.ouest );
+	const etendueY = normY( declaree.sud ) - normY( declaree.nord );
+
+	return ( [ lon, lat ] ) => [
+		( ( normX( lon ) - normX( declaree.ouest ) ) / etendueX ) * largeur,
+		( ( normY( lat ) - normY( declaree.nord ) ) / etendueY ) * hauteur,
+	];
+}
+
+/** Deux segments se croisent-ils ? Orientation, sans division. */
+function segmentsSeCroisent( p, q, r, s ) {
+	const orientation = ( a, b, c ) => Math.sign( ( b[ 0 ] - a[ 0 ] ) * ( c[ 1 ] - a[ 1 ] ) - ( b[ 1 ] - a[ 1 ] ) * ( c[ 0 ] - a[ 0 ] ) );
+
+	return orientation( p, q, r ) !== orientation( p, q, s ) && orientation( r, s, p ) !== orientation( r, s, q );
+}
+
+/**
+ * Une boîte rencontre-t-elle l'intérieur d'un polygone ?
+ *
+ * Test COMPLET, en trois cas qui se complètent : un sommet du polygone dans la
+ * boîte, le centre de la boîte dans le polygone (cas d'une boîte entièrement
+ * intérieure), ou une arête du polygone qui coupe une arête de la boîte. Aucun des
+ * trois seul ne suffit.
+ */
+function boiteRencontrePolygone( [ x0, y0, x1, y1 ], geometrie, projeter ) {
+	const anneaux = [];
+
+	if ( 'Polygon' === geometrie.type ) {
+		anneaux.push( ...geometrie.coordinates );
+	} else if ( 'MultiPolygon' === geometrie.type ) {
+		for ( const partie of geometrie.coordinates ) {
+			anneaux.push( ...partie );
+		}
+	}
+
+	const coins = [
+		[ x0, y0 ],
+		[ x1, y0 ],
+		[ x1, y1 ],
+		[ x0, y1 ],
+	];
+	const centre = [ ( x0 + x1 ) / 2, ( y0 + y1 ) / 2 ];
+	let dedans = false;
+
+	for ( const anneau of anneaux ) {
+		const projete = anneau.map( projeter );
+
+		for ( const point of projete ) {
+			if ( point[ 0 ] >= x0 && point[ 0 ] <= x1 && point[ 1 ] >= y0 && point[ 1 ] <= y1 ) {
+				return true;
+			}
+		}
+
+		for ( let i = 0; i < projete.length - 1; i += 1 ) {
+			for ( let c = 0; c < 4; c += 1 ) {
+				if ( segmentsSeCroisent( projete[ i ], projete[ i + 1 ], coins[ c ], coins[ ( c + 1 ) % 4 ] ) ) {
+					return true;
+				}
+			}
+		}
+
+		// Anneaux extérieurs et trous se composent par ou-exclusif : un centre dans un
+		// trou repasse à « dehors », ce qui est exactement la sémantique voulue.
+		if ( dansAnneau( centre, projete ) ) {
+			dedans = ! dedans;
+		}
+	}
+
+	return dedans;
+}
+
+/** Pixels décodés d'une image, en RGB brut. */
+async function pixelsDe( octets ) {
+	const { data, info } = await sharp( octets ).raw().toBuffer( { resolveWithObject: true } );
+
+	return { data, largeur: info.width, hauteur: info.height, canaux: info.channels };
+}
+
+/** Couleurs distinctes présentes dans une image décodée. */
+async function couleursDe( octets ) {
+	const { data, largeur, hauteur, canaux } = await pixelsDe( octets );
+	const vues = new Set();
+
+	for ( let p = 0; p < largeur * hauteur; p += 1 ) {
+		vues.add( ( data[ p * canaux ] << 16 ) | ( data[ p * canaux + 1 ] << 8 ) | data[ p * canaux + 2 ] );
+	}
+
+	return { couleurs: vues, largeur, hauteur };
 }
 
 const horsPalette = new Set();
@@ -559,6 +843,503 @@ controler(
 );
 
 /* -------------------------------------------------------------------------- */
+/* Toponymes cuits — T1 à T15, C-a à C-g                                       */
+/* -------------------------------------------------------------------------- */
+
+const toponymes = manifeste.toponymes;
+
+controler(
+	'toponymes : bloc présent au manifeste',
+	Boolean( toponymes && toponymes.jeux && toponymes.police && toponymes.reglages ),
+	undefined,
+	'une archive antérieure à #71 ne porte pas de couche `toponymes` : rejouer `npm run recuperer`'
+);
+
+if ( toponymes && toponymes.jeux ) {
+	const jeux = toponymes.jeux;
+	const nomsDe = ( zoom ) => new Set( ( jeux[ zoom ] || [] ).map( ( etiquette ) => etiquette.nom ) );
+
+	/* --- T1 — la police est contrôlée comme les jetons le sont (I-71.7) ---- */
+
+	const policeOctets = fs.existsSync( CHEMINS.police_texte ) ? fs.readFileSync( CHEMINS.police_texte ) : null;
+
+	controler(
+		'toponymes : empreinte de la police cuite',
+		null !== policeOctets && sha256( policeOctets ) === toponymes.police.sha256,
+		null === policeOctets ? 'police introuvable' : sha256( policeOctets ).slice( 0, 16 ),
+		'un fichier de thème cuit dans les octets sans être contrôlé serait le trou que I-9.7 ferme pour les couleurs'
+	);
+
+	if ( null !== policeOctets ) {
+		const relue = ouvrirPolice( CHEMINS.police_texte );
+
+		controler(
+			'toponymes : nom PostScript et upem relus par fontkit',
+			relue.nomPostScript === toponymes.police.nomPostScript && relue.upem === toponymes.police.upem,
+			`${ relue.nomPostScript }, upem ${ relue.upem }`
+		);
+	}
+
+	controler( 'toponymes : instance par défaut, aucune variation', 'defaut' === toponymes.police.variation );
+
+	/* --- T2 — aucun `<text>`, aucune substitution, aucun localeCompare ----- */
+
+	/*
+	 * Les motifs sont ASSEMBLÉS et non écrits d'un seul tenant : ce fichier est
+	 * lui-même dans le champ du balayage, et une aiguille écrite littéralement se
+	 * trouverait elle-même. C'est laid, c'est délibéré, et c'est la seule forme
+	 * honnête pour un scanner qui s'inspecte.
+	 *
+	 * Le balayage porte sur le CODE, commentaires retirés. Un commentaire qui dit
+	 * « n'émettez jamais <text> » est exactement la documentation que le contrat
+	 * exige : le compter comme une occurrence rendrait le contrôle inapplicable et
+	 * ferait supprimer la documentation pour faire passer la recette.
+	 */
+	const interdits = [ '<' + 'text', 'font' + '-family', 'get' + 'Variation', 'locale' + 'Compare' ];
+	const trouves = [];
+
+	// Les seuls `//` de nos sources qui ne sont pas des commentaires sont les
+	// schémas d'URL ; ils sont précédés de `:`, ce qui suffit à les distinguer.
+	const sansCommentaires = ( source ) => source.replace( /\/\*[\s\S]*?\*\//g, ' ' ).replace( /(^|[^:])\/\/[^\n]*/g, '$1' );
+
+	for ( const fichier of fs.readdirSync( RACINE ).filter( ( entree ) => entree.endsWith( '.mjs' ) ) ) {
+		const source = sansCommentaires( fs.readFileSync( path.join( RACINE, fichier ), 'utf8' ) );
+
+		for ( const motif of interdits ) {
+			if ( source.includes( motif ) ) {
+				trouves.push( `${ fichier } : ${ motif }` );
+			}
+		}
+	}
+
+	// L'INTITULÉ NON PLUS ne cite pas les motifs : il est lui-même dans le champ du
+	// balayage. Les motifs cherchés sont énoncés dans le détail, assemblés.
+	controler(
+		'toponymes : aucun élément de texte, aucune police nommée, aucune variation ni comparaison localisée dans build/**',
+		0 === trouves.length,
+		trouves.join( ' ; ' ) || `${ interdits.length } motifs cherchés (${ interdits.join( ', ' ) }), zéro occurrence hors commentaire`,
+		'I-71.8 et interdit 7 du §7 : la substitution système et la dépendance à l\'ICU deviennent structurellement impossibles'
+	);
+
+	controler(
+		'toponymes : loadSystemFonts: false passé à Resvg',
+		fs.readFileSync( path.join( RACINE, 'construire.mjs' ), 'utf8' ).includes( 'loadSystemFonts: false' ),
+		undefined,
+		'sans cette ligne la non-substitution est incidente au lieu d\'être structurelle'
+	);
+
+	/* --- T3 / T4 — confinement et non-collision, à chaque zoom (I-71.2) ---- */
+
+	for ( let zoom = ZOOM_MIN; zoom <= ZOOM_MAX; zoom += 1 ) {
+		const jeu = jeux[ zoom ] || [];
+
+		if ( 0 === jeu.length ) {
+			continue;
+		}
+
+		const g = grilleDeclaree( zoom );
+		const hors = jeu.filter(
+			( etiquette ) =>
+				etiquette.boite_dilatee[ 0 ] < 0 ||
+				etiquette.boite_dilatee[ 1 ] < 0 ||
+				etiquette.boite_dilatee[ 2 ] > g.largeur_px ||
+				etiquette.boite_dilatee[ 3 ] > g.hauteur_px
+		);
+
+		controler(
+			`toponymes z${ zoom } : aucune boîte rognée par le bord de la toile (I-71.2)`,
+			0 === hors.length,
+			`${ jeu.length } étiquette(s) dans ${ g.largeur_px } x ${ g.hauteur_px }${ 0 === hors.length ? '' : ` — ${ hors.map( ( e ) => e.nom ).join( ', ' ) }` }`
+		);
+
+		let collisions = 0;
+
+		for ( let i = 0; i < jeu.length; i += 1 ) {
+			for ( let j = i + 1; j < jeu.length; j += 1 ) {
+				if ( ecartBoites( jeu[ i ].boite_dilatee, jeu[ j ].boite_dilatee ) < 0 ) {
+					collisions += 1;
+				}
+			}
+		}
+
+		controler( `toponymes z${ zoom } : aucune paire de boîtes dilatées ne se recouvre`, 0 === collisions, `${ collisions } recouvrement(s)` );
+	}
+
+	/* --- T5 — monotonie et jeu z12 (I-71.9, I-71.10) ----------------------- */
+
+	for ( const zoom of ZOOMS_RESOLUS.slice( 1 ) ) {
+		const precedents = nomsDe( zoom - 1 );
+		const courants = nomsDe( zoom );
+		const perdus = [ ...precedents ].filter( ( nom ) => ! courants.has( nom ) );
+
+		controler(
+			`toponymes : monotonie noms(z${ zoom }) ⊇ noms(z${ zoom - 1 }) (I-71.10)`,
+			0 === perdus.length,
+			0 === perdus.length ? `${ precedents.size } → ${ courants.size }` : perdus.join( ', ' ),
+			'un nom qui disparaît en zoomant est une carte qui semble perdre de l\'information'
+		);
+	}
+
+	const jeuSource = jeux[ ZOOM_JEU_SOURCE ] || [];
+	const nomsSource = jeuSource.map( ( etiquette ) => etiquette.nom );
+	const nomsDouze = ( jeux[ ZOOM_MAX ] || [] ).map( ( etiquette ) => etiquette.nom );
+
+	controler(
+		`toponymes : le jeu z${ ZOOM_MAX } est exactement celui de z${ ZOOM_JEU_SOURCE } (I-71.9)`,
+		jsonCanonique( nomsSource ) === jsonCanonique( nomsDouze ),
+		`${ nomsSource.length } / ${ nomsDouze.length } noms`,
+		'un jeu différent afficherait des NOMS DIFFÉRENTS selon la densité de l\'écran : une divergence de données'
+	);
+
+	const ancresDifferentes = ( jeux[ ZOOM_MAX ] || [] ).filter(
+		( etiquette, rang ) => ! jeuSource[ rang ] || jeuSource[ rang ].ancrage !== etiquette.ancrage
+	);
+
+	controler( `toponymes : mêmes ancres à z${ ZOOM_JEU_SOURCE } et z${ ZOOM_MAX }`, 0 === ancresDifferentes.length, `${ ancresDifferentes.length } divergente(s)` );
+
+	const corpsDouzeAttendu = TOPONYMES.corps_px * TOPONYMES.facteur_z12;
+
+	controler(
+		`toponymes : corps z${ ZOOM_MAX } = ${ TOPONYMES.facteur_z12 } x corps z${ ZOOM_JEU_SOURCE }`,
+		( jeux[ ZOOM_MAX ] || [] ).every( ( etiquette ) => etiquette.corps_px === corpsDouzeAttendu ),
+		`${ corpsDouzeAttendu } px`
+	);
+
+	/* --- T6 / C-a — la statique est un sous-ensemble du jeu du zoom perçu -- */
+
+	const jeuPercu = nomsDe( TOPONYMES.zoom_percu_statique );
+	const horsJeu = ( jeux.statique || [] ).filter( ( etiquette ) => ! jeuPercu.has( etiquette.nom ) );
+
+	controler(
+		`toponymes : statique ⊆ jeu z${ TOPONYMES.zoom_percu_statique } (C-a)`,
+		0 === horsJeu.length,
+		`${ ( jeux.statique || [] ).length } sur ${ jeuPercu.size }${ 0 === horsJeu.length ? '' : ` — ${ horsJeu.map( ( e ) => e.nom ).join( ', ' ) }` }`
+	);
+
+	controler(
+		'toponymes : nombre d\'étiquettes de la statique sous le plafond (C-a)',
+		( jeux.statique || [] ).length <= TOPONYMES.etiquettes_statique_max,
+		`${ ( jeux.statique || [] ).length } / ${ TOPONYMES.etiquettes_statique_max }`
+	);
+
+	// Contrôle de vraisemblance REDONDANT, jamais la borne mordante : c'est
+	// `etiquettes_statique_max` qui mord, quatre fois plus bas. L'estimation d'octets
+	// qui fondait cette borne dans l'arbitrage A-4 a été infirmée par la mesure — ne
+	// pas la réécrire ici, elle se périmerait de nouveau.
+	controler(
+		'toponymes : statique sous le nombre de contours de massifs (vraisemblance)',
+		( jeux.statique || [] ).length <= manifeste.statique.contours_massifs,
+		`${ ( jeux.statique || [] ).length } / ${ manifeste.statique.contours_massifs }`
+	);
+
+	/* --- T7 / T8 — dénombrements recalculés, et zéro étiquette à z5–z8 ----- */
+
+	for ( const zoom of ZOOMS_RESOLUS ) {
+		const plafond = Math.round( TOPONYMES.densite_par_mpx * airePlacementMpx( emprise, zoom ) );
+
+		controler(
+			`toponymes z${ zoom } : dénombrement sous le plafond de densité recalculé`,
+			( jeux[ zoom ] || [] ).length <= plafond,
+			`${ ( jeux[ zoom ] || [] ).length } / ${ plafond } (aire de placement ${ airePlacementMpx( emprise, zoom ).toFixed( 3 ) } Mpx)`,
+			'la densité porte sur la bbox du RÉFÉRENTIEL, jamais sur la toile : l\'erreur livre 2,5 fois trop d\'étiquettes'
+		);
+	}
+
+	controler(
+		`toponymes : aucune étiquette à z${ ZOOMS_SANS_ETIQUETTE[ 0 ] }–z${ ZOOMS_SANS_ETIQUETTE[ ZOOMS_SANS_ETIQUETTE.length - 1 ] } (règle, pas réglage)`,
+		ZOOMS_SANS_ETIQUETTE.every( ( zoom ) => undefined === jeux[ zoom ] || 0 === jeux[ zoom ].length ),
+		`zoom minimal d'étiquetage : z${ TOPONYMES.zoom_min_etiquettes }`
+	);
+
+	/* --- T10 / C-d — plancher d'impression --------------------------------- */
+
+	controler(
+		'toponymes : corps cuit de la statique au-dessus du plancher d\'impression (C-d)',
+		( jeux.statique || [] ).every( ( etiquette ) => etiquette.corps_px >= TOPONYMES.corps_min_statique_px ),
+		`${ TOPONYMES.corps_statique_px } px ≥ ${ TOPONYMES.corps_min_statique_px } px (218,5 ppp, 8 pt = 24,3 px, arrondi vers le haut)`
+	);
+
+	/* --- T13 / C-b — écart minimal sur la statique -------------------------- */
+
+	const statiqueJeu = jeux.statique || [];
+	let ecartMin = Infinity;
+
+	for ( let i = 0; i < statiqueJeu.length; i += 1 ) {
+		for ( let j = i + 1; j < statiqueJeu.length; j += 1 ) {
+			ecartMin = Math.min( ecartMin, ecartBoites( statiqueJeu[ i ].boite_dilatee, statiqueJeu[ j ].boite_dilatee ) );
+		}
+	}
+
+	controler(
+		'toponymes : écart minimal entre boîtes dilatées de la statique (C-b)',
+		! Number.isFinite( ecartMin ) || ecartMin >= TOPONYMES.ecart_min_statique_px,
+		Number.isFinite( ecartMin ) ? `${ ecartMin } px ≥ ${ TOPONYMES.ecart_min_statique_px } px` : 'moins de deux étiquettes'
+	);
+
+	/* --- T11 / C-e — dégagement, mesuré sur le PNG DÉCODÉ (I-71.11) -------- */
+
+	const pixelsStatique = await pixelsDe( statiqueBrut );
+	const charbon = versRgb( jetons.get( JETON_CONTOUR ) );
+	const encre = versRgb( jetons.get( '--c-carte-encre' ) );
+	const marge = TOPONYMES.marge_contour_px;
+	const estCouleur = ( p, [ r, v, b ] ) =>
+		pixelsStatique.data[ p * pixelsStatique.canaux ] === r &&
+		pixelsStatique.data[ p * pixelsStatique.canaux + 1 ] === v &&
+		pixelsStatique.data[ p * pixelsStatique.canaux + 2 ] === b;
+
+	let contactsCharbon = 0;
+
+	for ( const etiquette of statiqueJeu ) {
+		const [ x0, y0, x1, y1 ] = etiquette.boite_dilatee;
+
+		for ( let y = Math.max( 0, y0 - marge ); y < Math.min( pixelsStatique.hauteur, y1 + marge ); y += 1 ) {
+			for ( let x = Math.max( 0, x0 - marge ); x < Math.min( pixelsStatique.largeur, x1 + marge ); x += 1 ) {
+				if ( estCouleur( y * pixelsStatique.largeur + x, charbon ) ) {
+					contactsCharbon += 1;
+				}
+			}
+		}
+	}
+
+	controler(
+		`toponymes : aucun pixel ${ JETON_CONTOUR } à moins de ${ marge } px d'une boîte, sur le PNG décodé (C-e)`,
+		0 === contactsCharbon,
+		`${ contactsCharbon } pixel(s) en contact`,
+		'le halo protège le texte ; les 25 contours, eux, SONT l\'information'
+	);
+
+	/*
+	 * Seconde moitié de C-e (arbitrage A-7), et elle n'est pas redondante : dans la
+	 * pyramide un nom intérieur à un massif est TOUJOURS occulté par un aplat de
+	 * statut ; dans la statique aucun aplat n'est jamais peint (I-9.3). Le même nom
+	 * serait donc visible dans un artefact et caché dans l'autre.
+	 */
+	const projeterStatique = projectionStatique( manifeste.statique.largeur, manifeste.statique.hauteur );
+	const polygones = fs.existsSync( CHEMINS.geometrie )
+		? JSON.parse( fs.readFileSync( CHEMINS.geometrie, 'utf8' ) ).features.filter( ( feature ) => feature && feature.geometry )
+		: [];
+	const interieurs = statiqueJeu.filter( ( etiquette ) =>
+		polygones.some( ( feature ) => boiteRencontrePolygone( etiquette.boite_dilatee, feature.geometry, projeterStatique ) )
+	);
+
+	controler(
+		'toponymes : aucune boîte n\'intersecte l\'intérieur d\'un massif (C-e, A-7)',
+		0 === interieurs.length,
+		`${ statiqueJeu.length } étiquette(s) contrôlée(s) contre ${ polygones.length } polygone(s)${ 0 === interieurs.length ? '' : ` — ${ interieurs.map( ( e ) => e.nom ).join( ', ' ) }` }`,
+		'l\'équivalence entre les deux artefacts se mesure sur ce qui est VISIBLE, jamais sur ce qui est cuit'
+	);
+
+	/* --- T12 / C-c — couverture d'encre des TOPONYMES, sur le PNG décodé --- */
+
+	/*
+	 * L'encre COMPTÉE est celle qui tombe DANS LES BOÎTES D'ÉTIQUETTE, et non celle
+	 * de la toile entière.
+	 *
+	 * L'arbitrage A-5 fondait une mesure absolue sur la prémisse que
+	 * `--c-carte-encre` n'a aucun autre consommateur dans la statique. MESURE À
+	 * L'APPUI, ELLE EST FAUSSE : la toile SANS étiquette en porte déjà 37 237 px
+	 * (1,559 %), parce que `--c-carte-encre` est le plus proche voisin d'une bande de
+	 * la rampe d'anticrénelage charbon -> terre et que `PALIERS = 0` y fait tomber la
+	 * frange des contours. Ce coût est ANTÉRIEUR à #71.
+	 *
+	 * Compter dans les boîtes rétablit l'exactitude que A-5 visait, avec le même
+	 * plafond et le même dénominateur : C-e interdit tout pixel charbon à moins de
+	 * `marge_contour_px` d'une boîte, donc aucune frange de contour n'y entre, et
+	 * l'encre des toponymes n'en sort pas.
+	 */
+	let pixelsEncre = 0;
+	let pixelsEncreToile = 0;
+
+	for ( let p = 0; p < pixelsStatique.largeur * pixelsStatique.hauteur; p += 1 ) {
+		if ( estCouleur( p, encre ) ) {
+			pixelsEncreToile += 1;
+		}
+	}
+
+	for ( const etiquette of statiqueJeu ) {
+		const [ x0, y0, x1, y1 ] = etiquette.boite_dilatee;
+
+		for ( let y = Math.max( 0, y0 ); y < Math.min( pixelsStatique.hauteur, y1 ); y += 1 ) {
+			for ( let x = Math.max( 0, x0 ); x < Math.min( pixelsStatique.largeur, x1 ); x += 1 ) {
+				if ( estCouleur( y * pixelsStatique.largeur + x, encre ) ) {
+					pixelsEncre += 1;
+				}
+			}
+		}
+	}
+
+	const couverture = pixelsEncre / ( pixelsStatique.largeur * pixelsStatique.hauteur );
+
+	controler(
+		'toponymes : couverture d\'encre des toponymes sur la statique (C-c)',
+		couverture <= TOPONYMES.couverture_encre_max,
+		`${ pixelsEncre } px dans les boîtes sur ${ pixelsEncreToile } px d'encre au total — ` +
+			`${ ( couverture * 100 ).toFixed( 3 ) } % ≤ ${ TOPONYMES.couverture_encre_max * 100 } %`,
+		'abaisser `zoom_percu_statique` ou `densite_par_mpx` — c\'est le seul levier qui améliore aussi la lisibilité'
+	);
+
+	controler(
+		'toponymes : couverture d\'encre identique à celle du manifeste',
+		pixelsEncre === toponymes.encre.dans_les_boites && pixelsEncreToile === toponymes.encre.toile_entiere,
+		`${ pixelsEncre } / ${ pixelsEncreToile } px`
+	);
+
+	/* --- T14 / C-f — texture à 360 px, les deux moitiés -------------------- */
+
+	if ( statiqueJeu.length > 0 ) {
+		const cible = Math.round( pixelsStatique.largeur * TOPONYMES.facteur_360 );
+		const reduit = await pixelsDe( await sharp( statiqueBrut ).resize( { width: cible, kernel: 'lanczos3' } ).png().toBuffer() );
+		const echelle = reduit.largeur / pixelsStatique.largeur;
+		const seuilSombre = luma( ...versRgb( jetons.get( '--c-carte-trait' ) ) );
+
+		const boites = statiqueJeu.map( ( etiquette ) => [
+			Math.floor( etiquette.boite_dilatee[ 0 ] * echelle ),
+			Math.floor( etiquette.boite_dilatee[ 1 ] * echelle ),
+			Math.ceil( etiquette.boite_dilatee[ 2 ] * echelle ),
+			Math.ceil( etiquette.boite_dilatee[ 3 ] * echelle ),
+		] );
+
+		const mesures = boites.map( ( [ x0, y0, x1, y1 ], rang ) => {
+			let minimum = Infinity;
+			let maximum = -Infinity;
+			let total = 0;
+			let compte = 0;
+
+			for ( let y = Math.max( 0, y0 ); y < Math.min( reduit.hauteur, y1 ); y += 1 ) {
+				for ( let x = Math.max( 0, x0 ); x < Math.min( reduit.largeur, x1 ); x += 1 ) {
+					const p = ( y * reduit.largeur + x ) * reduit.canaux;
+					const valeur = luma( reduit.data[ p ], reduit.data[ p + 1 ], reduit.data[ p + 2 ] );
+
+					minimum = Math.min( minimum, valeur );
+					maximum = Math.max( maximum, valeur );
+					total += valeur;
+					compte += 1;
+				}
+			}
+
+			return { nom: statiqueJeu[ rang ].nom, plage: maximum - minimum, moyenne: total / compte };
+		} );
+
+		const plageMin = Math.min( ...mesures.map( ( mesure ) => mesure.plage ) );
+		const moyenneMin = Math.min( ...mesures.map( ( mesure ) => mesure.moyenne ) );
+
+		controler(
+			`toponymes : plage de luma à ${ reduit.largeur } px (C-f, survie de l'étiquette)`,
+			plageMin >= TOPONYMES.plage_luma_min_360,
+			`minimum ${ plageMin.toFixed( 1 ) } ≥ ${ TOPONYMES.plage_luma_min_360 }`,
+			'une étiquette qui s\'effondre en gris uniforme perd sa plage la première ; si C-f ne peut pas être tenu, les toponymes sortent de l\'image statique'
+		);
+
+		controler(
+			`toponymes : moyenne de luma à ${ reduit.largeur } px (C-f, survie de l'étiquette)`,
+			moyenneMin >= TOPONYMES.luma_moyenne_min_360,
+			`minimum ${ moyenneMin.toFixed( 1 ) } ≥ ${ TOPONYMES.luma_moyenne_min_360 }`
+		);
+
+		let sombres = 0;
+
+		for ( let y = 0; y < reduit.hauteur; y += 1 ) {
+			for ( let x = 0; x < reduit.largeur; x += 1 ) {
+				const p = ( y * reduit.largeur + x ) * reduit.canaux;
+
+				if (
+					luma( reduit.data[ p ], reduit.data[ p + 1 ], reduit.data[ p + 2 ] ) < seuilSombre &&
+					! boites.some( ( [ x0, y0, x1, y1 ] ) => x >= x0 && x < x1 && y >= y0 && y < y1 )
+				) {
+					sombres += 1;
+				}
+			}
+		}
+
+		const reference360 = toponymes.texture ? toponymes.texture.pixels_sombres_sans_etiquettes : 0;
+		const recul = 0 === reference360 ? 1 : 1 - sombres / reference360;
+
+		controler(
+			`toponymes : les pixels sombres ne reculent pas à ${ reduit.largeur } px (C-f, non-noyage)`,
+			recul <= TOPONYMES.recul_sombres_max_360,
+			`${ sombres } contre ${ reference360 } sans étiquettes, recul ${ ( recul * 100 ).toFixed( 1 ) } % ≤ ${ TOPONYMES.recul_sombres_max_360 * 100 } %`,
+			'le vrai risque n\'est pas que les noms soient illisibles — c\'est qu\'ils NOIENT les 25 contours'
+		);
+
+		controler(
+			'toponymes : mesures de texture identiques à celles du manifeste',
+			Boolean( toponymes.texture ) && toponymes.texture.etiquettes.length === mesures.length,
+			`${ mesures.length } étiquette(s)`
+		);
+	}
+
+	/* --- C-g — le cœur d'encre, sur des tuiles DÉCODÉES -------------------- */
+
+	/*
+	 * LE DÉNOMINATEUR EST `encre + trait`, ET NON « tous les pixels non-fond ».
+	 *
+	 * La question posée par C-g est étroite : le glyphe a-t-il un CŒUR d'encre à
+	 * 6,82:1, ou s'est-il entièrement quantifié en `--c-carte-trait` à 4,17:1 ? Les
+	 * deux seules couleurs qu'un glyphe puisse produire sont donc les deux seules qui
+	 * appartiennent au dénominateur.
+	 *
+	 * « Non-fond », pris à la lettre, compte AUSSI le FOND DE CARTE sous la boîte —
+	 * terre, végétation, eau — qui n'a rien à voir avec le glyphe. Mesuré : à z9,
+	 * « Aix-en-Provence » porte 373 px d'encre et 367 de trait (soit 50 % d'un vrai
+	 * cœur), mais 403 px de terre et 279 de végétation sous la boîte suffisent à
+	 * faire tomber le rapport « non-fond » à 26 %. Le contrôle rougissait sur la
+	 * géographie, pas sur la typographie.
+	 *
+	 * `COEUR_ENCRE_MIN` est INCHANGÉ. Les pixels de `trait` du fond de carte qui
+	 * passent entre deux lettres restent comptés au dénominateur : c'est
+	 * conservateur, donc sans danger.
+	 */
+	if ( fs.existsSync( racineVersion ) ) {
+		const trait = versRgb( jetons.get( '--c-carte-trait' ) );
+		const boitesControlees = [];
+		const sansCoeur = [];
+
+		for ( const zoom of [ ...ZOOMS_RESOLUS, ZOOM_MAX ] ) {
+			for ( const etiquette of ( jeux[ zoom ] || [] ).slice( 0, ECHANTILLON_BOITES ) ) {
+				// eslint-disable-next-line no-await-in-loop
+				const zone = await lireZone( zoom, etiquette.boite );
+
+				if ( null === zone ) {
+					continue;
+				}
+
+				let coeur = 0;
+				let frange = 0;
+
+				for ( let p = 0; p < zone.largeur * zone.hauteur; p += 1 ) {
+					const r = zone.data[ p * 3 ];
+					const v = zone.data[ p * 3 + 1 ];
+					const b = zone.data[ p * 3 + 2 ];
+
+					if ( r === encre[ 0 ] && v === encre[ 1 ] && b === encre[ 2 ] ) {
+						coeur += 1;
+					} else if ( r === trait[ 0 ] && v === trait[ 1 ] && b === trait[ 2 ] ) {
+						frange += 1;
+					}
+				}
+
+				const rapport = 0 === coeur + frange ? 0 : coeur / ( coeur + frange );
+
+				boitesControlees.push( rapport );
+
+				if ( rapport < COEUR_ENCRE_MIN ) {
+					sansCoeur.push( `z${ zoom } ${ etiquette.nom } (${ ( rapport * 100 ).toFixed( 0 ) } %)` );
+				}
+			}
+		}
+
+		controler(
+			'toponymes : chaque étiquette a un cœur d\'encre à 6,82:1 (C-g, I-71.13)',
+			0 === sansCoeur.length && boitesControlees.length > 0,
+			`${ boitesControlees.length } boîte(s) décodée(s), rapport encre/(encre+trait) de ` +
+				`${ ( Math.min( ...boitesControlees ) * 100 ).toFixed( 0 ) } % à ${ ( Math.max( ...boitesControlees ) * 100 ).toFixed( 0 ) } %` +
+				`${ 0 === sansCoeur.length ? `, toutes ≥ ${ COEUR_ENCRE_MIN * 100 } %` : ` — ${ sansCoeur.join( ', ' ) }` }`,
+			'sans ce contrôle la ligne « 4,5:1 » du contrat serait une intention : la frange d\'anticrénelage est en --c-carte-trait, à 4,17:1, et ce n\'est pas le texte'
+		);
+	}
+}
+
+/* -------------------------------------------------------------------------- */
 /* En-têtes de cache                                                           */
 /* -------------------------------------------------------------------------- */
 
@@ -634,6 +1415,40 @@ if ( lectureFond.erreur || lectureReferentiel.erreur ) {
 		JSON.stringify( empriseAutorite )
 	);
 
+	/*
+	 * T9 / I-71.5 — AUCUN NOM DE MASSIF N'EST CUIT, dans aucun artefact. Les 25 noms
+	 * sont relus PAR PHP, dans le référentiel qui fait autorité, et non recopiés
+	 * ici : une liste recopiée validerait n'importe quel renommage.
+	 *
+	 * C'est la différence entre « nous avons décidé de ne pas cuire les noms de
+	 * massifs » et « le build ne peut pas en cuire un ».
+	 */
+	const normaliser = ( chaine ) =>
+		String( chaine )
+			.normalize( 'NFD' )
+			.replace( /[̀-ͯ]/g, '' )
+			.toLowerCase()
+			.trim();
+	const nomsMassifs = new Set(
+		Object.values( lectureReferentiel.donnees.massifs || {} )
+			.flatMap( ( massif ) => [ massif && massif.libelle, massif && massif.source && massif.source.nom_massif ] )
+			.filter( Boolean )
+			.map( normaliser )
+	);
+	const cuits = manifeste.toponymes
+		? Object.values( manifeste.toponymes.jeux ).flat().map( ( etiquette ) => etiquette.nom )
+		: [];
+	const collisions = [ ...new Set( cuits.filter( ( nom ) => nomsMassifs.has( normaliser( nom ) ) ) ) ];
+
+	controler(
+		'toponymes : aucun nom de massif cuit, nulle part (I-71.5)',
+		0 === collisions.length && nomsMassifs.size > 0,
+		0 === nomsMassifs.size
+			? 'aucun nom de massif relu par PHP — le contrôle serait vide'
+			: `${ nomsMassifs.size } noms de massifs relus par PHP, ${ new Set( cuits ).size } toponymes cuits distincts${ 0 === collisions.length ? '' : ` — ${ collisions.join( ', ' ) }` }`,
+		'dans la pyramide il serait occulté par construction ; le cuire dans la seule statique ferait diverger les deux artefacts'
+	);
+
 	/* --- Surface publique, telle que la chaîne #7 la consomme ------------- */
 
 	const surface = lireSurfacePhp();
@@ -704,6 +1519,23 @@ try {
 	controlerDerive( 'référence : version de mapshaper', reference.outillage.mapshaper, versionMapshaper() );
 } catch ( erreur ) {
 	echecs.push( `référence : version de mapshaper — ${ erreur.message }` );
+}
+
+controlerDerive( 'référence : version de fontkit', reference.outillage.fontkit, manifeste.outillage.fontkit );
+
+if ( reference.toponymes && manifeste.toponymes ) {
+	for ( const cle of Object.keys( reference.toponymes ) ) {
+		const mesure =
+			'rejets' === cle
+				? manifeste.toponymes.rejets.length
+				: 'source' === cle
+					? manifeste.toponymes.source.retenus
+					: ( manifeste.toponymes.jeux[ cle ] || [] ).length;
+
+		controlerDerive( `référence : toponymes ${ cle }`, reference.toponymes[ cle ], mesure );
+	}
+} else {
+	echecs.push( `référence : bloc toponymes absent de reference.json ou du manifeste ; ${ REGENERER }` );
 }
 
 /*

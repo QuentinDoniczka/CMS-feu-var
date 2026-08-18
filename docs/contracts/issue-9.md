@@ -66,6 +66,12 @@ chaque fonction gardée par `function_exists()` dans `compat.php`, sur le patron
                                // emprise RÉELLEMENT couverte, alignée sur la grille de tuiles.
                                // Sur-ensemble strict de massifs_emprise()['bbox'].
                                // Sert à borner la couche (`bounds`), JAMAIS à cadrer la vue initiale.
+                               // [AMENDÉ le 17 août 2026 par #71 — lire le §14.] Cette emprise est
+                               // désormais une grandeur DÉCLARÉE, en coordonnées entières de tuile
+                               // à z12, et ne se recalcule plus depuis la géométrie du référentiel.
+                               // La phrase « sur-ensemble strict » reste vraie MOT POUR MOT, mais
+                               // elle est devenue un CONTRÔLE en sortie ≠ 0, et non plus une
+                               // définition. `nombre` passe de 280 à 295.
   'mode'         => 'complet', // string — 'complet' | 'degrade' (diagnostic de recette, §3)
   'version'      => 'a1b2c3d4',// string — /^[0-9a-f]{8}$/, segment de chemin
   'sha256'       => '…',       // string — 64 hex, empreinte du manifeste de pyramide
@@ -402,6 +408,11 @@ l'issue qui rouvrira une feuille de composants. Elle est reportée, pas résolue
 
 Le back a vu le piège ; le front ne l'a pas traité (c'est le domaine de #7).
 
+> **[AMENDÉ le 17 août 2026 par #71 — lire le §14.]** La décision ci-dessous est **intacte**. S'y
+> **ajoute** une clause : le jeu d'étiquettes de z12 **est exactement celui de z11, cuit au double**,
+> précisément parce qu'une tuile z12 n'est jamais rendue à sa propre échelle. Les comptes passent de
+> 195 à 210 tuiles à z12, et de 280 à 295 au total, sous l'effet de l'emprise déclarée.
+
 **Décision : la pyramide monte à z12, la carte reste plafonnée à z11.** Les 195 tuiles de z12 (sur 280)
 servent la netteté sur écran à forte densité et le `zoomSnap` fractionnaire, pour ~0,9 Mo — un coût
 négligeable contre un flou visible. **Gelé en clause F-11**, sans quoi #7 réglera `maxZoom: 12` de bonne foi
@@ -417,6 +428,13 @@ inarchivable, et le §11 se dégraderait en « télécharger 200 Mo avant de con
 repli documenté, pas la voie nominale.
 
 ### A-9 — Toponymes
+
+> **[RENVERSÉ le 17 août 2026 par #71 — lire le §14.]** Cet arbitrage est **caduc**. Les toponymes
+> sont cuits dans **les deux** artefacts. Les deux motifs qui le fondaient sont tombés, mesure à
+> l'appui : le placement d'étiquettes n'est pas « un moteur à lui seul » puisque la toile-par-zoom
+> existe déjà, et la police est chargeable au build (`fontkit` lit le `woff2` directement, et seuls
+> des `<path>` sont émis — jamais un `<text>`). Le texte ci-dessous est conservé **comme archive de
+> la décision v1**, non comme prescription.
 
 Les deux plans convergent : **aucun toponyme en v1**, et c'est confirmé.
 **Raison** : le placement d'étiquettes (collision, priorité, cohérence entre zooms) est un moteur à lui
@@ -456,9 +474,15 @@ différents et tous deux erronés pour la même grandeur.
 > confirmer avant mise en production, avec la question 8 du §4.1.e de `MASTER.md`, déjà `OUVERT` et
 > bloquante au même titre.
 
-> **`OUVERT` — les toponymes.** Voir A-9. Aucune sélection de noms de lieux n'est validée ; `--c-carte-encre`
-> n'a aucun consommateur en v1. Une v2 les ajouterait par un simple changement de `version` de la pyramide,
-> absorbé par la version-dans-le-chemin.
+> ~~**`OUVERT` — les toponymes.** Voir A-9. Aucune sélection de noms de lieux n'est validée ;
+> `--c-carte-encre` n'a aucun consommateur en v1. Une v2 les ajouterait par un simple changement de
+> `version` de la pyramide, absorbé par la version-dans-le-chemin.~~
+>
+> **CLOS le 17 août 2026 par #71.** C'est bien la v2 annoncée, et elle a été absorbée par la
+> version-dans-le-chemin comme prévu. La règle de sélection est gelée au §3 de
+> `docs/contracts/issue-71.md` ; `--c-carte-encre` a désormais **exactement un** consommateur, ce qui
+> rend son dénombrement de pixels exact. **L'autre `OUVERT` de cette section — la mention de la source
+> de l'extrait — reste ouvert et n'est pas touché.**
 
 ---
 
@@ -563,6 +587,14 @@ Le §1.2 donnait **≈ 1,04** comme « contrôle de vraisemblance », en déclar
 Le build a produit **1600 × 1421**, soit **1,1254**, dérivé de la bbox du référentiel projetée en Web
 Mercator — `Δx = 1,15683°` en radians contre `Δy` mercatorien de `43,15731°` à `43,90238°`.
 
+> **[SUPERSÉDÉ le 17 août 2026 par #71 — lire le §14.]** Conséquence directe de l'amendement du §1.1 :
+> l'image statique se projette désormais sur l'**emprise déclarée**, et non plus sur la bbox du
+> référentiel. Ses dimensions deviennent **1600 × 1493**, soit un rapport de **15/14 = 1,0714** —
+> un rapport d'entiers, et non plus le produit d'une projection en virgule flottante. Le raisonnement
+> ci-dessous est intact et sa leçon tient ; seul le **nombre** est remplacé. C'est le **quatrième**
+> chiffre écrit pour cette grandeur, et le premier qui ne puisse plus dériver, parce qu'il ne dépend
+> plus de la géométrie du jour.
+
 **Décision : 1421 est juste ; c'est le 1,04 du §1.2 qui était faux.** La valeur de contrôle du §1.2 est
 remplacée par **1,125**. Cela ne change aucune règle : le §1.2 posait déjà que **la dimension est une
 donnée de build et jamais une constante**, et c'est précisément ce qui a permis à l'erreur du contrat de
@@ -622,3 +654,123 @@ et sur sa seule moitié de *position* — voir A-13 ; son exigence d'incondition
 désormais mieux tenue qu'au gel. `url_modele` reste
 une URL de **même origine** sans query string, la version reste un **segment de chemin**, et le repli
 sans JavaScript reste rendu par défaut hors de tout `<noscript>`.
+
+---
+
+## 14. AVENANT du 17 août 2026 — l'emprise devient déclarée, les toponymes sont cuits
+
+**Porté par l'issue #71**, dont le contrat propre est [`docs/contracts/issue-71.md`](issue-71.md).
+Cet avenant amende **§1.1, A-7 et A-9**, et **eux seuls**, plus la correction consécutive d'A-12 que
+l'amendement du §1.1 rend inévitable. **§1.2 n'est pas amendé** — aucune clé n'est ajoutée à
+`massifs_fond_de_carte_statique()`. Aucun invariant `I-9.*`, aucun interdit du §7, aucune clause
+`F-*` n'est modifié.
+
+### A-14 — L'emprise de la pyramide cesse d'être dérivée de la géométrie
+
+**Le défaut, nommé.** Le §1.1 décrivait `bbox` comme « l'emprise réellement couverte, alignée sur la
+grille de tuiles, sur-ensemble strict de `massifs_emprise()['bbox']` ». Cette phrase était vraie et
+son contrôle était **une tautologie** : `verifier.mjs` testait un sur-ensemble sur une bbox
+elle-même dérivée de la même géométrie, si bien qu'il ne pouvait jamais rougir. C'est très
+exactement ce qui a permis à `ded0f2f` (retrait des îlots de moins de 25 ha) d'invalider 280 tuiles
+**en silence** et de forcer `fd2c10f`.
+
+**Décision : l'emprise est une grandeur déclarée, en coordonnées entières de tuile à z12.**
+
+```
+EMPRISE_DECLAREE = { zoom: 12, x0: 2100, x1: 2114, y0: 1490, y1: 1503 }
+```
+
+**Pourquoi des entiers de tuile et non quatre degrés.** `grille()` calcule `Math.floor( norm · 2^z )`.
+L'identité `floor( floor(a·2¹²) / 2^(12−z) ) === floor( a·2^z )` fait dériver z5 à z11 des entiers z12
+par simple décalage `x0 >> (12 − z)` : emboîtement **prouvé**, aucun flottant, et aucun décalage d'une
+colonne quand un bord tombe pile sur une frontière de tuile. `bboxDeGrille()` rend alors exactement
+l'emprise déclarée — **déclaré === publié**, propriété que quatre degrés n'auraient pas donnée.
+
+**La marge est appliquée une fois, puis gelée.** 0,05° sur les quatre bords de
+`massifs_emprise()['bbox']`, arrondis vers l'extérieur à la grille z12, **le 17 août 2026**. Elle
+documente d'où viennent les quatre entiers ; elle n'est **jamais réévaluée au build** — la réévaluer
+rétablirait le couplage que cet avenant supprime. Marges résiduelles obtenues : ouest 0,0861° · est
+0,0754° · nord ≈ 0,058° · sud ≈ 0,089°. Seul le bord **sud** franchit une frontière de tuile
+(`y1` 1502 → 1503).
+
+**Effet sur les comptes.** z5–z11 **inchangés** ; z12 passe de 15 × 13 = 195 à 15 × 14 = **210** ;
+total **280 → 295**. Les 15 tuiles ajoutées sont en mer au sud de la côte, uniformément
+`--c-carte-fond` (le découpage est fait sur `terre`) : ~300–600 o pièce. La pyramide n'a **pas** de
+plafond — le §10 du brief dit « hors fond de carte ».
+
+**La phrase du §1.1 reste vraie, et devient enfin opposable.** « Sur-ensemble strict de
+`massifs_emprise()['bbox']` » n'est plus une définition mais un **contrôle**, porté deux fois et de
+deux manières indépendantes : un balayage O(n) sur **chaque sommet** de chaque contour dans
+`construire.mjs`, avant toute rasterisation, et un contrôle au niveau de la tuile dans `verifier.mjs`.
+Les deux **sortent en code ≠ 0**. Le message d'erreur prescrit de **décider** une nouvelle emprise,
+jamais de la recalculer.
+
+**Ce que cela achète, et c'était le but de l'issue** : une retouche du référentiel qui reste dans
+l'emprise déclarée ne déplace plus la bbox de la pyramide, ne change plus la version publiée, et ne
+re-cuit plus 295 tuiles. C'est aussi le socle que #43 et #36 réécriront — sur un repère fixe.
+
+### A-15 — Le rapport de l'image statique cesse de dériver
+
+L'image statique se projette désormais sur l'**emprise déclarée**, comme la pyramide : une seule
+constante, une seule projection, deux artefacts qui montrent la même zone. `etendueX = 15/4096`,
+`etendueY = 14/4096` sont des rationnels exacts, d'où `hauteur = round( 1600 × 14/15 ) = 1493` et un
+rapport de **15/14 = 1,0714**. Résolution au sol ≈ 66,5 m/px, contre ≈ 58,7 auparavant.
+
+`largeur` et `hauteur` restent des **données de build** (A-10), jamais des constantes — la règle du
+§1.2 est inchangée. Ce qui change, c'est que la dimension ne bouge plus quand le référentiel est
+retouché. **A-12 est supersédé en son seul nombre** ; son raisonnement, et la leçon qu'il tirait,
+tiennent entièrement.
+
+### A-16 — A-9 est renversé : les toponymes sont cuits dans les deux artefacts
+
+**Les deux motifs d'A-9 sont tombés, et l'un des deux était une erreur de fait.**
+
+- « Le placement d'étiquettes est un moteur à lui seul » — `construirePyramide()` rasterise **déjà**
+  une toile entière par zoom avant de la découper. Le solveur de collision s'exécute sur cette toile,
+  gratuitement, et une étiquette à cheval sur deux tuiles se recolle d'elle-même côté Leaflet.
+- « `resvg` exigerait une police chargeable au build, et les deux familles sont des `woff2` » — **faux
+  en pratique** : `fontkit` lit le `woff2` directement (brotli embarqué). Et la question ne se pose
+  même pas, car **aucun `<text>` n'est émis** : les toponymes sont des contours de glyphes, en
+  `<path>` seulement, si bien qu'aucune police n'est présente au moment de la rasterisation et
+  qu'aucune substitution système n'est possible.
+
+**Ce qu'A-9 avait vu juste et qui est conservé** : `--c-carte-encre` plafonne à **2,03:1 sur
+`#E63A3C`** ; aucun rattrapage ne sauve ce ratio. C'est pourquoi la règle 8 du §4.1.d de `MASTER.md`
+place les étiquettes **sous** la couche des aplats de statut, et pourquoi un nom de lieu intérieur à
+un massif est **occulté, volontairement**. En raster c'est structurel : les étiquettes sont cuites
+dans la tuile (`tilePane`, z-index 200), les polygones de statut sont peints au-dessus en SVG
+(z-index 400). **Aucune règle CSS, aucun `createPane`, aucun `z-index` n'est requis ni autorisé.**
+
+**Le halo est permis, et il ne contredit pas la règle 8.** L'interdit « ni halo, ni contour, ni
+assombrissement de l'aplat » est **arithmétique et porté sur les aplats de statut** : il constate
+qu'un halo ne rattrape pas 2,03:1. Notre halo est posé sur le **fond de carte** — et il ne peut
+**structurellement** pas atteindre un aplat de statut, puisqu'il est cuit sous le calque SVG. Il peint
+`--c-carte-fond`, jeton déjà présent : la palette reste **fermée à 7**.
+
+**Mesures qui fondent la décision** — `--c-carte-encre` `#4A4E48` contre les quatre aplats du fond :
+`--c-carte-fond` **6,82:1** · `--c-carte-terre` **6,33:1** · `--c-carte-vegetation` **6,03:1** ·
+`--c-carte-eau` **5,68:1**. Les quatre passent AA 4,5:1. Les deux échecs — `--c-carte-trait` **4,17:1**
+et `--c-charbon` **2,02:1** — sont des couleurs de **trait**, jamais d'aplat : c'est un problème de
+**recouvrement**, réglé par le halo et par une règle de placement, jamais par un jeton nouveau.
+
+**Aucun nom de massif n'est cuit, dans aucun artefact.** Dans la pyramide il serait occulté par
+construction ; le cuire dans la seule statique ferait **diverger les deux artefacts**, alors que le
+§5.5 du brief exige que la statique soit l'équivalent de la carte interactive. Le nom du massif est
+déjà porté deux fois — liste textuelle (§5.3) et bloc 1 du panneau (`MASTER.md` §8.4). Contrôlé
+mécaniquement par intersection avec les 25 noms du référentiel.
+
+**Restent interdits, absolument, dans les deux artefacts** : titre, légende, échelle graphique, rose
+des vents, libellé de statut, date, et toute mention d'attribution ou de source. Le §11.3 de
+`MASTER.md` est une **liste fermée** et n'est pas touché : un toponyme est une valeur `name` d'OSM
+reproduite **verbatim**, c'est-à-dire une **donnée**, jamais une chaîne de site rédigée par nous.
+
+### Ce que cet avenant ne change pas
+
+`massifs_fond_de_carte_statique()` conserve ses huit clés ; `SCHEMA_CONNU` reste `1` ; aucune ligne de
+PHP du module ne change. Ne bougent que des **valeurs lues dans le fichier généré** : `nombre`
+280 → 295, `bbox`, `hauteur` 1421 → 1493, `version`, `sha256`, `octets`. **Le thème ne change pas d'une
+ligne** — il ne lit ni `nombre`, ni `bbox`, et il rend `largeur`/`hauteur` sans les recalculer.
+
+**F-11 est intacte et le reste** : le `maxZoom` de la carte demeure `massifs_emprise()['zoom_max']`
+(= 11), jamais le `zoom_max` de la pyramide. Les clauses F-1 à F-13, les invariants I-9.1 à I-9.9 et
+les interdits du §7 sont inchangés, mot pour mot.
