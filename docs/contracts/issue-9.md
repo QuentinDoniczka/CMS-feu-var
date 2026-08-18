@@ -706,8 +706,26 @@ Les deux **sortent en code ≠ 0**. Le message d'erreur prescrit de **décider**
 jamais de la recalculer.
 
 **Ce que cela achète, et c'était le but de l'issue** : une retouche du référentiel qui reste dans
-l'emprise déclarée ne déplace plus la bbox de la pyramide, ne change plus la version publiée, et ne
-re-cuit plus 295 tuiles. C'est aussi le socle que #43 et #36 réécriront — sur un repère fixe.
+l'emprise déclarée **ne déplace plus la bbox de la pyramide, ni ses grilles, ni son compte de tuiles**.
+C'est le socle que #43 et #36 réécriront — sur un repère fixe.
+
+> **CORRECTION du 18 août 2026 — cette phrase disait initialement « ne change plus la version publiée,
+> et ne re-cuit plus 295 tuiles ». C'était trop large, et ce n'était pas mesuré.**
+>
+> Ce qui est **prouvé par construction** : `bboxDeclaree()` prend **zéro argument** et
+> `grilleDeclaree( z )` **le seul zoom** — la géométrie ne peut structurellement pas les atteindre. Et
+> la pyramide ne rend **pas** les contours du référentiel (`construire.mjs` l. 1021, `contours: null`) :
+> seule l'image statique les porte.
+>
+> Ce qui est **faux** : le plafond de densité des toponymes vaut
+> `round( densite_par_mpx × airePlacementMpx( emprise, z ) )` où `emprise` est la bbox **du
+> référentiel** (l. 987 et l. 1236), choix rendu **normatif** par le §3 du contrat #71. Ce plafond
+> **mord** — 4/4, 16/16, 63/63 — si bien qu'une variation d'aire de **+0,71 %** change le compte z11,
+> donc les tuiles, donc `sha256( manifeste )`, donc la **version publiée**.
+>
+> **Le couplage est conservé et assumé**, motifs et sensibilité écrits à l'**A-13 du contrat #71**, et
+> remonté en couture **C-17** à #36/#43. Le socle visé — un repère fixe — est acquis ; c'est la
+> promesse d'invariance de la *version* qui était surestimée.
 
 ### A-15 — Le rapport de l'image statique cesse de dériver
 

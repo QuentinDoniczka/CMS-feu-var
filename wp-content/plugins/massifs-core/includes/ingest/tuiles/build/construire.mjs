@@ -960,7 +960,7 @@ function construirePyramide( { archive, jetons, emprise, palette, quantifier, po
 
 		/*
 		 * z5–z8 : AUCUNE étiquette, par règle et non par réglage — à z8 la région
-		 * utile fait 210 x 188 px, et un seul mot en occuperait plus de la moitié.
+		 * utile fait 211 x 187 px, et un seul mot en occuperait plus de la moitié.
 		 *
 		 * z12 : EXACTEMENT le jeu de z11, cuit au double (I-71.9). Une tuile z12 est
 		 * toujours rendue à l'échelle de z11 ; un jeu différent afficherait des NOMS

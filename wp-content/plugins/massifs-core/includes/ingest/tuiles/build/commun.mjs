@@ -388,7 +388,8 @@ export const DESSIN = Object.freeze( {
  * Réglages d'étiquetage des toponymes. Chacun est DÉRIVÉ ou MESURÉ, aucun choisi.
  *
  *   - `zoom_min_etiquettes: 9` — RÈGLE, PAS RÉGLAGE. À z8 la région utile du
- *     département fait 210 x 188 px ; un seul mot en occuperait plus de la moitié.
+ *     département fait 211 x 187 px ; un seul mot en occuperait plus de la moitié
+ *     — « Aix-en-Provence », cuit à 19 px, mesure 137 px, soit 65,1 %.
  *     Aucune étiquette n'est cuite à z5–z8 ;
  *   - `densite_par_mpx: 25` — une étiquette par bloc de ~200 x 200 px. Appliquée à
  *     `airePlacementMpx( emprise, z )` avec `Math.round` — et non `Math.floor`,
@@ -1140,20 +1141,25 @@ export function versHexadecimal( [ r, v, b ] ) {
  *
  * SUR L'ÉTAT ANTÉRIEUR À #71, 1 palier était hors d'atteinte, et de peu : les deux
  * mesures à deux couches (terre + eau) donnaient un rapport de 1,2886, appliqué à
- * une statique de 120 768 o, soit 155 641 o contre 153 600 — un dépassement de
- * 1,3 %. `PALIERS = 0` était donc un RÉGLAGE TENU, pas une dette.
+ * la statique d'alors — 120 768 o, MESURE DU 17 AOÛT 2026 — soit ≈ 155 600 o contre
+ * 153 600, un dépassement de 1,3 %. `PALIERS = 0` était donc un RÉGLAGE TENU, pas
+ * une dette.
  *
  * DEPUIS #71 CE CALCUL A CHANGÉ, et il faut l'écrire plutôt que le laisser
- * reposer : l'emprise déclarée a fait maigrir la statique, et le rapport de 1,2886
- * appliqué à son poids courant retombe SOUS le plafond. 1 palier redeviendrait donc
- * finançable en octets. AUCUN POIDS ABSOLU N'EST RECOPIÉ ICI — il s'est déjà
- * périmé trois fois en cinq jours ; le poids courant vit dans `build/reference.json`,
- * clé `statique.octets`, et dans aucune prose. 1 palier n'est pas activé pour
- * autant : la palette est FERMÉE À 7 par l'interdit 9 du §7 du contrat #71, et
- * 28 couleurs seraient une décision de design, pas un réglage de build. La
- * justification a donc CHANGÉ DE NATURE — ce n'est plus le plafond d'octets qui
- * tient `PALIERS = 0`, c'est la fermeture de la palette. À rouvrir par une révision
- * de contrat, jamais ici.
+ * reposer : l'emprise déclarée a fait maigrir la statique, et le même rapport
+ * appliqué à la MESURE DU 18 AOÛT 2026 donne 1,2886 x 109 050 = ≈ 140 522 o, soit
+ * 91,5 % du plafond — 1 palier REDEVIENT finançable en octets.
+ *
+ * AUCUN POIDS ABSOLU N'EST ÉCRIT ICI SANS SA DATE : celui-ci s'est déjà périmé
+ * trois fois en cinq jours, et le 120 768 o a circulé comme s'il était courant. Les
+ * deux chiffres ci-dessus sont des INSTANTANÉS DATÉS, jamais des constantes ; le
+ * poids courant vit dans `build/reference.json`, clé `statique.octets`, et c'est
+ * sur lui que le calcul se refait. 1 palier n'est pas activé pour autant : la
+ * palette est FERMÉE À 7 par l'interdit 9 du §7 du contrat #71, et 28 couleurs
+ * seraient une décision de design, pas un réglage de build. La justification a donc
+ * CHANGÉ DE NATURE — ce n'est plus le plafond d'octets qui tient `PALIERS = 0`,
+ * c'est la fermeture de la palette. À rouvrir par une révision de contrat, jamais
+ * ici.
  *
  * Conséquence assumée : aucun anticrénelage PALETTISÉ. Ce n'est pas l'absence
  * d'anticrénelage : `resvg` lisse TOUJOURS le bord d'un tracé, et le

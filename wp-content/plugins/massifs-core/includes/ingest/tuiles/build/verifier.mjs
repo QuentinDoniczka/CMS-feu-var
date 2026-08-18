@@ -29,9 +29,16 @@
  * réécrit le préfixe du chemin passé à PHP. Les deux ensemble permettent de jouer
  * la recette contre un PHP conteneurisé, qui ne voit pas l'arborescence de l'hôte :
  *
+ *   MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
  *   PHP_BIN="docker compose run --rm -T wpcli php" \
- *   MASSIFS_PHP_RACINE=/var/www/html/wp-content/plugins/massifs-core \
+ *   MASSIFS_PHP_RACINE='/var/www/html/wp-content/plugins/massifs-core' \
  *   npm run verifier
+ *
+ * Les deux variables MSYS_* sont la garde Windows / Git Bash, et ce projet tourne
+ * sous Windows : sans elles, MSYS réécrit le chemin absolu de MASSIFS_PHP_RACINE
+ * en `C:/Program Files/Git/var/www/…` et la recette échoue pour une raison
+ * étrangère à l'artefact. Elles sont sans effet sous un shell POSIX.
+ * `docker exec -i massifs_wordpress php` est un PHP_BIN équivalent.
  *
  * @package Massifs
  * @license GPL-2.0-or-later
@@ -80,7 +87,7 @@ import {
 	versRgb,
 	versionMapshaper,
 } from './commun.mjs';
-import { ouvrirPolice } from './etiquettes.mjs';
+import { ouvrirPolice, svgEtiquettes } from './etiquettes.mjs';
 import { CHUNKS_ATTENDUS, chunksPng } from './png8.mjs';
 
 /*
@@ -193,6 +200,22 @@ function memesCles( mesurees, attendues ) {
 const echecs = [];
 const constats = [];
 const avertissements = [];
+const notes = [];
+
+/**
+ * Mesure IMPRIMÉE SANS ÊTRE ASSERTÉE, et délibérément hors du décompte de
+ * contrôles.
+ *
+ * Deux des rapports de contraste du §13 du contrat #71 sont sous 4,5:1, pour une
+ * raison de design écrite. Les asserter serait asserter une chose fausse ; les
+ * taire ferait croire qu'ils n'existent pas ; les compter comme des contrôles
+ * gonflerait le décompte d'une ligne incapable de rougir.
+ *
+ * @param {string} ligne Mesure et sa lecture.
+ */
+function noter( ligne ) {
+	notes.push( ligne );
+}
 
 /**
  * @param {string}  nom       Intitulé du contrôle.
@@ -339,6 +362,16 @@ for ( const chemin of [ CHEMINS.archive, CHEMINS.manifeste_source ] ) {
 /* Jetons — invariant I-9.7                                                    */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Les jetons que le build CUIT dans les octets : les six `--c-carte-*` et l'encre
+ * des contours de l'image statique.
+ *
+ * Écrite une fois, la liste sert au contrôle des valeurs cuites ET au classement en
+ * aplats, traits et encre du contrôle de contraste — lequel exige justement de n'en
+ * laisser aucun de côté, et ne peut donc pas se fonder sur une seconde copie.
+ */
+const JETONS_CUITS = [ ...Object.keys( JETONS_CARTE ), JETON_CONTOUR ];
+
 const jetons = lireJetons( CHEMINS.tokens );
 const divergences = divergencesJetons( jetons );
 
@@ -351,7 +384,7 @@ controler(
 
 controler(
 	'jetons : valeurs cuites dans les artefacts identiques à celles du manifeste',
-	[ ...Object.keys( JETONS_CARTE ), JETON_CONTOUR ].every( ( nom ) => manifeste.jetons[ nom ] === jetons.get( nom ) )
+	JETONS_CUITS.every( ( nom ) => manifeste.jetons[ nom ] === jetons.get( nom ) )
 );
 
 const palette = paletteAutorisee( jetons );
@@ -377,6 +410,154 @@ controler(
 	'statuts : aucun aplat de statut dans la palette du fond (I-9.3)',
 	statuts.every( ( s ) => ! paletteHex.has( s.hex.toUpperCase() ) )
 );
+
+/* -------------------------------------------------------------------------- */
+/* Contraste AA des toponymes — §13 du contrat #71, invariant I-71.13          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Luminance relative WCAG 2.x d'une couleur sRGB, canaux LINÉARISÉS.
+ *
+ * À ne pas confondre avec `luma()` de `commun.mjs`, qui pondère les canaux BRUTS :
+ * celui-là mesure une texture APPARENTE, pour C-f, et c'est délibéré ; celui-ci
+ * mesure une photométrie, et c'est elle que WCAG 2.x prescrit pour un rapport de
+ * contraste. Deux grandeurs voisines, deux usages disjoints.
+ *
+ * @param {number[]} rgb Canaux 0-255.
+ * @return {number} Luminance relative, dans [0, 1].
+ */
+function luminanceRelative( [ r, v, b ] ) {
+	const canal = ( c ) => {
+		const s = c / 255;
+
+		return s <= 0.04045 ? s / 12.92 : ( ( s + 0.055 ) / 1.055 ) ** 2.4;
+	};
+
+	return 0.2126 * canal( r ) + 0.7152 * canal( v ) + 0.0722 * canal( b );
+}
+
+/**
+ * Rapport de contraste WCAG 2.x : `( L_clair + 0,05 ) / ( L_sombre + 0,05 )`.
+ *
+ * Écrit UNE fois, et c'est tout le point du contrôle : les rapports du §13 du
+ * contrat #71 ne vivaient que dans de la prose, où aucune dérive de jeton ne
+ * pouvait les faire rougir. Ils sont désormais RECALCULÉS depuis `tokens.css`, par
+ * les mêmes jetons que I-9.7 y relit.
+ *
+ * @param {string} hexA Couleur `#RRGGBB`.
+ * @param {string} hexB Couleur `#RRGGBB`.
+ * @return {number} Rapport, dans [1, 21].
+ */
+function contrasteWcag( hexA, hexB ) {
+	const a = luminanceRelative( versRgb( hexA ) );
+	const b = luminanceRelative( versRgb( hexB ) );
+
+	return ( Math.max( a, b ) + 0.05 ) / ( Math.min( a, b ) + 0.05 );
+}
+
+/** Rapport minimal WCAG AA pour du texte — §8 du brief, ligne de DoD bloquante. */
+const CONTRASTE_AA_MIN = 4.5;
+
+/** Un rapport tel que le §13 l'écrit : deux décimales, virgule décimale. */
+function enRapport( valeur ) {
+	return `${ valeur.toFixed( 2 ).replace( '.', ',' ) }:1`;
+}
+
+/**
+ * L'ENCRE, les deux couleurs de TRAIT, les quatre APLATS du fond — et le halo, qui
+ * est l'un de ces aplats plutôt qu'un jeton de plus.
+ *
+ * La distinction porte toute la conformité : un aplat PEUT être l'arrière-plan d'un
+ * toponyme, un trait ne l'est JAMAIS. `--c-carte-trait` (frange d'anticrénelage) et
+ * `--c-charbon` (les 25 contours) échouent tous deux à 4,5:1 — légitimement — et le
+ * design y répond par le halo (§13.1) et par le dégagement de 6 px de C-e (§13.2),
+ * jamais par un jeton nouveau. Les asserter serait asserter une chose fausse : ils
+ * sont donc IMPRIMÉS par `noter()`, jamais contrôlés.
+ */
+const JETON_ENCRE = '--c-carte-encre';
+const JETON_TRAIT = '--c-carte-trait';
+const JETON_HALO = '--c-carte-fond';
+const APLATS_FOND = [ JETON_HALO, '--c-carte-terre', '--c-carte-vegetation', '--c-carte-eau' ];
+const TRAITS_FOND = [ JETON_TRAIT, JETON_CONTOUR ];
+
+controler(
+	`contraste : les ${ JETONS_CUITS.length } jetons cuits se classent en aplats, traits et encre, sans reste`,
+	memesCles( [ ...APLATS_FOND, ...TRAITS_FOND, JETON_ENCRE ], JETONS_CUITS ),
+	`${ APLATS_FOND.length } aplats, ${ TRAITS_FOND.length } traits, 1 encre`,
+	'un jeton non classé échapperait au contrôle de contraste ; la palette est fermée à 7 (interdit 9 du §7 du contrat #71)'
+);
+
+const encreHex = jetons.get( JETON_ENCRE );
+
+for ( const aplat of APLATS_FOND ) {
+	const rapport = contrasteWcag( encreHex, jetons.get( aplat ) );
+
+	controler(
+		`contraste : ${ JETON_ENCRE } sur ${ aplat } tient ${ enRapport( CONTRASTE_AA_MIN ) } (I-71.13)`,
+		rapport >= CONTRASTE_AA_MIN,
+		enRapport( rapport ),
+		'recalculé depuis tokens.css : une dérive de jeton qui casse AA est une décision de design, jamais une correction de build'
+	);
+}
+
+/*
+ * Le halo est l'arrière-plan EFFECTIF de l'encre : c'est lui, et non les aplats,
+ * qui porte la conformité AA, puisque chaque glyphe en est intégralement ceint sur
+ * `halo_px` vers l'extérieur. On ne relit donc pas une constante — on appelle la
+ * fonction que le build emploie, et on lit ce qu'elle émet réellement.
+ *
+ * DEUX étiquettes de synthèse, et non une : le §13.1 du contrat #71 énonce la
+ * propriété AU PLURIEL — TOUS les halos d'abord, TOUS les remplissages ensuite. Une
+ * seule étiquette ne distingue pas ce groupement d'un entrelacement par étiquette
+ * (halo 1, remplissage 1, halo 2, remplissage 2), lequel poserait le halo de la
+ * seconde PAR-DESSUS l'encre de la première : 6,82:1 ne tiendrait alors plus sur
+ * toute la ligne. Deux fragments DISTINCTS rendent la différence mesurable.
+ *
+ * Les deux contrôles qui suivent se composent, et aucun ne suffit seul : le premier
+ * établit le GROUPEMENT, le second l'ORDRE et les COULEURS des deux tracés.
+ */
+const GLYPHES_TEMOINS = [ 'M0 0', 'M1 1' ];
+const tracesTemoins = svgEtiquettes( GLYPHES_TEMOINS.map( ( d ) => ( { d } ) ), jetons, TOPONYMES.halo_px );
+const [ pathHalo = '', pathRemplissage = '' ] = tracesTemoins;
+const haloHex = ( /stroke="(#[0-9A-Fa-f]{6})"/.exec( pathHalo ) || [] )[ 1 ];
+const remplissageHex = ( /fill="(#[0-9A-Fa-f]{6})"/.exec( pathRemplissage ) || [] )[ 1 ];
+const glyphesGroupes = GLYPHES_TEMOINS.filter( ( d ) => pathHalo.includes( d ) && pathRemplissage.includes( d ) );
+
+controler(
+	`contraste : ${ GLYPHES_TEMOINS.length } étiquettes rendent 2 tracés GROUPÉS, jamais un couple halo/remplissage par étiquette (§13.1)`,
+	2 === tracesTemoins.length && glyphesGroupes.length === GLYPHES_TEMOINS.length,
+	`${ tracesTemoins.length } tracé(s), ${ glyphesGroupes.length } / ${ GLYPHES_TEMOINS.length } glyphes présents dans les deux`,
+	"entrelacés, le halo d'une étiquette se peindrait SUR l'encre de la précédente, et 6,82:1 ne tiendrait plus sur toute la ligne"
+);
+
+controler(
+	`contraste : le halo émis par le build est ${ JETON_HALO }, peint AVANT le remplissage ${ JETON_ENCRE }`,
+	haloHex === jetons.get( JETON_HALO ) && remplissageHex === encreHex,
+	`halo ${ haloHex }, remplissage ${ remplissageHex }`,
+	"sans halo de fond peint en premier, l'encre reposerait sur la frange --c-carte-trait à 4,17:1 et la ligne 4,5:1 tomberait"
+);
+
+const contrasteHalo = undefined === haloHex ? 0 : contrasteWcag( encreHex, haloHex );
+
+controler(
+	`contraste : ${ JETON_ENCRE } sur le halo réellement peint tient ${ enRapport( CONTRASTE_AA_MIN ) } (I-71.13)`,
+	contrasteHalo >= CONTRASTE_AA_MIN,
+	enRapport( contrasteHalo ),
+	"c'est CE rapport qui porte la conformité AA des toponymes ; les quatre aplats n'en sont que le second rideau"
+);
+
+/*
+ * Les deux couleurs de trait sont IMPRIMÉES, jamais assertées — voir `noter()` et
+ * le commentaire de `TRAITS_FOND`.
+ */
+for ( const trait of TRAITS_FOND ) {
+	noter(
+		`${ JETON_ENCRE } sur ${ trait } — ${ enRapport( contrasteWcag( encreHex, jetons.get( trait ) ) ) } pour un ` +
+			`seuil AA de ${ enRapport( CONTRASTE_AA_MIN ) } : mesure NON ASSERTÉE, et passer dessous n'y serait pas ` +
+			"un défaut — couleur de TRAIT, jamais d'aplat, donc jamais l'arrière-plan d'un toponyme ; halo (§13.1) " +
+			'et dégagement de 6 px de C-e (§13.2)'
+	);
+}
 
 /* -------------------------------------------------------------------------- */
 /* Emprise et grille — recalculées, jamais relues                              */
@@ -1080,7 +1261,7 @@ if ( toponymes && toponymes.jeux ) {
 
 	const pixelsStatique = await pixelsDe( statiqueBrut );
 	const charbon = versRgb( jetons.get( JETON_CONTOUR ) );
-	const encre = versRgb( jetons.get( '--c-carte-encre' ) );
+	const encre = versRgb( jetons.get( JETON_ENCRE ) );
 	const marge = TOPONYMES.marge_contour_px;
 	const estCouleur = ( p, [ r, v, b ] ) =>
 		pixelsStatique.data[ p * pixelsStatique.canaux ] === r &&
@@ -1190,7 +1371,7 @@ if ( toponymes && toponymes.jeux ) {
 		const cible = Math.round( pixelsStatique.largeur * TOPONYMES.facteur_360 );
 		const reduit = await pixelsDe( await sharp( statiqueBrut ).resize( { width: cible, kernel: 'lanczos3' } ).png().toBuffer() );
 		const echelle = reduit.largeur / pixelsStatique.largeur;
-		const seuilSombre = luma( ...versRgb( jetons.get( '--c-carte-trait' ) ) );
+		const seuilSombre = luma( ...versRgb( jetons.get( JETON_TRAIT ) ) );
 
 		const boites = statiqueJeu.map( ( etiquette ) => [
 			Math.floor( etiquette.boite_dilatee[ 0 ] * echelle ),
@@ -1290,7 +1471,7 @@ if ( toponymes && toponymes.jeux ) {
 	 * conservateur, donc sans danger.
 	 */
 	if ( fs.existsSync( racineVersion ) ) {
-		const trait = versRgb( jetons.get( '--c-carte-trait' ) );
+		const trait = versRgb( jetons.get( JETON_TRAIT ) );
 		const boitesControlees = [];
 		const sansCoeur = [];
 
@@ -1329,7 +1510,7 @@ if ( toponymes && toponymes.jeux ) {
 		}
 
 		controler(
-			'toponymes : chaque étiquette a un cœur d\'encre à 6,82:1 (C-g, I-71.13)',
+			`toponymes : chaque étiquette a un cœur d'encre à ${ enRapport( contrasteHalo ) } (C-g, I-71.13)`,
 			0 === sansCoeur.length && boitesControlees.length > 0,
 			`${ boitesControlees.length } boîte(s) décodée(s), rapport encre/(encre+trait) de ` +
 				`${ ( Math.min( ...boitesControlees ) * 100 ).toFixed( 0 ) } % à ${ ( Math.max( ...boitesControlees ) * 100 ).toFixed( 0 ) } %` +
@@ -1559,6 +1740,10 @@ if ( reference.outillage.node_major !== nodeMajeur() ) {
 /* -------------------------------------------------------------------------- */
 
 process.stdout.write( `${ constats.join( '\n' ) }\n` );
+
+if ( notes.length > 0 ) {
+	process.stdout.write( `\nMESURES, NON ASSERTÉES :\n  - ${ notes.join( '\n  - ' ) }\n` );
+}
 
 if ( avertissements.length > 0 ) {
 	process.stdout.write( `\nAVERTISSEMENT(S) :\n  - ${ avertissements.join( '\n  - ' ) }\n` );

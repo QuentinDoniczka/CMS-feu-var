@@ -185,10 +185,18 @@ Sans archive OSM lisible, `npm run construire` :
 ### Recette
 
 ```
+MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
 PHP_BIN="docker compose run --rm -T wpcli php" \
-MASSIFS_PHP_RACINE=/var/www/html/wp-content/plugins/massifs-core \
+MASSIFS_PHP_RACINE='/var/www/html/wp-content/plugins/massifs-core' \
 npm run verifier
 ```
+
+Les deux variables `MSYS_*` sont **la garde Windows / Git Bash**, et ce projet tourne sous Windows : sans
+elles MSYS réécrit le chemin absolu passé à `MASSIFS_PHP_RACINE` en `C:/Program Files/Git/var/www/…`, PHP ne
+trouve plus les métadonnées, et la recette échoue pour une raison qui n'a rien à voir avec l'artefact.
+Sous un shell POSIX elles sont sans effet — on les écrit donc toujours.
+`docker exec -i massifs_wordpress php` est un `PHP_BIN` équivalent, utile quand la stack est
+déjà levée.
 
 **Sans PHP atteignable, la recette échoue — elle ne saute pas ses contrôles** (interdit 4 du contrat #20).
 Elle relit les métadonnées **par PHP**, puis **charge le module et mesure la surface publique elle-même** :
@@ -221,10 +229,18 @@ produite quand même, hors ligne, depuis la seule géométrie, sans étiquettes.
 
 ## 7. Réglages mesurés, non choisis
 
-> **Aucun poids absolu n'est écrit ici.** Le §7 en portait un — *142 464 o* — et il s'est périmé deux
-> fois en quatre jours (`ded0f2f`, `fd2c10f`), puis une troisième avec l'emprise déclarée de #71. Un
-> nombre qui se périme dans une prose que rien ne vérifie est pire qu'une absence de nombre. **Le poids
-> courant de l'artefact vit dans `build/reference.json`, clé `statique.octets`, et dans aucune prose.**
+> **Aucun poids absolu n'est écrit ici sans sa date.** Le §7 en portait un — *142 464 o* — écrit sans
+> date, et il s'est périmé deux fois en quatre jours (`ded0f2f`, `fd2c10f`), puis une troisième avec
+> l'emprise déclarée de #71. Un nombre qui se périme dans une prose que rien ne vérifie est pire qu'une
+> absence de nombre. **La source de vérité du poids courant est `build/reference.json`, clé
+> `statique.octets`** — et la mesure se fait sur le fichier, jamais sur un chiffre relayé par un rapport.
+>
+> **Mesure datée du 18 août 2026**, instantané et non constante : `carte-statique.png` pèse
+> **109 050 o** pour un plafond de **153 600 o**, soit une marge de **44 550 o (29,0 %)**, le plafond
+> étant tenu à **71,0 %**. Elle est écrite ici parce qu'un chiffre périmé — *120 768 o*, mesure du
+> 17 août 2026 — a circulé comme s'il était courant. Toute reprise ailleurs porte cette date, ou relit
+> `reference.json`.
+>
 > Ce qui figure ci-dessous, ce sont des **écarts entre couches**, qui sont stables — datés « mesures du
 > build initial du 13 août 2026, ordre de grandeur, non normatives ».
 
@@ -239,21 +255,24 @@ produite quand même, hors ligne, depuis la seule géométrie, sans étiquettes.
 | Corps des toponymes, pyramide | **19 px** | Deux planchers indépendants, le plus haut l'emporte. **Optique** : `carte.js` pose `zoomSnap: 0.25`, donc Leaflet charge `Math.round(zoom)` et met le reste à l'échelle en CSS, d'un facteur garanti de 0,7071 ; pour tenir `--fs-100` = 13 px il faut 13 / 0,7071 = 18,4. **Typographique** : à 13 px une hampe d'Atkinson peut se quantifier entièrement en `--c-carte-trait` (4,17:1) et l'étiquette perd son cœur à 6,82:1. La pyramide n'a aucun plafond d'octets. |
 | Corps des toponymes, statique | **28 px**, plancher **25 px** | Plancher **dérivé** : 1600 px sur les 186 mm utiles de l'A4 (§13 de `MASTER.md`) = 218,5 ppp ; 8 pt = 8/72 in × 218,5 = 24,3 px, arrondi **vers le haut**. 28 px le franchit de 12 %. Voir le §8, `OUVERT`. |
 | Halos | **1,5 px** (pyramide), **2 px** (statique) | D-28 avait rejeté un halo de 4 px pour cause de **remplissage de la boîte englobante**. Les rapports ici sont 1,5/19 = **0,079** et 2/28 = **0,071** : un ordre de grandeur sous ce mode de défaillance. C'est le rapport qui compte, pas le pixel. |
+| Zoom minimal d'étiquetage | **9** — pyramide étiquetée **z9–z12**, **aucune étiquette à z5–z8** | **Règle, pas réglage.** Région utile du référentiel, en pixels de toile : z5 **26 × 23**, z6 **53 × 47**, z7 **105 × 94**, z8 **211 × 187**. La règle de densité seule y donne déjà **0, 0, 0 et 1** étiquette : ce n'est donc pas elle qui vide z5–z7, c'est la géométrie. Reste le seul candidat de z8 — et « Aix-en-Provence », cuit à 19 px, mesure **137 px**, soit **65 % de la largeur utile** : un seul mot en occuperait plus de la moitié. Le seuil supprime donc **exactement une** étiquette, et l'absence à z5–z8 est une **décision**, pas un manque. La recette l'asserte : « toponymes : aucune étiquette à z5–z8 ». |
 | Densité de toponymes | **25 par Mpx** | Appliquée à l'aire, **en pixels de toile, de `massifs_emprise()['bbox']`** — jamais de la toile entière : la toile z9 fait 0,393 Mpx contre 0,158 Mpx pour l'emprise, et l'erreur livrerait 2,5 fois trop d'étiquettes. Donne z9 **4**, z10 **16**, z11 **63**, z12 = z11. |
 | Zoom perçu de la statique | **10** | Le jeu de la statique est celui de ce zoom. Valait 9, **révisé le 18 août 2026 sur mesure** : à z9 les trois autres candidats — Aix-en-Provence, Martigues, Aubagne — sont rejetés **aux cinq ancres**, contre Sainte-Victoire, la Côte Bleue et le Garlaban, et la feuille ne portait plus que « Marseille ». Une image de repli portant un seul nom n'est l'équivalent de la carte que formellement. **C'est le seul degré de liberté** : si la feuille paraît trop nue ou trop chargée, on bouge cet entier et on re-mesure — jamais on ne choisit des noms à la main. |
 | Seuils de texture à 360 px | plage **89**, moyenne **159** | **Mesurés le 18 août 2026** sur les **six** étiquettes de la statique, puis gelés au **minimum mesuré moins 20 %** : plage minimale 112,4 (*Istres*) → 89, moyenne minimale 199,7 (*Marignane*) → 159. Étendue mesurée : plage 112,4 → 144,6, moyenne 199,7 → 207,0. La prédiction de vraisemblance du contrat donnait ≈ 69 et ≈ 207 ; une plage de 20 aurait signalé un défaut de pipeline. **Le seuil suit la mesure, jamais l'inverse** — et c'est le build qui l'a imposé, en refusant d'émettre sous un seuil hérité d'un échantillon d'une seule étiquette. |
 | Bornes Overpass des toponymes | **[100, 597]** | Procédure en deux passes : première passe sous une enveloppe large, `n = 199` éléments retournés dont 2 `place=city`, puis resserrement à `n/2` et `3n`. La **seconde** archive est celle qui est commitée. |
 
 **Note « 1 palier ».** Avant #71, 1 palier d'anticrénelage était hors d'atteinte, et de peu : les deux
-mesures à deux couches donnaient un rapport de **1,2886**, appliqué à une statique de 120 768 o, soit
-155 641 o contre un plafond de 153 600 — un dépassement de **1,3 %**. `PALIERS = 0` était donc un
-**réglage tenu, pas une dette**. **Depuis #71 ce calcul a changé** : l'emprise déclarée a fait maigrir la
-statique, et le même rapport de 1,2886 appliqué à son poids courant — `build/reference.json`, clé
-`statique.octets`, et aucune prose — retombe **sous le plafond**. 1 palier
-redeviendrait finançable en octets — il n'est pas activé pour autant, la palette étant **fermée à 7** par
-l'interdit 9 du §7 du contrat #71. **La justification a changé de nature** : ce n'est plus le plafond
-d'octets qui tient `PALIERS = 0`, c'est la fermeture de la palette. C'est une décision de design, à
-rouvrir par une révision de contrat.
+mesures à deux couches donnaient un rapport de **1,2886**, appliqué à la statique d'alors — 120 768 o,
+**mesure du 17 août 2026** — soit ≈ 155 600 o contre un plafond de 153 600, un dépassement de **1,3 %**.
+`PALIERS = 0` était donc un **réglage tenu, pas une dette**. **Depuis #71 ce calcul a changé** :
+l'emprise déclarée a fait maigrir la statique, et le même rapport appliqué à la mesure du 18 août 2026
+donne **1,2886 × 109 050 = ≈ 140 522 o**, soit **91,5 % du plafond** et 13 078 o sous la borne — 1 palier
+**redevient finançable en octets**. Ce calcul se refait sur `build/reference.json`, clé
+`statique.octets`, jamais sur le chiffre ci-dessus s'il a vieilli. Il n'est pas activé pour autant, la
+palette étant **fermée à 7** par l'interdit 9 du §7 du contrat #71. **La justification a changé de
+nature** : ce n'est plus le plafond d'octets qui tient `PALIERS = 0`, c'est la fermeture de la palette.
+C'est désormais une décision de design, à rouvrir par une révision de contrat et non par une mesure
+d'octets.
 
 **La rampe accidentelle à cinq niveaux.** `PALIERS = 0` ne veut pas dire « pas d'anticrénelage » :
 `resvg` lisse toujours le bord d'un tracé, et le quantificateur au plus proche voisin rabat ce dégradé

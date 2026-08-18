@@ -1,6 +1,11 @@
 # Contrat d'interface — Issue #71 — Emprise de fond de carte déclarée, découplée de la géométrie, et toponymes cuits
 
 **Gelé le** 17 août 2026 · **Par** `lead-issue-cms`, chaîne #71
+**Re-gelé le 18 août 2026** — passe de finition et de preuve, après le commit `a1e2e3b`. Trois écarts
+entre ce contrat et le code livré sont réconciliés (§4 `zoom_percu_statique`, §4 seuils de luma, §5
+C-a), les octets projetés sont remplacés par les octets **mesurés**, et un **couplage résiduel** que le
+gel initial n'avait pas vu est enregistré en **A-13**. Voir le §13, « Ce que la passe du 18 août a
+changé ».
 **Amende** [`docs/contracts/issue-9.md`](issue-9.md) — §1.1, A-7, A-9, plus la correction consécutive
 d'A-12. L'amendement est écrit **au §14 du contrat #9**, et il l'a été **avant** toute modification du
 pipeline.
@@ -121,7 +126,13 @@ déclarée. Cette précision est normative : la toile z9 fait 0,393 Mpx contre 0
 un développeur qui écrirait `g.largeur_px * g.hauteur_px` livrerait **2,5 fois trop d'étiquettes**.
 
 **Comptes gelés** : z5–z8 **0** · z9 **4** · z10 **16** · z11 **63** · z12 **63** (= z11, par règle) ·
-statique **≤ 6, et ⊆ jeu z9**.
+statique **≤ 6, et ⊆ jeu z10** *(z9 au gel initial — révisé le 18 août 2026, voir **A-8**)*.
+
+**Vérifié sur le manifeste livré, le 18 août 2026** : les comptes z9/z10/z11/z12 sont exacts, la
+monotonie **I-71.10** tient à chaque palier (4 ⊂ 16 ⊂ 63), et le jeu z12 est **identique** au jeu z11,
+corps 19 → 38. Le jeu de la statique est
+`{ Marseille, Salon-de-Provence, Istres, Marignane, Allauch, Port-de-Bouc }` — **inclus dans le jeu
+z10, et non dans le jeu z9**.
 
 **Les toponymes sont découpés au département**, comme les quatre autres couches. Hors du département la
 carte est **uniformément `--c-carte-fond`** (§4.2 de `MASTER.md`) : un nom de ville flottant sur un
@@ -153,7 +164,7 @@ module refuse partout ailleurs.
 TOPONYMES = {
   zoom_min_etiquettes:      9,      // règle, pas réglage
   densite_par_mpx:         25,
-  zoom_percu_statique:      9,
+  zoom_percu_statique:     10,      // 9 au gel initial — RÉVISÉ, voir A-8
   corps_px:                19,      // PYRAMIDE — voir A-1
   facteur_z12:              2,
   halo_px:                1.5,
@@ -167,16 +178,23 @@ TOPONYMES = {
   etiquettes_statique_max:  6,
   couverture_encre_max: 0.005,
   facteur_360:          0.225,
-  plage_luma_min_360:   <mesuré puis gelé>,
-  luma_moyenne_min_360: <mesuré puis gelé>,
+  plage_luma_min_360:      89,      // MESURÉ le 18/08/2026 puis gelé — min 112,4 (Istres) − 20 %
+  luma_moyenne_min_360:   159,      // MESURÉ le 18/08/2026 puis gelé — min 199,7 (Marignane) − 20 %
+  recul_sombres_max_360: 0.05,
   ancrages: [ 'C', 'N', 'S', 'E', 'O' ],
 }
 ```
 
 Dérivations, une ligne chacune, **à reproduire en JSDoc** :
 
-- **`zoom_min_etiquettes: 9`** — à z8 la région utile fait 210 × 188 px ; un seul mot en occuperait plus
-  de la moitié. **Règle, pas réglage.**
+- **`zoom_min_etiquettes: 9`** — à z8 la région utile fait **211 × 187 px** (210,594 × 187,084) ; « Aix-en-Provence »
+  cuit à 19 px y mesure 137 px, soit **65,1 % de la largeur** — un seul mot en occuperait plus de la
+  moitié. **Règle, pas réglage.**
+  *[Corrigé le 18 août 2026 : le gel initial écrivait **210 × 188**, obtenu en **doublant les chiffres z7
+  déjà arrondis** (105 × 94) au lieu de projeter z8 directement. L'écart est d'1 px et ne touche pas
+  l'argument, mais deux valeurs pour une même grandeur dans deux documents gelés sont une dette. La
+  valeur retenue est celle du **calcul depuis la source**, et elle est la même ici, au §7 du README et
+  dans les deux JSDoc du build.]*
 - **`corps_px: 19`** — voir **A-1**. Deux dérivations indépendantes convergent vers un plancher, et
   c'est la plus haute qui l'emporte.
 - **`facteur_z12: 2`** — une tuile z12 est **toujours** rendue à l'échelle de z11 (F-11 + A-7). Corps,
@@ -191,9 +209,14 @@ Dérivations, une ligne chacune, **à reproduire en JSDoc** :
 - **`marge_contour_px: 6`** — `DESSIN.contour_px` (2) + `halo_statique_px` (2) + 2 px de fond pur, pour
   que halo et contour ne se touchent pas même après l'étalement d'un pixel par la quantification.
 - **`ecart_min_statique_px: 14`** — voir **A-3**.
-- **`etiquettes_statique_max: 6`** — **garde, pas moteur**. Le moteur est la règle
-  `statique = jeu du zoom perçu` (z9 → 4). Le jeu de 2 est là pour qu'un changement de
-  `densite_par_mpx` ne puisse pas inonder la statique en silence.
+- **`etiquettes_statique_max: 6`** — écrit au gel initial comme une **garde, pas un moteur**, le moteur
+  étant la règle `statique = jeu du zoom perçu` (z9 → 4), le jeu de 2 servant à empêcher qu'un
+  changement de `densite_par_mpx` n'inonde la statique en silence.
+  **Depuis le passage de `zoom_percu_statique` à 10, ce plafond MORD** : le zoom perçu propose 16
+  candidats et le plafond en retient 6. **La garde est devenue le moteur, et c'est écrit plutôt que
+  subi** — voir **A-8**. Ce qui reste vrai, et c'est ce qui compte : le nombre livré n'est pas
+  *choisi*, il est le minimum de deux règles, et les six noms retenus le sont par le **rang** gelé au
+  §3 (classe, puis population décroissante, puis nom), jamais à la main.
 - **`couverture_encre_max: 0.005`** — voir **A-6**.
 
 ---
@@ -214,7 +237,7 @@ code ≠ 0, dans `construire` **et** dans `verifier` :
 
 | # | Critère | Valeur |
 |---|---|---|
-| **C-a** | Nombre d'étiquettes de la statique | **≤ 6**, et **⊆ jeu z9** |
+| **C-a** | Nombre d'étiquettes de la statique | **≤ 6**, et **⊆ jeu z10** *(z9 au gel initial — voir **A-8**)* |
 | **C-b** | Écart minimal entre deux boîtes dilatées, halo compris | **≥ 14 px cuits** |
 | **C-c** | Couverture d'encre dans le PNG livré | **≤ 0,5 %** de la toile |
 | **C-d** | Corps cuit minimal, statique | **≥ 25 px** |
@@ -314,12 +337,31 @@ C-g rend cette propriété **assertée** au lieu d'espérée, et c'est la second
 
 | Poste | Valeur | Base |
 |---|---|---|
-| Statique aujourd'hui | **120 768 o** | mesuré le 17 août 2026 |
+| Statique **avant** #71 | **120 768 o** | mesuré le 17 août 2026 |
 | Plafond | **153 600 o** | `PLAFOND_STATIQUE_OCTETS`, gelé |
-| **Marge** | **32 832 o (21,4 %)** | |
+| Marge **avant** #71 | 32 832 o (21,4 %) | |
 | Effet du changement d'emprise | **−4 000 à +1 000 o** | îlots filtrés +28 %, intervalle 29 → 33 m, littoral −12 % en px, contre +72 lignes quasi uniformes |
 | 6 étiquettes, 28 px, halo 2 px | **≈ +9 200 o** | ≈ 25 000 px d'encre+halo × ≈ 0,22 o/px, coefficient dérivé de la couche `routes` |
-| **Total attendu** | **≈ 126 000 – 131 000 o** | **82–85 % du plafond** |
+| Total **projeté** | ≈ 126 000 – 131 000 o | 82–85 % du plafond |
+
+**Mesuré après livraison — c'est cette ligne qui fait foi, et elle infirme la projection dans le bon
+sens :**
+
+| Poste | Valeur | Base |
+|---|---|---|
+| **Statique livrée** | **109 050 o** | mesurée sur le fichier le 18 août 2026, identique à l'objet commité dans `a1e2e3b`, `sha256` `cf6f122f…` conforme à `reference.json` |
+| **Marge réelle** | **44 550 o (29,0 %)** | le plafond est tenu à **71,0 %** |
+
+**La projection était fausse d'un facteur ≈ 30 sur le coût d'une étiquette** — redoutée à ≈ 1 500 o
+pièce, mesurée à **464 o**. Et la statique **a maigri** de 11 718 o alors que sa surface et son encre
+augmentaient : la cause est la **marge d'emprise**, une zone uniforme que le PNG-8 comprime à presque
+rien. **Ce n'est pas une optimisation, c'est un effet de bord de A-14** — à ne pas relire comme un
+gain acquis, il disparaîtrait avec la marge.
+
+> **Aucun de ces nombres ne doit être recopié ailleurs.** Le poids courant vit dans
+> `build/reference.json`, clé `statique.octets`, et **la mesure se fait sur le fichier, jamais sur un
+> chiffre relayé par un rapport**. Le 120 768 o ci-dessus est **historique et daté** ; il a déjà
+> circulé comme s'il était courant.
 
 **La mer n'est pas un coût** : la statique rétrécit probablement, pour trois raisons cumulatives que le
 plan back a établies. Ne pas prélever le changement d'emprise sur le budget des étiquettes.
@@ -330,10 +372,17 @@ tâche de l'issue. Il n'est pas remplacé par un autre nombre — il se périmer
 grandeur, non normatives », **plus une ligne disant que le poids courant vit dans
 `build/reference.json`, clé `statique.octets`, et dans aucune prose.**
 
-**Fait à écrire, parce qu'il sera reposé** : à la marge actuelle, **1 palier d'anticrénelage reste hors
-d'atteinte** — les deux mesures à deux couches donnent un rapport de 1,2886, soit **155 641 o** contre
-un plafond de 153 600, un dépassement de **1,3 %**. `PALIERS = 0` est un **réglage tenu, pas une
-dette** — et la rampe accidentelle à 5 niveaux le rend indolore pour le texte.
+**Fait à écrire, parce qu'il sera reposé — et il a changé de nature à la livraison.** Au gel initial,
+**1 palier d'anticrénelage était hors d'atteinte, et de peu** : le rapport de 1,2886 appliqué aux
+120 768 o d'alors donnait **155 641 o** contre 153 600, un dépassement de **1,3 %**. `PALIERS = 0`
+était donc un **réglage tenu, pas une dette**.
+
+**Sur la statique livrée, ce calcul bascule** : le même rapport appliqué au poids courant retombe
+**sous le plafond**. 1 palier redeviendrait finançable en octets. **Il n'est pas activé pour autant, et
+la justification a changé de nature** — ce n'est plus le plafond d'octets qui tient `PALIERS = 0`,
+c'est la **fermeture de la palette à 7** (interdit 9 du §7). C'est désormais une **décision de design**,
+à rouvrir par une révision de contrat et non par une mesure d'octets. La rampe accidentelle à 5 niveaux
+la rend indolore pour le texte.
 
 ### Ordre des leviers si le plafond est menacé
 
@@ -465,15 +514,54 @@ nom serait donc **visible dans un artefact et caché dans l'autre**, ce que le �
 sur ce qui est cuit.** Le coût attendu est nul — le jeu z9 est fait de grandes villes, rarement
 intérieures à un massif forestier — et le bénéfice est de fermer la divergence **par construction**.
 
+> **CORRECTION du 18 août 2026 — « le coût attendu est nul » était faux, et c'est la seule prévision de
+> ce contrat que la mesure a franchement démentie.** L'exclusion coûte **trois noms sur quatre** :
+> Aix-en-Provence, Martigues et Aubagne sont rejetés **aux cinq ancres**, par les **deux moitiés d'A-7
+> indépendamment** — ils sont contre Sainte-Victoire, la Côte Bleue et le Garlaban. La prémisse
+> « rarement intérieures à un massif forestier » ne tient pas dans un département dont les villes
+> bordent les massifs.
+>
+> **La décision d'A-7 n'est pas remise en cause** — elle reste juste, et pour son motif d'origine. C'est
+> son **coût** qui était mal estimé, et ce coût est ce qui a rendu z9 intenable et forcé la révision
+> d'**A-8**. À lire comme la leçon de méthode : *« coût attendu nul » est une prévision, pas un fait, et
+> ce contrat exige ailleurs qu'on mesure avant de geler.*
+
 ### A-8 — `zoom_percu_statique` : 9 (4 noms) ou 10 (16 noms) ?
 
 Le back a chiffré les deux et recommande 9, en signalant honnêtement que **10 ferait une meilleure
 feuille imprimée** pour un gîte ou une mairie, au prix de ≈ 143 000 o = **93 % du plafond**.
 
-**Décision : 9.** 93 % du plafond n'est pas un endroit où s'installer, surtout quand l'estimation porte
-une incertitude de l'ordre de ±100 %. Le degré de liberté est réduit à **un seul entier** : si le
-premier regard dans Chrome montre la feuille trop nue, la correction honnête est de bouger cette
-constante et de re-mesurer — **jamais de choisir des noms à la main**.
+**Décision au gel initial : 9.** 93 % du plafond n'est pas un endroit où s'installer, surtout quand
+l'estimation porte une incertitude de l'ordre de ±100 %. Le degré de liberté est réduit à **un seul
+entier** : si le premier regard dans Chrome montre la feuille trop nue, la correction honnête est de
+bouger cette constante et de re-mesurer — **jamais de choisir des noms à la main**.
+
+#### RÉVISION du 18 août 2026 — `zoom_percu_statique` passe à **10**
+
+**Les deux prévisions qui fondaient le 9 ont été infirmées par la mesure, et elles l'ont été dans le
+sens qui rouvre la question.**
+
+1. **A-7 annonçait un coût nul** pour l'exclusion des intérieurs de massif. **Mesuré, elle coûte trois
+   noms sur quatre** : Aix-en-Provence, Martigues et Aubagne sont rejetés **aux cinq ancres**, par les
+   **deux moitiés d'A-7 indépendamment** — ils sont contre Sainte-Victoire, la Côte Bleue et le
+   Garlaban. À z9, la feuille ne portait plus que **« Marseille »**.
+2. **A-8 redoutait ≈ 143 000 o** pour 16 étiquettes, soit 93 % du plafond. **Mesuré, une étiquette
+   coûte 464 o** : six en coûtent ≈ 2 800, et la statique tient à **71,0 %** du plafond. La prévision
+   était fausse d'un facteur **≈ 30**.
+
+**Décision : 10.** Une image de repli portant **un seul nom** n'honore la règle « la statique est
+l'équivalent de la carte » (§5.5 du brief) que **formellement**. Le motif qui imposait 9 — le coût
+d'octets — n'existe pas.
+
+**Cette révision était pré-autorisée par A-8 lui-même**, qui prescrivait exactement ce geste : bouger ce
+seul entier et re-mesurer. Ce n'est donc **pas une dérive**, mais l'application de l'arbitrage. **Ce qui
+était une dérive, c'est que le contrat ne l'ait pas enregistrée** : le code et le README portaient 10
+depuis `a1e2e3b` pendant que le §3, le §4, C-a et A-8 portaient 9. **Un contrôle vert contre une
+constante du code ne prouve rien contre un contrat qui dit autre chose** — `verifier.mjs` relit
+`TOPONYMES.zoom_percu_statique`, pas ce document. C'est ce que cette passe corrige.
+
+**Conséquence assumée, écrite au §4** : `etiquettes_statique_max = 6` cesse d'être une garde et devient
+le moteur.
 
 ### A-9 — Garde `place=city ∈ [1, 10]` : adoptée
 
@@ -515,6 +603,66 @@ z12 **sans** étiquettes créerait un défaut latent pour le jour où `detectRet
 est réelle mais **appartient à `#36`/`#43` et à la chaîne carte**, pas à #71 : elle est remontée en
 couture **C-14**, pas tranchée ici.
 
+> **A-12 est délibérément sauté.** Ce document en cite déjà un — celui du **contrat #9** — au §11,
+> couture C-10. Réutiliser le numéro dans la numérotation propre à #71 rendrait les deux
+> indiscernables en revue.
+
+### A-13 — L'emprise est découplée de la géométrie ; la **version publiée** ne l'est pas, et ne peut pas l'être
+
+**Ajouté le 18 août 2026.** C'est le seul point où la passe de preuve a trouvé le gel initial en
+défaut — non dans ses décisions, mais dans une propriété qu'il **annonçait sans l'avoir mesurée**.
+
+**L'affirmation en cause**, écrite trois fois : à la tâche 3 de l'issue, au §14 A-14 du contrat #9
+(« ne déplace plus la bbox de la pyramide, **ne change plus la version publiée**, et ne re-cuit plus
+295 tuiles »), et implicitement au §0 d'ici.
+
+**Ce qui est vrai — prouvé par construction, pas par un essai :**
+
+| Grandeur | Dépend de la géométrie ? | Preuve |
+|---|---|---|
+| `bbox` de la pyramide | **Non** | `bboxDeclaree()` prend **zéro argument** : aucune géométrie ne peut l'atteindre |
+| Grilles z5–z12, nombre de tuiles (**295**) | **Non** | `grilleDeclaree( z )` prend **le seul zoom**, et dérive de `EMPRISE_DECLAREE` par décalage entier |
+| Pixels des tuiles, via les contours du référentiel | **Non** | `construire.mjs` l. 1021 passe `contours: null` à la pyramide — **seule l'image statique porte les 25 contours** |
+
+Une preuve par **signature de fonction** est plus forte qu'un essai : elle ne dit pas « ça n'a pas
+changé cette fois », elle dit « ça **ne peut pas** changer ».
+
+**Ce qui est faux.** Le plafond de densité des toponymes est
+`round( densite_par_mpx × airePlacementMpx( emprise, z ) )` — `construire.mjs` l. 987 — où `emprise`
+vaut `lireEmprise( CHEMINS.referentiel )`, l. 1236 : **la bbox du référentiel, donc une grandeur
+dérivée de la géométrie**. Le §3 rend ce choix **normatif**, et pour une bonne raison : la densité doit
+refléter la **région utile**, jamais la toile ni l'emprise déclarée — s'en écarter livrerait 2,5 fois
+trop d'étiquettes.
+
+Or **le plafond mord** : la recette rapporte **4/4, 16/16, 63/63**. Il n'y a aucun jeu. Toute variation
+du plafond change donc le jeu d'étiquettes, donc les tuiles, donc `sha256( manifeste )`, donc la
+**version publiée**, qui en est la troncature.
+
+**Sensibilité mesurée.** Une variation d'aire de la bbox du référentiel de **+0,71 %** fait passer le
+plafond z11 de 63 à 64 ; **−0,87 %** le fait tomber à 62. z10 bascule à +4,8 % / −1,6 %. **Ce n'est pas
+théorique** : `ded0f2f`, le retrait des îlots de moins de 25 ha, a précisément déplacé cette bbox.
+
+**Décision : garder le couplage, corriger la phrase — pas le code.** Quatre raisons.
+
+1. **La formulation était trop large ; la propriété visée, elle, est atteinte.** Ce que #43 et #36
+   réclamaient comme socle, c'est un **repère fixe** — une bbox et une grille qui ne bougent pas sous
+   eux. Ils l'ont, entièrement.
+2. **Geler aussi l'aire de placement serait un remède pire que le mal.** La densité refléterait une
+   région utile **périmée**, divergeant silencieusement du référentiel à chaque retouche — très
+   exactement le mode de défaillance muet que ce module refuse partout ailleurs.
+3. **Le coût immédiat est disproportionné** : rebuild complet, nouvelle `version`, 295 tuiles et un PNG
+   à re-cuire, seuils de luma à re-mesurer, nouveau regard dans Chrome — pour un bénéfice spéculatif,
+   en fin de chaîne.
+4. **#36 et #43 réécrivent la logique d'emprise.** Y introduire maintenant une seconde constante
+   déclarée serait du travail à défaire.
+
+**Ce que le couplage coûte réellement, dit sans adoucissement** : une retouche du référentiel qui reste
+dans l'emprise **peut encore** invalider la pyramide entière. Elle ne le fait plus *par déplacement de
+la grille* — ce que #71 a supprimé — mais *par franchissement d'un seuil d'arrondi de densité*. Mode de
+défaillance **bien plus rare et bien moins ample**, et désormais **nommé**.
+
+**Remonté en couture C-17**, à l'intention de #36/#43, qui possèdent la logique d'emprise.
+
 ---
 
 ## 10. `OUVERT` — à ne jamais combler par déduction
@@ -554,7 +702,9 @@ couture **C-14**, pas tranchée ici.
 | **C-12** | **`MASTER.md` ne fixe aucune taille d'étiquette de carte** — voir le §10. **Bloquant pour figer `corps_statique_px`** | `MASTER.md` §5.1, §13 | `lead-design-cms`, §18 |
 | **C-13** | `carte.js` **ne pose pas `detectRetina`**. Sur DPR ≥ 2 et à 200 % de zoom, les tuiles sont suréchantillonnées ×2 : invisible sur des traits, **visible comme un défaut sur du texte** | `carte.js` l. 283-287 | chaîne carte ; toute activation impose de revérifier **F-11** |
 | **C-14** | **z12 est très probablement inatteignable** — `round(zoom) ≤ 11` et pas de `detectRetina`. Les deux justifications d'A-7 sont inopérantes telles que livrées. #71 cuit z12 quand même (**A-11**), mais la question « faut-il garder z12 » reste entière | contrat #9 A-7 ; `carte.js` l. 198-201, 283-287 | **Décision d'orchestration**, avec #36/#43 |
-| **C-15** | Le poids de `carte-statique.png` est écrit **à quatre endroits avec quatre valeurs** : README §7 *142 464 o* · `docs/recette/preuves-a11y-et-perf.md` l. 138 *138 964 o* · mesuré *120 768 o* · projeté *≈ 130 000 o*. **Le manifeste doit être l'unique source ; tout document cite par référence** | fichiers cités | `docs`/`infra`. La correction du README §7 est **déjà une tâche de #71** |
+| **C-15** *(partiellement close)* | Le poids de `carte-statique.png` était écrit **à quatre endroits avec quatre valeurs**. **Réglé dans mon empreinte** le 18 août 2026 : README §7 et ce contrat portent désormais la mesure datée **109 050 o** et renvoient à `reference.json`. **Restent hors de mon empreinte, non corrigés** : `docs/recette/preuves-a11y-et-perf.md` l. 138 (*138 964 o*) et le **corps de l'issue #71 elle-même**, qui porte encore « 120 768 o utilisés / marge 32 832 o » — chiffre du 17 août, antérieur à la régénération finale, et **qui a déjà circulé comme s'il était courant** | fichiers cités | `docs`/`infra` ; le corps de l'issue au **lead orchestrateur**, à la clôture |
+| **C-16** | La couche `toponymes` a été récupérée depuis un **miroir Overpass différent** des quatre autres — `overpass.kumi.systems` contre `overpass-api.de` (`build/source/manifeste.json`, `points_acces`). **Aucune violation** : la récupération est un acte de build hors ligne, jamais une requête du navigateur (contrainte #2 intacte). Mais c'est un **fait de provenance non déclaré** dans le contrat, et deux miroirs peuvent servir des instantanés OSM différents | `build/source/manifeste.json` | `infra` — à déclarer ou à unifier lors du prochain `recuperer` |
+| **C-17** | **Le plafond de densité des toponymes reste couplé à la géométrie du référentiel** — voir **A-13**. L'emprise et la grille sont découplées ; la version publiée ne l'est pas. Une variation d'aire de la bbox du référentiel de **0,71 %** suffit à changer le compte z11, donc les tuiles, donc la version | `construire.mjs` l. 987 et l. 1236 ; §3 de ce contrat | **#36 / #43**, qui réécrivent la logique d'emprise |
 
 **Point de licence, réglé pour ne pas être rouvert** : extraire des contours de glyphes d'un `.woff2`
 sous OFL 1.1 pour les émettre en `<path>` puis les rasteriser ne constitue **ni une redistribution ni
@@ -584,3 +734,78 @@ touchés**.
    `reference.json` ?
 8. **L'image statique contient-elle toujours zéro pixel vert ou rouge officiel** (I-9.3), halo compris ?
    À vérifier sur le binaire, pas sur l'intention.
+
+---
+
+## 13. Contraste AA des toponymes, aplat par aplat — la ligne de DoD, chiffrée
+
+**Mesuré le 18 août 2026**, WCAG 2.x, luminance relative sRGB linéarisée, sur les sept jetons de la
+palette fermée relus dans `tokens.css`. Encre des toponymes : `--c-carte-encre` `#4A4E48`.
+
+| Aplat | Valeur | Encre sur cet aplat | AA 4,5:1 |
+|---|---|---|---|
+| `--c-carte-fond` | `#E6E7E1` | **6,82:1** | ✅ |
+| `--c-carte-terre` | `#DEDFD9` | **6,33:1** | ✅ |
+| `--c-carte-vegetation` | `#D6DBD3` | **6,03:1** | ✅ |
+| `--c-carte-eau` | `#CBD5D8` | **5,68:1** | ✅ |
+| `--c-carte-trait` | `#B4B7AC` | **4,17:1** | ❌ |
+| `--c-charbon` | `#1A1C19` | **2,02:1** | ❌ |
+| *(rappel, hors fond de carte)* vert officiel | `#22B14C` | **3,02:1** | ❌ |
+| *(rappel, hors fond de carte)* rouge officiel | `#E63A3C` | **2,03:1** | ❌ |
+
+Ces huit valeurs **reproduisent exactement** celles déjà consignées à l'A-16 du §14 du contrat #9 et à
+la règle 8 du §4.1.d de `MASTER.md` — recalculées ici indépendamment, elles concordent au centième.
+
+### Pourquoi les quatre échecs ne sont pas des défauts d'accessibilité
+
+**Aucun d'eux n'est jamais l'arrière-plan d'un toponyme.** Ce n'est pas une atténuation, c'est une
+propriété **structurelle**, tenue par trois mécanismes distincts :
+
+1. **Le halo, pour les deux couleurs de trait.** `svgEtiquettes()` peint **tous les halos d'abord**, en
+   trait de largeur `2 × halo_px` **centré sur le contour du glyphe**, puis **tous les remplissages
+   par-dessus**. Chaque glyphe est donc **intégralement ceint** de `--c-carte-fond` sur `halo_px` vers
+   l'extérieur — 1,5 px dans la pyramide, 2 px sur la statique. L'arrière-plan effectif de l'encre est
+   **toujours** `--c-carte-fond`, soit **6,82:1**. `--c-carte-trait` et `--c-charbon` sont des couleurs
+   de **trait**, jamais d'aplat : le problème est un problème de **recouvrement**, et il est réglé par
+   le halo, jamais par un jeton nouveau.
+2. **Le dégagement de 6 px, pour `--c-charbon` sur la statique.** **C-e** interdit qu'une boîte
+   approche à moins de 6 px d'un pixel `--c-charbon` — les 25 contours de massifs. Contrôlé sur le
+   **PNG décodé** : **0 pixel en contact** sur les six étiquettes livrées.
+3. **L'ordre des couches, pour les deux aplats officiels.** Règle 8 du §4.1.d de `MASTER.md` : les
+   étiquettes sont **cuites dans la tuile** (`tilePane`, 200) et les aplats de statut peints **au-dessus
+   en SVG** (400). Un toponyme intérieur à un massif est **occulté, et c'est voulu**. Sur la statique,
+   **aucun aplat n'est jamais peint** (I-9.3), et **A-7** interdit de surcroît qu'une étiquette
+   intersecte l'intérieur d'un polygone de massif — contrôlé, 6 étiquettes contre 25 polygones.
+
+### La réserve, écrite plutôt que tue
+
+La frange d'anticrénelage d'un glyphe est peinte en `--c-carte-trait`, à **4,17:1** — et **ce n'est pas
+le texte**. Le 6,82:1 repose sur le **cœur** du glyphe. Cette propriété n'est **pas espérée mais
+assertée**, par **C-g** : sur des tuiles **décodées**, `#encre / (#encre + #trait) ≥ 0,35`. Mesuré sur
+28 boîtes, le rapport va de **47 % à 78 %**. C'est la seconde raison de `corps_px = 19`.
+
+**Sans C-g, la ligne « 4,5:1 » de ce contrat serait une intention.**
+
+---
+
+## 14. Ce que la passe du 18 août 2026 a changé
+
+Passe de **finition et de preuve**, après `a1e2e3b`. **Aucune décision de design n'est repensée** ; le
+§12 de `MASTER.md` n'est pas ouvert ; aucun jeton n'est déclaré, renommé ni modifié.
+
+1. **Trois écarts contrat ↔ code réconciliés**, tous en faveur du code, dont la justification était
+   mesurée et écrite mais n'avait pas été reportée ici : `zoom_percu_statique` 9 → **10** (§3, §4, C-a,
+   **A-8**), les deux seuils de luma passés de `<mesuré puis gelé>` à **89** et **159** (§4), et
+   `etiquettes_statique_max` requalifié de garde en **moteur** (§4).
+2. **Les octets projetés cèdent la place aux octets mesurés** (§8) : **109 050 o**, marge **44 550 o**,
+   plafond tenu à **71,0 %**. La note « 1 palier » change de nature — ce n'est plus le plafond d'octets
+   qui tient `PALIERS = 0`, c'est la fermeture de la palette.
+3. **A-13, nouveau** : le couplage résiduel entre la géométrie et la version publiée est établi,
+   quantifié et assumé ; la phrase trop large est corrigée ici et au §14 du contrat #9.
+4. **§13, nouveau** : le contraste AA est chiffré **aplat par aplat**, avec le mécanisme qui rend chaque
+   échec inatteignable.
+5. **C-15 partiellement close ; C-16 et C-17 ouvertes.**
+
+**Ce que cette passe ne change pas** : `EMPRISE_DECLAREE`, les comptes de tuiles (295), la règle de
+sélection du §3, les invariants I-71.1 à I-71.14, les interdits du §7, et la surface PHP —
+`SCHEMA_CONNU` reste `1`, `etats.php` et `metadonnees.php` ne changent pas d'une ligne.
