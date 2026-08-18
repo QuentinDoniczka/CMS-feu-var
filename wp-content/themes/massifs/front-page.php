@@ -517,12 +517,26 @@ get_template_part( 'templates/header' );
 		// `h2` qui rendaient la page invalide. Ces enveloppes ne servent plus qu'à
 		// la mise en page.
 		//
-		// Aucun `$args` n'est passé : les valeurs par défaut des parties produisent
-		// déjà `id="legende"` et `id="liste"`, exactement les ancres attendues.
+		// L'appel `legende` PASSE désormais `etats_sur_ce_site` : la carte peint le
+		// motif `non_encore_publie` dès que son sélecteur de jour est sur « demain »
+		// avant la publication de 17 h, et un motif que la légende de la page ne
+		// sait pas décoder est un défaut §8.5 (issue #39, arbitrage A-8 du contrat
+		// #7). Les ancres `id="legende"` et `id="liste"` restent produites par les
+		// valeurs par défaut des parties, intactes ; `liste-statuts` ne reçoit
+		// toujours rien.
 		?>
 		<div class="bande bande--legende">
 			<div class="bande__contenu">
-				<?php massifs_partie( 'legende' ); ?>
+				<?php
+				// L'ordre des trois états est CELUI DU RENDU : legende.php parcourt
+				// `etats_sur_ce_site` tel quel et ne trie rien. Ne pas le réordonner.
+				massifs_partie(
+					'legende',
+					array(
+						'etats_sur_ce_site' => array( 'indisponible', 'hors_saison', 'non_encore_publie' ),
+					)
+				);
+				?>
 			</div>
 		</div>
 
@@ -541,8 +555,9 @@ get_template_part( 'templates/header' );
 		// et émet lui-même son <div class="bande bande--zones-parcourues">.
 		// L'envelopper une seconde fois casserait la mise en page.
 		//
-		// Aucun `$args` ni dans un cas ni dans l'autre : `massifs_partie()` n'en
-		// transmet pas, et les valeurs par défaut des deux parties suffisent.
+		// Ni l'une ni l'autre ne reçoit d'`$args` — non par incapacité de
+		// `massifs_partie()`, qui en transmet depuis l'issue #39, mais parce que les
+		// valeurs par défaut des deux parties suffisent.
 		?>
 		<div class="bande bande--meteo">
 			<div class="bande__contenu">

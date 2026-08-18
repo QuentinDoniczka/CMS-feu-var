@@ -76,22 +76,36 @@ function massifs_journaliser( string $message ): void {
 /**
  * Inclut une partie de gabarit de `templates/parts/`, sans jamais mentir au visiteur.
  *
- * Convention d'appel figée avec la chaîne #6 : aucun `$args` n'est passé, les
- * parties appellent elles-mêmes l'API publique de l'extension.
+ * Convention d'appel de la chaîne #6 AMENDÉE par l'issue #39 : les `$args` sont
+ * désormais transmis à `get_template_part()`. L'arbitrage A-8 de
+ * `docs/contracts/issue-7.md` avait qualifié de vrai défaut §8.5 l'entrée de
+ * légende manquante de `non_encore_publie` et l'avait reportée à cette issue :
+ * la chaîne #7 ne pouvait pas la corriger parce que `functions.php` était hors
+ * de son empreinte, non parce que le correctif était mauvais. Les contrats #10
+ * (l. 166) et #11 (l. 677) opposent encore « massifs_partie() ne transmet aucun
+ * $args » comme un mur : cette phrase est périmée depuis l'issue #39.
+ *
+ * La règle par défaut, elle, reste entière : les parties sont auto-portantes et
+ * appellent elles-mêmes l'API publique de l'extension. `$args` ne porte que des
+ * paramètres de PRÉSENTATION dont la page appelante est propriétaire (quelles
+ * entrées de légende demander, ancre, niveau de titre), JAMAIS de donnée
+ * métier : le thème n'en fait transiter aucune par là.
  *
  * Partie absente : commentaire HTML (observable en recette) et journal sous
  * WP_DEBUG. JAMAIS de texte de repli visible — écrire « liste indisponible »
  * serait de la copie d'interface inventée, et ce serait faux : la donnée n'est
  * pas indisponible, c'est un fichier de gabarit qui manque.
  *
- * @param string $slug Nom du gabarit, sans le chemin ni l'extension.
+ * @param string               $slug Nom du gabarit, sans le chemin ni l'extension.
+ * @param array<string, mixed> $args Paramètres de présentation transmis à la partie. Défaut : array().
  *
  * @return bool Vrai si la partie a été chargée.
  */
-function massifs_partie( string $slug ): bool {
+function massifs_partie( string $slug, array $args = array() ): bool {
 	// `get_template_part()` retourne `false` quand rien n'a été chargé
-	// (WP 5.5+ ; le thème exige 6.4).
-	$charge = get_template_part( 'templates/parts/' . $slug );
+	// (WP 5.5+ ; le thème exige 6.4). `null` en second argument : aucun candidat
+	// `{slug}-{name}.php` n'est ajouté.
+	$charge = get_template_part( 'templates/parts/' . $slug, null, $args );
 
 	if ( false !== $charge ) {
 		return true;
