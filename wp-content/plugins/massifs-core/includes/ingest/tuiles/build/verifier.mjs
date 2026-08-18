@@ -143,20 +143,31 @@ const ECHANTILLON_BOITES = 8;
 const ZOOM_JEU_SOURCE = ZOOM_MAX - 1;
 
 /**
- * Zooms qui résolvent leur propre jeu d'étiquettes, et zooms qui n'en portent
- * aucun — DÉRIVÉS de `TOPONYMES.zoom_min_etiquettes`, jamais écrits.
+ * Zooms qui résolvent leur propre jeu d'étiquettes — DÉRIVÉS de
+ * `TOPONYMES.zoom_min_etiquettes`, jamais écrits.
  *
- * Les listes `[ 9, 10, 11 ]` et `[ 5, 6, 7, 8 ]` étaient recopiées à quatre
- * endroits : elles cesseraient d'être vraies au premier déplacement du zoom
- * minimal d'étiquetage, et la recette contrôlerait alors des zooms qui ne sont plus
- * étiquetés — en restant verte.
+ * La liste `[ 9, 10, 11 ]` était recopiée à quatre endroits : elle cesserait d'être
+ * vraie au premier déplacement du zoom minimal d'étiquetage, et la recette
+ * contrôlerait alors des zooms qui ne sont plus étiquetés — en restant verte.
  */
 const ZOOMS_RESOLUS = [];
-const ZOOMS_SANS_ETIQUETTE = [];
 
-for ( let zoom = ZOOM_MIN; zoom <= ZOOM_JEU_SOURCE; zoom += 1 ) {
-	( zoom < TOPONYMES.zoom_min_etiquettes ? ZOOMS_SANS_ETIQUETTE : ZOOMS_RESOLUS ).push( zoom );
+for ( let zoom = TOPONYMES.zoom_min_etiquettes; zoom <= ZOOM_JEU_SOURCE; zoom += 1 ) {
+	ZOOMS_RESOLUS.push( zoom );
 }
+
+/**
+ * Zooms que le §3 du contrat gèle à ZÉRO étiquette — écrits en clair, NORMATIFS.
+ *
+ * Une liste dérivée de `zoom_min_etiquettes`, comme celle du dessus, suit le réglage :
+ * abaisser la constante à 8 renommerait le contrôle au lieu de le faire rougir. Les
+ * comptes « z5–z8 0 » du §3 sont une clause, pas une conséquence du réglage — les
+ * déplacer demande une révision du contrat, jamais une retouche du build.
+ */
+const ZOOMS_SANS_ETIQUETTE_NORMATIFS = [ 5, 6, 7, 8 ];
+
+/** Seuil qu'impose la clause ci-dessus : le premier zoom qu'elle laisse étiqueter. */
+const ZOOM_MIN_ETIQUETTES_NORMATIF = ZOOMS_SANS_ETIQUETTE_NORMATIFS[ ZOOMS_SANS_ETIQUETTE_NORMATIFS.length - 1 ] + 1;
 
 /**
  * Clés du contrat, telles que l'avenant du 14 août 2026 (§13) les gèle.
@@ -1104,7 +1115,7 @@ if ( toponymes && toponymes.jeux ) {
 
 	controler(
 		'toponymes : loadSystemFonts: false passé à Resvg',
-		fs.readFileSync( path.join( RACINE, 'construire.mjs' ), 'utf8' ).includes( 'loadSystemFonts: false' ),
+		sansCommentaires( fs.readFileSync( path.join( RACINE, 'construire.mjs' ), 'utf8' ) ).includes( 'loadSystemFonts: false' ),
 		undefined,
 		'sans cette ligne la non-substitution est incidente au lieu d\'être structurelle'
 	);
@@ -1226,10 +1237,21 @@ if ( toponymes && toponymes.jeux ) {
 		);
 	}
 
+	// Ces deux contrôles remplacent un contrôle unique dont la plage était dérivée de
+	// `zoom_min_etiquettes` : il ne pouvait pas s'opposer à la borne z5–z8, puisqu'il la
+	// tenait de la constante même qu'un abaissement aurait déplacée.
 	controler(
-		`toponymes : aucune étiquette à z${ ZOOMS_SANS_ETIQUETTE[ 0 ] }–z${ ZOOMS_SANS_ETIQUETTE[ ZOOMS_SANS_ETIQUETTE.length - 1 ] } (règle, pas réglage)`,
-		ZOOMS_SANS_ETIQUETTE.every( ( zoom ) => undefined === jeux[ zoom ] || 0 === jeux[ zoom ].length ),
-		`zoom minimal d'étiquetage : z${ TOPONYMES.zoom_min_etiquettes }`
+		`toponymes : aucune étiquette à z${ ZOOMS_SANS_ETIQUETTE_NORMATIFS[ 0 ] }–z${ ZOOMS_SANS_ETIQUETTE_NORMATIFS[ ZOOMS_SANS_ETIQUETTE_NORMATIFS.length - 1 ] } (§3, règle et non réglage)`,
+		ZOOMS_SANS_ETIQUETTE_NORMATIFS.every( ( zoom ) => undefined === jeux[ zoom ] || 0 === jeux[ zoom ].length ),
+		ZOOMS_SANS_ETIQUETTE_NORMATIFS.map( ( zoom ) => `z${ zoom } : ${ ( jeux[ zoom ] || [] ).length }` ).join( ', ' ),
+		'les comptes z5–z8 = 0 sont gelés par le contrat : c\'est le réglage qui leur répond, jamais l\'inverse'
+	);
+
+	controler(
+		`toponymes : le seuil d'étiquetage réglé vaut le seuil normatif z${ ZOOM_MIN_ETIQUETTES_NORMATIF }`,
+		TOPONYMES.zoom_min_etiquettes === ZOOM_MIN_ETIQUETTES_NORMATIF,
+		`zoom_min_etiquettes = ${ TOPONYMES.zoom_min_etiquettes }`,
+		'abaisser le seuil sans réviser le contrat doit rougir, et non renommer les contrôles qui en dérivent'
 	);
 
 	/* --- T10 / C-d — plancher d'impression --------------------------------- */

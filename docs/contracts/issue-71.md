@@ -81,8 +81,19 @@ une ligne de PHP modifiée.**
   cache se casse tout seul quand le build réécrit le PNG.
 - `style="block-size:auto"` est **agnostique au rapport** : la divergence 10 du §17 de `MASTER.md`
   porte sur l'absence de `block-size: auto` dans `layout.css`, jamais sur une valeur de rapport. Elle
-  est **inchangée, mot pour mot**. Le CLS reste **nul** : la boîte est réservée par le **mécanisme**
-  (attributs `width`/`height` + `block-size:auto`), pas par les nombres.
+  est **inchangée, mot pour mot**. **La boîte de `carte-secours__image` ne décale rien** : elle est
+  réservée par le **mécanisme** (attributs `width`/`height` + `block-size:auto`), pas par les nombres,
+  si bien que le passage de 1421 à 1493 px n'y produit **aucun décalage**.
+
+  > **Portée, corrigée le 18 août 2026.** Ce gel écrivait « le CLS reste **nul** », sans portée. C'est
+  > faux à l'échelle de la page : la recette mesure un **CLS de 0,10686** à 1280 × 900. La cause est
+  > **ailleurs et hors de l'empreinte de #71** — le `<svg>` du pane des massifs de Leaflet passe de 239
+  > à 481 px après l'initialisation de la carte. `carte-secours__image` n'y contribue pas, et le
+  > mécanisme décrit ci-dessus est intact.
+  >
+  > **Un contrat ne doit pas énoncer une propriété de page pour justifier une propriété de boîte** :
+  > la phrase est donc restreinte à ce qu'elle a réellement vérifié. Le CLS du pane Leaflet appartient
+  > à la chaîne carte — voir la couture **C-18**.
 - `carte.php` (l. 448-465) lit **exactement quatre clés** de `massifs_fond_de_carte()` : `disponible`,
   `format`, `url_modele`, `zoom_min`, `zoom_max`. Il ne lit **ni `nombre`, ni `bbox`**. Le passage de
   280 à 295 lui est invisible.
@@ -704,6 +715,7 @@ défaillance **bien plus rare et bien moins ample**, et désormais **nommé**.
 | **C-14** | **z12 est très probablement inatteignable** — `round(zoom) ≤ 11` et pas de `detectRetina`. Les deux justifications d'A-7 sont inopérantes telles que livrées. #71 cuit z12 quand même (**A-11**), mais la question « faut-il garder z12 » reste entière | contrat #9 A-7 ; `carte.js` l. 198-201, 283-287 | **Décision d'orchestration**, avec #36/#43 |
 | **C-15** *(partiellement close)* | Le poids de `carte-statique.png` était écrit **à quatre endroits avec quatre valeurs**. **Réglé dans mon empreinte** le 18 août 2026 : README §7 et ce contrat portent désormais la mesure datée **109 050 o** et renvoient à `reference.json`. **Restent hors de mon empreinte, non corrigés** : `docs/recette/preuves-a11y-et-perf.md` l. 138 (*138 964 o*) et le **corps de l'issue #71 elle-même**, qui porte encore « 120 768 o utilisés / marge 32 832 o » — chiffre du 17 août, antérieur à la régénération finale, et **qui a déjà circulé comme s'il était courant** | fichiers cités | `docs`/`infra` ; le corps de l'issue au **lead orchestrateur**, à la clôture |
 | **C-16** | La couche `toponymes` a été récupérée depuis un **miroir Overpass différent** des quatre autres — `overpass.kumi.systems` contre `overpass-api.de` (`build/source/manifeste.json`, `points_acces`). **Aucune violation** : la récupération est un acte de build hors ligne, jamais une requête du navigateur (contrainte #2 intacte). Mais c'est un **fait de provenance non déclaré** dans le contrat, et deux miroirs peuvent servir des instantanés OSM différents | `build/source/manifeste.json` | `infra` — à déclarer ou à unifier lors du prochain `recuperer` |
+| **C-18** | **CLS de 0,10686 à 1280 × 900**, mesuré en recette. Cause : le `<svg>` du pane des massifs de Leaflet passe de **239 à 481 px** après l'initialisation de la carte. **Ni `carte-secours__image` ni #71 n'y contribuent** — la boîte de l'image est réservée par `width`/`height` + `block-size:auto`. Enregistré ici parce que le §2 de ce contrat affirmait « le CLS reste nul » sans portée, ce qui est **corrigé** | recette de rendu ; `carte.js` | **chaîne carte** |
 | **C-17** | **Le plafond de densité des toponymes reste couplé à la géométrie du référentiel** — voir **A-13**. L'emprise et la grille sont découplées ; la version publiée ne l'est pas. Une variation d'aire de la bbox du référentiel de **0,71 %** suffit à changer le compte z11, donc les tuiles, donc la version | `construire.mjs` l. 987 et l. 1236 ; §3 de ce contrat | **#36 / #43**, qui réécrivent la logique d'emprise |
 
 **Point de licence, réglé pour ne pas être rouvert** : extraire des contours de glyphes d'un `.woff2`
@@ -720,10 +732,45 @@ touchés**.
    l'emprise déclarée **doit** faire sortir `construire` en code ≠ 0. *Un contrôle qu'on n'a pas vu
    rougir n'est pas un contrôle* — et c'est très exactement le défaut que #71 corrige : l'ancien test
    était une **tautologie** qui ne pouvait pas échouer.
+
+   > **EXÉCUTÉ le 18 août 2026, dans les deux moteurs. Le fait, plutôt que le raisonnement.**
+   >
+   > **(a) Dans `construire`** — `EMPRISE_DECLAREE.x0` porté de 2100 à 2105 : sortie **code 1**, avant
+   > toute rasterisation et sans qu'aucun artefact soit écrit :
+   > `Massif « alpilles » : un sommet sort de l'emprise déclarée par le bord ouest — valeur 5.0093,`
+   > `borne 5.009765625, débordement 0.000466°.`
+   >
+   > **(b) Dans `verifier`, par la falsification que ce point prescrit** — un sommet d'`alpilles`
+   > déplacé de `[5.0543, 43.7691]` à `[5.95, 43.7691]` dans
+   > `data/massifs-13.geometrie.json`, au-delà du bord est (5,888671875) : sortie **code 1**, et
+   > **I-71.4 rougit SEUL** — `alpilles (5.95, 43.7691)`.
+   >
+   > **Correction d'une lecture de revue** : il a été conclu qu'I-71.4 « ne peut jamais rougir seul
+   > dans `verifier` », la contenance de grille étant strictement plus précoce. **C'est faux, et
+   > l'erreur vient de la perturbation choisie.** Déplacer `EMPRISE_DECLAREE` déplace le *référent
+   > commun* à tous les contrôles d'emprise, si bien que les plus précoces tombent d'abord. Déplacer un
+   > **sommet** ne touche que le balayage : la contenance de grille est restée **verte**
+   > (`x 2100..2114 dans 2100..2114, y 1490..1502 dans 1490..1503`), parce qu'elle lit la bbox stockée
+   > dans `massifs-13.php`, **jamais les sommets**. Les deux contrôles portent donc sur deux entrées
+   > différentes, et **I-71.4 a une valeur propre dans `verifier` aussi**.
+   >
+   > Géométrie restaurée et vérifiée au sha256 (`97f48258…`) ; aucun artefact touché.
 2. **`grep` de `<text`, `font-family`, `getVariation`, `localeCompare` sur `build/**`** → doit rendre
    **zéro** (I-71.8, I-71.3, §7 interdit 7).
 3. **`loadSystemFonts: false` est-il réellement passé à `Resvg` ?** Une ligne, et sans elle la
    non-substitution est incidente au lieu d'être structurelle.
+
+   > **DÉFAUT TROUVÉ ET CORRIGÉ le 18 août 2026, sur signalement de revue.** Le contrôle testait la
+   > source **brute** de `construire.mjs`. Or la chaîne y figure **3 fois en commentaire**
+   > (`construire.mjs` l. 468 et 552, `etiquettes.mjs` l. 15) contre **1 fois en code** (l. 559) :
+   > supprimer la ligne réelle en laissant la documentation l'aurait laissé **vert**. Le contrôle
+   > censé fermer I-71.8 était donc lui-même de la famille qu'il dénonce.
+   >
+   > **Corrigé** : la source passe par `sansCommentaires()` avant le test, comme le contrôle voisin
+   > le faisait déjà. **Falsification exécutée** — ligne 559 amputée de
+   > `font: { loadSystemFonts: false }`, les deux commentaires de `construire.mjs` laissés en place :
+   > sortie **code 1**, `toponymes : loadSystemFonts: false passé à Resvg` **rouge**. Fichier restauré,
+   > recette **CONFORME — 146 contrôles**.
 4. **C-g passe-t-il ?** Sans lui, la ligne « 4,5:1 » de ce contrat est **non étayée**. C'est le seul
    contrôle qui prouve qu'un cœur d'encre existe.
 5. **`airePlacementMpx( z )` porte-t-il bien sur la bbox du référentiel** et non sur la toile ? L'erreur
@@ -809,3 +856,30 @@ Passe de **finition et de preuve**, après `a1e2e3b`. **Aucune décision de desi
 **Ce que cette passe ne change pas** : `EMPRISE_DECLAREE`, les comptes de tuiles (295), la règle de
 sélection du §3, les invariants I-71.1 à I-71.14, les interdits du §7, et la surface PHP —
 `SCHEMA_CONNU` reste `1`, `etats.php` et `metadonnees.php` ne changent pas d'une ligne.
+
+---
+
+## 15. Passe corrective du 18 août 2026, sur revue de lot
+
+Revue rendue **OK avec réserves, aucun CRITICAL, aucun HIGH**. Quatre points MEDIUM, tous de la même
+famille — **une prose gelée ou un contrôle qui affirme plus qu'il ne prouve**, c'est-à-dire très
+exactement ce que #71 existait pour fermer. Aucun n'a rouvert une décision.
+
+1. **`verifier.mjs` — le contrôle `loadSystemFonts` ne pouvait pas rougir.** Corrigé par
+   `sansCommentaires()`, **falsification exécutée et vue rouge**. Voir §12 point 3. C'était le point le
+   plus grave : le contrôle qui garde I-71.8 était lui-même une tautologie.
+2. **§2 — « le CLS reste nul »**, écrit sans portée dans un document gelé. Restreint à la boîte de
+   `carte-secours__image`, qui est ce qui avait réellement été vérifié. Le CLS de page mesuré,
+   **0,10686**, vient du pane Leaflet et est hors empreinte — couture **C-18**.
+3. **`verifier.mjs` — assertion auto-référentielle sur z5–z8.** `ZOOMS_SANS_ETIQUETTE` dérivait de
+   `zoom_min_etiquettes` : abaisser la constante aurait **renommé** le contrôle au lieu de le faire
+   rougir. **Choix retenu : porter les entiers normatifs en clair**, le §3 gelant « z5–z8 0 » comme une
+   clause et non comme une conséquence du réglage. Un contrôle sur `[ 5, 6, 7, 8 ]` littéraux, plus un
+   second vérifiant que le réglage **s'accorde** au seuil normatif. Falsification exécutée à 8.
+4. **§12 point 1 — la falsification prescrite n'avait pas été exécutée.** Elle l'est. Elle a en outre
+   **infirmé une lecture de revue** : I-71.4 **rougit seul** dans `verifier` dès qu'on falsifie un
+   **sommet**, la contenance de grille restant verte parce qu'elle lit une **autre entrée**. Voir §12
+   point 1.
+
+**Recette : 145 → 146 contrôles** (un contrôle dérivé remplacé par deux, dont un normatif).
+**Aucun artefact régénéré** : pyramide 295 tuiles sous `fff4ef0f`, statique 109 050 o, inchangées.
