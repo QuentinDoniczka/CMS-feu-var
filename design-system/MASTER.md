@@ -1,6 +1,6 @@
 # MASSIFS — Design System
 
-**Version 2.5** · **Date** 15 août 2026 · **Auteur** `lead-design-cms`
+**Version 2.6** · **Date** 18 août 2026 · **Auteur** `lead-design-cms`
 **Statut** source de vérité visuelle. Tout travail d'intégration (`dev-ux-cms`, `dev-front-cms`) et toute
 relecture (`review-cms`) s'y réfèrent. Livrable §11 du brief (« plan de design »).
 
@@ -22,6 +22,8 @@ relecture (`review-cms`) s'y réfèrent. Livrable §11 du brief (« plan de desi
 | **2.4** | 14 août 2026 | **Le traitement « sélectionné » de la carte est refait, et les épaisseurs de trait de la carte deviennent fonction du palier de zoom — par correction ciblée, jamais par réécriture.** Déclencheur : un **défaut reproduit à l'écran**, dans Chrome sur la stack Docker locale, aux zooms 9 et 10. Sur le massif de **Regagnas** — boîte englobante **94 × 55 px au zoom 9**, un enchevêtrement de languettes de quelques pixels de large —, la règle « liseré 4 px + repère » du §9.2 remplissait toute la boîte englobante de calcaire et l'encadrait de charbon : le massif sélectionné ne se lisait plus comme un massif, mais comme **un rectangle blanc posé sur la carte**. (a) **§9.2 est refait** : la sélection devient le **cerne**, un anneau posé **entièrement hors du polygone**, dans un pane placé **sous** celui des massifs — l'aplat de statut et son motif ne sont **jamais** recouverts. (b) **§9.2.a, nouveau** : trois **paliers de zoom** — `département` (z ≤ 9), `massif` (z 10), `abords` (z ≥ 11) — portés par une **classe sur la racine de la carte**, avec des valeurs chiffrées pour le liseré, le survol et le cerne. Motif : **le liseré est centré sur le tracé, donc il consomme la moitié de son épaisseur dans l'aplat** ; une épaisseur constante ne peut pas servir un département vu en entier et un massif vu de près. (c) **D-28 — le repère est retiré de la carte.** La **liste fermée du §3.2 passe de sept à six emplacements** ; l'emplacement 5 disparaît. (d) **§10.2 est amendé et complété** : le plancher « jamais sous 2 px » devient **« jamais sous 1,5 px, et 1,5 px au seul palier département »**, sur une **mesure** — un trait de 1,5 px garantit 75 % de couverture au pire alignement sous-pixel, soit **3,18:1 sur le rouge officiel** ; à 1,25 px il tombe à **2,66:1** et à 1 px à **2,18:1**. Le plancher exact est **1,42 px** : il est **dérivé, pas choisi**. (e) **Le §12 est ouvert** — pour la première fois depuis la v2.0 — et reçoit **cinq jetons** (`--carte-lisere`, `--carte-survol`, `--carte-cerne`, `--carte-cerne-clair`, `--bord-selection`) plus une **exception documentée n° 3** (redéfinition par classe de palier). **Conséquence déclarée, non subie** : le sha256 épinglé de `tokens.css` et l'invariant « 111 propriétés dans `:root` » du contrat #4 **tombent** ; ils sont remplacés par **116 dans `:root` / 133 dans le fichier**. Aucun jeton n'est **supprimé** ni renommé, aucune valeur de couleur n'est touchée. (f) **§14.5** ouvre la passe 2 quinquies, **§15** enregistre **D-28** et **D-29**, **§16** reçoit quatre lignes de revue et en amende une, **§17.1** liste ce que la révision **ouvre en aval** — dont la clause **A-9 du contrat gelé `docs/contracts/issue-7.md`**, qui reprend l'ancienne règle et **doit être amendée par sa chaîne**, jamais par ce document. | Défaut constaté à l'écran (Chrome, Docker local, z9/z10) ; direction du propriétaire |
 
 | **2.5** | 15 août 2026 | **Révision d'enregistrement — aucun choix visuel n'est repensé. Le §12 et toute déclaration de jeton sont GELÉS et n'ont pas été ouverts.** (a) **§11.3 — sa portée est écrite** : la liste fermée borne le **rendu public**, **pas le portail**, dont la micro-rédaction relève du §7 du brief et du §11.1 (**D-30**, arbitrage du propriétaire sur la question Q-2 du contrat #14). Quatre bornes restent opposables — §11.1/§11.2 s'appliquent au portail, les libellés officiels y restent verbatim, les chaînes de portail restent regroupées en un fichier, et toute chaîne qui **paraît en public** retombe sous la liste. (b) **Contradiction interne levée — la flèche** : le §7.2 imposait `→` en caractère, le §5, **D-25** et le §16 l'interdisaient et en faisaient un **défaut bloquant**. **D-25 l'emporte** — U+2192 est hors du sous-ensemble `latin` et absent des deux polices, il afficherait un rectangle vide ; le §7.2 est mis en cohérence (SVG en ligne, `aria-hidden`, texte « remplacé par » en `screen-reader-text`). La contradiction avait été rencontrée **en production** : le contrat #15 avait gelé la version §7.2, `dev-ux-cms` a refusé de l'appliquer, le contrat a dû être re-gelé (`CORRECTIF-1`). **Aucune décision nouvelle au §15** : c'est l'application de D-25. (c) **§17 — quinze divergences enregistrées, la table passe de neuf à vingt-quatre** : #14 `ea74b4d` (**D-1 à D-9**, **D-5 bis**, plus **A-19**), #15 `56ea7bd` (**`ARBITRAGE-CSS`**, deux copies de la géométrie de pastille), #50 `609eaef` (zoom fractionnaire lu par `floor`, cerne recouvert par un massif voisin contigu) et le **survol du bouton primaire**. La numérotation `D-n` propre à chaque contrat est **conservée en clair**. (d) **§17.1 mis en cohérence** : ses six lignes sont **closes** par la chaîne #50 et **son périmètre d'amendement était sous-dimensionné** — il n'amendait qu'A-9 et A-16 du contrat #7, alors que **A-19, la table de classes du §8.2, les exigences 2, 5, 6, 15 du §8.4 et l'interdit 7** restataient la même règle obsolète. La liste réelle est écrite, avec une **leçon de méthode** opposable. Les lignes sont **marquées closes, pas supprimées** : les supprimer effacerait la leçon. (e) **D-31 — l'emplacement 4 du §3.2 est retiré**, la liste fermée passe de six à **cinq** (1, 2, 3, 6, 7) : il ne pouvait se déclencher **nulle part par construction**, le `h2` du nom du massif gagnant **toujours** l'arbitrage du §3.3. **Solde la dette ouverte par A-15 du contrat #7**, que la v2.4 avait bornée par une note constatant la vacance. **Rien ne change à l'écran.** Le §16 est amendé en conséquence. (f) **§18, nouveau — « à traiter à la prochaine révision »** : cinq manques **du document**, chiffrés et argumentés — le repère sur l'option sélectionnée du portail (acte formel sur liste fermée), le survol qui efface l'étiquette du bouton primaire (**1,15:1** prescrit contre **12,66:1** livré), l'**absence d'échelle typographique de portail** (deux chaînes ont improvisé le **même** contournement sans se voir), le **focus SVG en rectangle englobant** (V-50.1, 94 × 55 px sur Regagnas à z9), et la **dette de duplication du chrome de portail**. **Aucune n'est corrigée ici** : deux exigeraient des jetons, et le §12 est gelé — une recette tournait pendant l'écriture de cette révision. | Clôture du lot Épic 5 ; direction du propriétaire ; escalades des contrats #14 (§14 point 2, Q-2, A-19), #15 (`ARBITRAGE-CSS`) et #50 (A-50.5, V-50.1) |
+
+| **2.6** | 18 août 2026 | **Une seule section est ouverte : le §11.3. Le §12 et toute déclaration de jeton restent GELÉS et n'ont pas été touchés ; aucun choix visuel n'est repensé.** **Amendement formel de la liste fermée des chaînes publiques — un ajout, le premier depuis la v1.0** : deux chaînes de la liste, « Information du jour non disponible. Consultez la carte officielle de la préfecture. » et « Dispositif estival inactif. », **ne nommaient pas le jour sur lequel elles portent**. Rendues sous une carte dont le sélecteur de jour vaut **aujourd'hui** par défaut, elles décrivaient l'indisponibilité **du lendemain** dans la formulation du jour affiché — la confusion que le **§4.2 du brief** interdit en termes absolus (« ne jamais présenter un statut périmé comme courant »). La liste reçoit donc, pour chacune, une **variante datée** : « Information de demain non disponible. Consultez la carte officielle de la préfecture. » et « Dispositif estival inactif demain. Reprise le {date}. ». **Les deux chaînes existantes ne sont pas éditées d'un caractère** — elles sont recopiées dans du code livré et dans `tests/scenarios/47-…` —, la troisième (« Les statuts de demain ne sont pas encore publiés… ») est intacte, et **la liste reste fermée** : elle compte **dix** chaînes au lieu de huit. **D-32** au §15, une ligne de revue au §16, aucun jeton, aucune couleur, aucune mesure d'accessibilité touchée. **Le câblage dans `templates/parts/carte.php` n'appartient pas à ce document** : il revient à la chaîne qui possède ce fichier (#37). | Direction du propriétaire du projet ; conflation constatée à la lecture de `templates/parts/carte.php` l. 205-230 (`match()` sur `$synthese_suivant['etat_global']`) |
 
 **Ce que la v1.0 avait raison de faire, et qui est conservé sans changement** : le pari du fond de carte
 monochrome (§1), la signature « le repère » (§3), les deux familles typographiques et le budget de 2
@@ -1884,7 +1886,10 @@ l'écran reproduit la formulation de la carte.
 - Fraîcheur : « Statuts du {jour de validité}, publiés la veille à {heure} par la préfecture — relevés sur
   ce site le {date} à {heure}. »
 - Indisponible : « Information du jour non disponible. Consultez la carte officielle de la préfecture. »
+- **[v2.6]** Indisponible, **jour suivant** : « Information de demain non disponible. Consultez la carte
+  officielle de la préfecture. »
 - Hors saison : « Dispositif estival inactif. Reprise le {date}. »
+- **[v2.6]** Hors saison, **jour suivant** : « Dispositif estival inactif demain. Reprise le {date}. »
 - Non encore publié : « Les statuts de demain ne sont pas encore publiés. La préfecture publie vers 17 h. »
 - Consigne absente (§8.4) : « Cette carte ne publie pas de consigne détaillée. L'arrêté préfectoral en
   vigueur fait foi : [lien]. »
@@ -1892,6 +1897,54 @@ l'écran reproduit la formulation de la carte.
   feu, ce n'est pas un périmètre officiel d'interdiction. »
 - Attribution des statuts (§9 du brief, verbatim, **jamais rédigée à la main par le thème** — elle vient de
   l'extension) : « D'après les publications de la préfecture des Bouches-du-Rhône ».
+
+> **[v2.6 — 18 août 2026] Amendement formel de la liste fermée du §11.3 — un ajout, et il s'écrit comme
+> tel.** Cette liste est **déclarée fermée** ; y faire entrer une phrase n'est pas une retouche de
+> rédaction, c'est un acte, et il se consigne — même forme que les trois amendements du §3.2.
+> **La liste reste fermée et compte désormais dix chaînes au lieu de huit.** Cet amendement **ajoute deux
+> variantes** ; il n'en retire aucune, il n'en réécrit aucune.
+>
+> **Avant** : deux chaînes de la liste ne nommaient **aucun jour**.
+> « Information du jour non disponible. Consultez la carte officielle de la préfecture. » et
+> « Dispositif estival inactif. Reprise le {date}. »
+> **Après** : les deux chaînes sont **intactes, au caractère près**, et chacune reçoit **une variante qui
+> nomme le jour qu'elle décrit** :
+> « Information de demain non disponible. Consultez la carte officielle de la préfecture. » et
+> « Dispositif estival inactif demain. Reprise le {date}. »
+>
+> **Motif : une phrase sans jour, rendue à côté d'un sélecteur de jour, affirme le jour affiché.** Le
+> rendu public place ces phrases **sous une carte dont le sélecteur vaut « aujourd'hui » par défaut**, et
+> s'en sert aussi pour décrire l'état du **lendemain**. « Information du jour non disponible. » appliquée
+> à demain énonce alors un fait **sur un jour qu'elle ne nomme pas**, et le lecteur le rapporte au jour
+> qu'il a sous les yeux. C'est exactement la confusion que le **§4.2 du brief** interdit en termes absolus
+> — « ne jamais présenter un statut périmé comme courant » —, et que le §16 compte déjà comme **défaut
+> bloquant** sous « un statut périmé présenté comme courant ». La règle existait ; il lui manquait la
+> phrase qui permet de la respecter. **Une liste fermée qui ne fournit pas la chaîne d'un état réel
+> n'oblige pas à se taire : elle oblige une chaîne d'intégration à réemployer la chaîne voisine**, ce qui
+> est précisément ce qui s'est produit.
+>
+> **Pourquoi cette rédaction, et pas une autre.** (a) La variante est **la même phrase avec le jour à la
+> même place** : « du jour » → « de demain ». Deux phrases qui décrivent le même état doivent se
+> reconnaître comme telles ; une reformulation aurait fait croire à **deux états différents**.
+> (b) Le **premier mot reste porteur** — « Information », « Dispositif » —, condition posée par le §8.3
+> pour le bandeau d'alerte, où ces chaînes paraissent aussi.
+> (c) « demain » est **déjà** le mot de cette liste : « Les statuts de demain ne sont pas encore
+> publiés. » l'emploie depuis la v1.0. Aucun vocabulaire n'est ouvert, et le §11.2 n'est pas amendé.
+> (d) La **seconde phrase ne bouge pas** — « Consultez la carte officielle de la préfecture. », « Reprise
+> le {date}. » : l'action à faire et la date de reprise ne dépendent pas du jour interrogé. La variante
+> diffère **du jour, et de rien d'autre** ; c'est ce qui la rend vérifiable en revue.
+> (e) « Reprise le {date}. » reste **conditionnelle et composée par l'extension**, jamais rédigée par le
+> thème : sans date de reprise disponible, la variante se réduit à « Dispositif estival inactif demain. »,
+> exactement comme la chaîne du jour affiché.
+>
+> **Ce que cet amendement ne fait pas.** Il ne touche **aucun gabarit** : le remplacement des littéraux de
+> `templates/parts/carte.php` appartient à la **chaîne qui possède ce fichier**, jamais à ce document —
+> même discipline qu'au §17.1. Il ne touche **ni le §11.4** (aucune de ces phrases n'est officielle : ce
+> sont des chaînes du site, et elles restent les nôtres), **ni le §11.2**, **ni le §12** — **aucun jeton,
+> aucune couleur, aucune mesure d'accessibilité** n'est en jeu. Et il **ne crée pas de troisième jour** :
+> la liste couvre le **jour affiché** et le **jour suivant**, qui sont les deux seuls jours que le site
+> publie ; toute autre échéance serait un état nouveau, donc une question au propriétaire, pas une
+> déduction (§4.2).
 
 ### 11.4 Chaînes **officielles** reproduites verbatim — ne jamais éditer
 
@@ -2581,6 +2634,8 @@ n'est pas une décision, c'est une hypothèse.** Le §16 reçoit la ligne corres
 | **D-30** | **[v2.5] Portée du §11.3 : la liste fermée borne le rendu PUBLIC, pas le portail gestionnaire.** Les chaînes du portail relèvent du §7 du brief et des règles de voix du §11.1 ; les libellés officiels y restent verbatim (§11.4) sans exception, et toute chaîne qui **paraît sur une page publique** retombe sous la liste fermée, quelle que soit la chaîne d'agents qui l'écrit | **Arbitrage du propriétaire du projet**, sur la question Q-2 du contrat #14. Le §11.3 protège **ce que voit le visiteur**, là où une phrase inventée pourrait passer pour officielle ; le portail est **interne** et ne s'adresse qu'à un gestionnaire authentifié. **Le §7.2 le corroborait déjà en rédigeant lui-même « Publier les statuts » et « 7 statuts modifiés »** — deux chaînes de portail hors liste depuis la v1.0, qu'aucune revue n'a jamais comptées comme des défauts : une liste qui se contredit ainsi n'est pas fermée, elle est fausse. Sans cet écrit, **chaque revue rouvre la question** — l'écran de publication en a écrit une vingtaine | **Étendre la liste fermée au portail** : il faudrait y faire entrer une vingtaine de chaînes d'outil, qui n'ont **aucun risque d'être prises pour officielles**, et rouvrir MASTER à chaque libellé de bouton — un document de design deviendrait un fichier de traduction. **Ne rien écrire** : c'est l'état qui a produit Q-2, et il se reproduirait à chaque écran d'administration |
 | **D-31** | **[v2.5] Retrait de l'emplacement 4 du §3.2 — le repère au bord gauche du panneau massif.** La liste fermée passe de six à **cinq** : 1, 2, 3, 6, 7. Les numéros **4 et 5 sont barrés, jamais réutilisés**. **Rien ne change à l'écran** : le code livré ne posait déjà pas ce repère | **L'emplacement ne pouvait se déclencher nulle part, par construction et non par circonstance.** Le §8.4 ligne 1 donne son repère au `h2` du nom du massif — la v2.3 l'a **réaffirmé** après D-26 — et le §3.3 interdit plus d'un repère par bloc en tranchant lui-même : « le plus proche de l'information de statut gagne ». Le `h2` gagne **toujours**, dans le seul panneau massif qui existe. **Solde la dette ouverte par A-15 du contrat #7**, que la v2.4 avait bornée par une note constatant la vacance : une note constate, elle ne borne pas. Une prescription que personne ne doit appliquer est « un piège, pas une archive » (D-27) | **La maintenir en excluant explicitement le panneau de carte** — seconde branche offerte par A-15 : elle conserverait un emplacement qui ne s'applique **à rien**, et déplacerait la même dette d'une révision à l'autre. **Retirer le repère du `h2` pour le rendre au bord du panneau** : ce serait retirer la signature du **titre de statut** pour la poser sur du chrome, exactement l'inverse de l'amendement de l'emplacement 2 en v2.3 |
 
+| **D-32** | **[v2.6] La liste fermée du §11.3 reçoit une variante datée des deux chaînes qui ne nommaient aucun jour.** « Information de demain non disponible. Consultez la carte officielle de la préfecture. » et « Dispositif estival inactif demain. Reprise le {date}. » entrent dans la liste ; **les deux chaînes du jour affiché ne sont pas éditées d'un caractère**, et la liste **reste fermée** — dix chaînes au lieu de huit. Aucun jeton, aucune couleur, aucun gabarit : le câblage appartient à la chaîne propriétaire de `templates/parts/carte.php` | **Une phrase qui ne nomme pas son jour affirme le jour affiché.** Ces deux chaînes décrivent, sous une carte dont le sélecteur vaut « aujourd'hui », l'état du **lendemain** ; le lecteur rapporte au jour qu'il a sous les yeux un fait qui porte sur un autre. Le **§4.2 du brief** l'interdit en termes absolus et le §16 le compte déjà comme défaut bloquant : la règle existait, **la phrase qui permet de la respecter manquait**. Une liste fermée sans la chaîne d'un état réel n'impose pas le silence, elle **impose le réemploi de la chaîne voisine** — c'est le mécanisme, et il s'est produit. La rédaction est **dérivée, pas inventée** : même phrase, jour à la même place (« du jour » → « de demain »), premier mot porteur conservé (§8.3), « demain » déjà présent dans la liste depuis la v1.0, seconde phrase inchangée | **Laisser les chaînes du jour affiché décrire les deux jours** : c'est l'état constaté, et il produit l'affirmation fausse. **Rédiger une phrase neuve, mieux tournée** : deux formulations différentes pour un même état se lisent comme **deux états**, et une phrase inventée dans une liste fermée passerait pour officielle — ce contre quoi le §11.3 existe. **Composer la phrase par variable, « Information du {jour} non disponible. »** : cela ferait rédiger la phrase par le gabarit à partir d'un fragment, alors que la liste fixe des **chaînes entières** ; et « du mercredi 19 août 2026 non disponible » n'est pas la voix de cette liste. **Supprimer purement la phrase pour le jour suivant** : l'absence d'information est elle-même une information due au visiteur (§5.6 du brief) |
+
 **Sur la flèche `→` : aucune décision nouvelle.** La mise en cohérence du §7.2 en v2.5 est **l'application
 de D-25**, qui n'a jamais changé et qui était mesurée. Ce n'est pas un arbitrage entre deux options : c'est
 un texte du document qui rejoint un fait établi par un autre. Aucune ligne de journal n'est donc ouverte
@@ -2712,6 +2767,12 @@ Tout élément ci-dessous constaté par `review-cms` est un **défaut bloquant**
   ou **slug/libellé inventé** : ce sont des **entrées de menu** affectées à l'emplacement `pied` (§7.3).
 - **[v2.3]** Phrase « zéro cookie » rédigée dans un gabarit : elle n'a **aucune chaîne normative** au
   §11.3, qui est une liste **fermée** (§7.3, `OUVERT`).
+- **[v2.6]** **Chaîne du §11.3 employée pour un jour qui n'est pas le sien** : « Information du jour non
+  disponible. » ou « Dispositif estival inactif. » rendue pour décrire le **jour suivant**, alors que la
+  liste fournit désormais la variante datée. Même classe d'erreur que « un statut périmé présenté comme
+  courant » (§4.2 du brief) : la phrase ne nomme pas le jour, donc elle affirme celui que le visiteur a
+  sous les yeux. **Le remplacement se fait par la chaîne de la liste, jamais par une phrase composée dans
+  le gabarit à partir d'un fragment et d'une date.**
 
 ---
 
@@ -2844,6 +2905,21 @@ ici pour qu'aucune chaîne ne rouvre le mauvais fichier.
 §17 : elle disparaît. Le §17 est fait pour les écarts **assumés durablement** ; celui-ci pour les écarts
 **ouverts par une révision et destinés à se fermer**. Confondre les deux transformerait une dette en
 exception permanente.
+
+### 17.2 [v2.6] Ce que la révision v2.6 ouvre en aval — **une ligne, à corriger dans du code**
+
+Même nature que le §17.1, mêmes règles de tenue : la v2.6 a déplacé la règle, le code livré applique
+encore l'ancienne, et **il est conforme à ce qu'on lui avait demandé**. Ce n'est le reproche d'aucune
+chaîne. **Le périmètre d'écriture de cette révision est `design-system/MASTER.md` et lui seul** : aucun
+fichier de `wp-content/`, aucun contrat, aucune issue n'a été touché.
+
+| # | Ce qui doit changer | Fichier / contrat | Qui | Nature |
+|---|---|---|---|---|
+| **1** | **`carte.php`** — le `match()` sur `$synthese_suivant['etat_global']` et son repli `catch` rendent, **pour le jour suivant**, les chaînes du **jour affiché** : `'Information du jour non disponible. …'` et `'Dispositif estival inactif.'`. À remplacer par les **variantes datées** du §11.3, mot pour mot. Les deux autres bras ne bougent pas : `disponible` reste vide, `non_encore_publie` nomme déjà son jour. **Le repli du `catch` suit la même correction** — c'est le chemin par lequel un état inconnu devient une phrase, et il ne doit pas rester le seul endroit qui affirme le mauvais jour | `wp-content/themes/massifs/templates/parts/carte.php` | chaîne propriétaire du gabarit de carte | Correction |
+
+**Ce qui n'est pas dans cette ligne, et qui doit le rester** : la chaîne du **jour affiché** rendue par le
+même gabarit ailleurs — elle est juste, elle est recopiée telle quelle dans du code et dans une recette,
+et **une passe de « cohérence » qui la réécrirait au passage casserait la liste fermée** dans l'autre sens.
 
 ---
 
