@@ -207,8 +207,22 @@ function normaliser_communes( $brutes ): ?array {
 			return null;
 		}
 
-		if ( ! isset( $brute['bbox'] ) || ! is_array( $brute['bbox'] ) || 4 !== count( $brute['bbox'] ) ) {
+		$bbox = isset( $brute['bbox'] ) && is_array( $brute['bbox'] ) ? $brute['bbox'] : null;
+
+		// LISTE de quatre NOMBRES, contrôlée avant toute lecture par indice. Une
+		// `bbox` à clés nommées — ce qu'un producteur qui change de sérialisation
+		// écrirait — satisfait `is_array()` et `count() === 4` puis ne porte aucun
+		// indice `0..3` : la lire par indices produisait quatre zéros, et la commune
+		// entrait dans la recherche avec une emprise nulle au lieu de faire rejeter
+		// l'artefact ENTIER comme l'exige l'invariant ci-dessus.
+		if ( null === $bbox || 4 !== count( $bbox ) || ! array_is_list( $bbox ) ) {
 			return null;
+		}
+
+		foreach ( $bbox as $borne ) {
+			if ( ! is_numeric( $borne ) ) {
+				return null;
+			}
 		}
 
 		$parties = normaliser_parties( isset( $brute['parties'] ) ? $brute['parties'] : null );
@@ -226,10 +240,10 @@ function normaliser_communes( $brutes ): ?array {
 			'nom'     => $nom,
 			'dep'     => texte( $brute, 'dep' ),
 			'bbox'    => array(
-				'ouest' => (float) $brute['bbox'][0],
-				'sud'   => (float) $brute['bbox'][1],
-				'est'   => (float) $brute['bbox'][2],
-				'nord'  => (float) $brute['bbox'][3],
+				'ouest' => (float) $bbox[0],
+				'sud'   => (float) $bbox[1],
+				'est'   => (float) $bbox[2],
+				'nord'  => (float) $bbox[3],
 			),
 			'parties' => $parties,
 		);
@@ -419,24 +433,34 @@ function commune_de_la_zone( array $geometrie ): array {
 		return commune_trouvee( departager_chevauchees( $zone, $chevauchees ), 0 );
 	}
 
+	/*
+	 * DEUX RÔLES, DEUX VARIABLES. `$borne` est jusqu'où il vaut encore la peine de
+	 * chercher ; `$distance` est la meilleure mesure retenue. Les confondre en une
+	 * seule variable amorcée au plafond rendait le plafond EXCLUSIF, alors que le
+	 * §4.4 dit « AU-DELÀ du plafond, silence » — la borne elle-même est incluse, et
+	 * une commune à exactement 5 000,0 m doit être nommée.
+	 */
 	$meilleure = null;
-	$distance  = $plafond;
+	$distance  = INF;
+	$borne     = $plafond;
 
 	foreach ( $candidates as $candidate ) {
-		// Les candidates sont triées : dès que l'écart d'emprises dépasse la
-		// meilleure distance connue, aucune suivante ne peut faire mieux.
-		if ( $candidate['ecart'] > $distance ) {
+		// Les candidates sont triées : dès que l'écart d'emprises dépasse la borne
+		// de recherche, aucune suivante ne peut faire mieux.
+		if ( $candidate['ecart'] > $borne ) {
 			break;
 		}
 
-		$mesure = distance_zone_commune( $zone, $candidate['commune'], $lookup['lon_m'], $lookup['lat_m'], $distance );
+		$mesure = distance_zone_commune( $zone, $candidate['commune'], $lookup['lon_m'], $lookup['lat_m'], $borne );
 
-		// Comparaison STRICTE : à distance strictement égale, la commune déjà
-		// retenue gagne, et le tri stable a conservé l'ordre du code INSEE. C'est
-		// le même départage que celui des parts, et pour la même raison : la
-		// reproductibilité, pas une préférence entre deux communes.
-		if ( $mesure < $distance ) {
+		// Acceptation LARGE contre le plafond, départage STRICT entre deux mesures :
+		// à distance strictement égale, la commune déjà retenue gagne, et le tri
+		// stable a conservé l'ordre du code INSEE. C'est le même départage que celui
+		// des parts, et pour la même raison : la reproductibilité, pas une
+		// préférence entre deux communes.
+		if ( $mesure <= $plafond && $mesure < $distance ) {
 			$distance  = $mesure;
+			$borne     = $mesure;
 			$meilleure = $candidate['commune'];
 		}
 	}
@@ -940,14 +964,14 @@ function segments_se_croisent( float $ax, float $ay, float $bx, float $by, float
  * atteinte entre un sommet de l'une et un bord de l'autre : les deux sens sont
  * donc mesurés, et aucun autre couple n'est nécessaire.
  *
- * `$borne` élague : une commune dont l'emprise est déjà plus loin que la
- * meilleure distance connue n'est pas parcourue du tout.
+ * `$borne` élague : une commune dont l'emprise est déjà plus loin que la borne
+ * de recherche n'est pas parcourue du tout.
  *
  * @param array $zone    Zone normalisée.
  * @param array $commune Entrée de l'artefact.
  * @param float $lon_m   Mètres par degré de longitude.
  * @param float $lat_m   Mètres par degré de latitude.
- * @param float $borne   Meilleure distance connue, en mètres.
+ * @param float $borne   Borne de recherche : plafond, puis meilleure mesure retenue.
  * @return float Distance en mètres, ou `INF` si l'élagage a coupé.
  */
 function distance_zone_commune( array $zone, array $commune, float $lon_m, float $lat_m, float $borne ): float {
