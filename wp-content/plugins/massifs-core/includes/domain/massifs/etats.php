@@ -36,8 +36,40 @@ const ETAT_REFERENTIEL_INDISPONIBLE = 'referentiel_indisponible';
 /** Massif disparu d'une révision source, conservé pour l'historique. */
 const ETAT_MASSIF_RETIRE = 'massif_retire';
 
-/** Aucun attribut de commune dans la source : la ligne « communes » s'omet, jamais « aucune commune ». */
+/**
+ * Aucune commune résolue : la ligne « communes » s'omet, jamais « aucune commune ».
+ *
+ * Cet état a CESSÉ D'ÊTRE PERMANENT et il est devenu atteignable. Tant qu'aucun
+ * référentiel communal n'existait, il était la seule réponse possible ; il est
+ * désormais celui d'une géométrie de zone INEXPLOITABLE — type inattendu,
+ * structure malformée, coordonnée non finie. On ne sait pas, et on le dit :
+ * deviner une commune depuis une géométrie qu'on n'a pas su lire serait affirmer
+ * sans avoir mesuré.
+ */
 const ETAT_COMMUNES_INCONNUES = 'communes_inconnues';
+
+/** Commune résolue pour la zone demandée. */
+const ETAT_COMMUNES_OK = 'communes_ok';
+
+/** Zone débordant l'emprise couverte par l'artefact, ou commune la plus proche au-delà du plafond. */
+const RAISON_COMMUNES_HORS_COUVERTURE = 'communes_hors_couverture';
+
+/** Fichier de lookup absent : les communes PAR MASSIF, elles, restent servies. */
+const RAISON_COMMUNES_ARTEFACT_ABSENT = 'communes_artefact_absent';
+
+/** Fichier de lookup illisible ou malformé : rien n'est deviné, rien n'est servi. */
+const RAISON_COMMUNES_ARTEFACT_INVALIDE = 'communes_artefact_invalide';
+
+/**
+ * Plafond de distance à une commune, en mètres.
+ *
+ * Au-delà, le serveur n'émet RIEN plutôt qu'un nom trompeur : sur un feu au
+ * large ou dans un département voisin, la commune « la plus proche » cesse
+ * d'être une information et devient une affirmation fausse. La valeur est
+ * recopiée ici pour survivre à l'absence de l'artefact ; l'artefact la porte
+ * aussi, et le module refuse un artefact qui annoncerait autre chose.
+ */
+const PLAFOND_COMMUNE_M = 5000;
 
 /** Métadonnées de géométrie absentes : la carte ne s'initialise pas, la liste porte l'information. */
 const ETAT_GEOMETRIE_INDISPONIBLE = 'geometrie_indisponible';

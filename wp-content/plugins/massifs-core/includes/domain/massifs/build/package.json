@@ -6,6 +6,7 @@
   "type": "module",
   "license": "GPL-2.0-or-later",
   "scripts": {
+    "recuperer-communes": "node recuperer-communes.mjs",
     "importer": "node importer.mjs",
     "verifier": "node verifier.mjs"
   },

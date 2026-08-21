@@ -24,6 +24,7 @@ require_once __DIR__ . '/etats.php';
 require_once __DIR__ . '/referentiel.php';
 require_once __DIR__ . '/geometrie.php';
 require_once __DIR__ . '/attribution.php';
+require_once __DIR__ . '/communes.php';
 
 if ( ! function_exists( 'massifs_referentiel' ) ) {
 	/**
@@ -184,6 +185,67 @@ if ( ! function_exists( 'massifs_attribution' ) ) {
 	 */
 	function massifs_attribution(): array {
 		return \Massifs\Domain\Massifs\attribution();
+	}
+}
+
+if ( ! function_exists( 'massifs_commune_de_la_zone' ) ) {
+	/**
+	 * Commune d'une zone de feu, ou l'absence explicite de commune.
+	 *
+	 * LECTURE PURE, sans hook et sans effet de bord, mais elle OUVRE un fichier :
+	 * elle appartient au chemin cron (ingestion EFFIS) et jamais au chemin de
+	 * rendu. L'ouverture est paresseuse — appeler n'importe quelle autre fonction
+	 * du module n'ouvre rien.
+	 *
+	 * **Le seam est de forme géométrique, et ce n'est pas un détail de commodité.**
+	 * Une signature par point serait structurellement incapable d'exprimer la
+	 * règle : « la plus grande part de la zone » a besoin de la zone. Un relecteur
+	 * qui déduit la règle de la signature doit y lire la bonne.
+	 *
+	 * Le retour est TOTAL : toutes les clés sont toujours présentes, y compris
+	 * artefact absent. `nom` est le `nom_officiel` de l'archive IGN, verbatim et
+	 * non échappé ; `distance_m` vaut 0 quand la zone chevauche la commune, sinon
+	 * la distance entre la géométrie de la zone et le bord communal le plus
+	 * proche, plafonnée à 5 000 mètres. Au-delà, ou hors de l'emprise couverte,
+	 * rien n'est nommé.
+	 *
+	 * @param array $geometrie Géométrie GeoJSON de la zone, `Polygon` ou `MultiPolygon`.
+	 * @return array{trouvee:bool,insee:string,nom:string,departement:string,distance_m:?int,etat:string}
+	 */
+	function massifs_commune_de_la_zone( array $geometrie ): array {
+		return \Massifs\Domain\Massifs\commune_de_la_zone( $geometrie );
+	}
+}
+
+if ( ! function_exists( 'massifs_commune_de_la_zone_nom' ) ) {
+	/**
+	 * Nom de la commune d'une zone de feu, ou chaîne vide.
+	 *
+	 * Commodité pour l'appelant qui ne veut que le nom, et qui doit traiter
+	 * l'absence par le SILENCE : une chaîne vide se rend par l'omission propre de
+	 * la paire, jamais par un tiret ni par « non renseigné ».
+	 *
+	 * @param array $geometrie Géométrie GeoJSON de la zone, `Polygon` ou `MultiPolygon`.
+	 * @return string
+	 */
+	function massifs_commune_de_la_zone_nom( array $geometrie ): string {
+		$commune = \Massifs\Domain\Massifs\commune_de_la_zone( $geometrie );
+
+		return $commune['trouvee'] ? $commune['nom'] : '';
+	}
+}
+
+if ( ! function_exists( 'massifs_attribution_communes' ) ) {
+	/**
+	 * Mention de source §9 du référentiel communal.
+	 *
+	 * SÉPARÉE de `massifs_attribution()`, qui porte la DDTM. Les deux ne
+	 * fusionnent jamais : deux producteurs, deux licences, deux millésimes.
+	 *
+	 * @return array{phrase:string,phrase_courte:string,lien_source:string,lien_licence:string,faits:array<string,string>}
+	 */
+	function massifs_attribution_communes(): array {
+		return \Massifs\Domain\Massifs\attribution_communes();
 	}
 }
 

@@ -2,9 +2,10 @@
  * Import du référentiel des massifs forestiers des Bouches-du-Rhône.
  *
  * Chaîne reproductible : source archivée -> réconciliation d'identités ->
- * simplification mapshaper -> émission atomique des quatre artefacts
+ * simplification mapshaper -> émission atomique des cinq artefacts
  * (`data/massifs-13.geometrie.json`, `data/massifs-13.php`,
- * `build/massifs-13.fidelite.json`, `build/reference.json`).
+ * `build/massifs-13.fidelite.json`, `build/reference.json`,
+ * `communes-13.lookup.json`).
  *
  *   node importer.mjs      (ou : npm run importer)
  *
@@ -32,6 +33,41 @@ import { gzipSync } from 'node:zlib';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+	Arret,
+	DECIMALES_COORDONNEES,
+	LAT_REFERENCE,
+	METRES_PAR_DEGRE_LAT,
+	METRES_PAR_DEGRE_LON,
+	METRES_PAR_DEGRE_LON_EQUATEUR,
+	aireAnneau,
+	aireGeometrie,
+	anneaux,
+	arrondir,
+	centroideAnneau,
+	distanceAnneau,
+	mesurerMassif,
+} from './geometrie.mjs';
+import {
+	CHEMINS_COMMUNES,
+	CHEMINS_COMMUNES_RELATIFS,
+	LICENCE_COMMUNES,
+	LOOKUP,
+	SEUILS_COMMUNES,
+	SOURCE_COMMUNES,
+	attributionCommunes,
+	communesParMassif,
+	construireLookup,
+	lireExtraitCommunes,
+	sourceCommunesParMassif,
+} from './communes.mjs';
+import { CHEMIN_MAPSHAPER, CHEMIN_MAPSHAPER_MANIFESTE, MAPSHAPER_ABSENT } from './mapshaper.mjs';
+
+/*
+ * Ré-exportés pour que la surface publique de ce fichier ne bouge pas quand ses
+ * primitives déménagent : `verifier.mjs` et les scripts voisins importent d'ici.
+ */
+export { Arret, mesurerMassif };
 
 const RACINE = path.dirname( fileURLToPath( import.meta.url ) );
 
@@ -57,8 +93,10 @@ export const CHEMINS = {
 	// recette n'a rien à faire à une URL publique.
 	fidelite: path.join( RACINE, 'massifs-13.fidelite.json' ),
 	reference: path.join( RACINE, 'reference.json' ),
-	mapshaper: path.join( RACINE, 'node_modules/mapshaper/bin/mapshaper' ),
-	mapshaper_manifeste: path.join( RACINE, 'node_modules/mapshaper/package.json' ),
+	// Repris de `mapshaper.mjs`, jamais recomposés : c'est exactement la seconde
+	// liste que l'en-tête ci-dessus interdit, et `communes.mjs` lit déjà la même.
+	mapshaper: CHEMIN_MAPSHAPER,
+	mapshaper_manifeste: CHEMIN_MAPSHAPER_MANIFESTE,
 };
 
 /** Chemin de la source archivée, relatif à la racine de l'extension, tel que consigné dans les artefacts. */
@@ -184,28 +222,27 @@ export const ATTRIBUTION = {
 	phrase_courte: 'DDTM 13 / data.gouv.fr — Licence Ouverte 2.0',
 };
 
-/** Lacune assumée : l'attribut n'existe nulle part dans la couche source. */
+/**
+ * Lacune LEVÉE : l'attribut n'existe toujours pas dans la couche source, mais la
+ * liste est désormais CALCULÉE par intersection avec le référentiel communal.
+ *
+ * `calculee` et non `disponible` : la valeur dit à un réutilisateur du JSON
+ * public que la liste résulte de NOTRE PROPRE CALCUL et n'est pas une
+ * publication officielle de la DDTM. `STATUT_COMMUNES_DEFAUT` reste `inconnue`
+ * côté PHP — c'est la seule valeur qui ne puisse jamais être relue comme
+ * « aucune commune concernée » quand le référentiel est absent.
+ *
+ * `source_pressentie` garde son nom : la clé est lue par `massifs_lacunes()`,
+ * dont la forme est gelée par le contrat #8. Elle ne nomme plus une source
+ * pressentie mais la source retenue.
+ */
 export const LACUNES = {
 	communes: {
-		statut: 'inconnue',
-		raison: 'aucun attribut de commune dans la couche L_MASSIFS_FORESTIERS_S_013',
-		source_pressentie: 'IGN ADMIN EXPRESS',
+		statut: 'calculee',
+		raison: sourceCommunesParMassif(),
+		source_pressentie: `${ SOURCE_COMMUNES.producteur } ${ SOURCE_COMMUNES.jeu_de_donnees } ${ SOURCE_COMMUNES.millesime }`,
 	},
 };
-
-/**
- * Projection locale équirectangulaire dans laquelle TOUTES les distances et
- * surfaces sont mesurées, à la latitude de référence du département.
- *
- * Les définitions consignées dans l'artefact de recette sont composées à partir
- * de ces constantes : une formule réécrite à la main dans la phrase finirait par
- * décrire une autre projection que celle qui a produit les mesures.
- */
-const LAT_REFERENCE = 43.5;
-const METRES_PAR_DEGRE_LAT = 110540;
-const METRES_PAR_DEGRE_LON_EQUATEUR = 111320;
-const METRES_PAR_DEGRE_LON =
-	METRES_PAR_DEGRE_LON_EQUATEUR * Math.cos( ( LAT_REFERENCE * Math.PI ) / 180 );
 
 /** Côté d'une tuile web-mercator, en pixels. */
 const TAILLE_TUILE_PX = 256;
@@ -215,14 +252,6 @@ const DEGRES_DE_LONGITUDE = 360;
 
 /** Borne de recherche du zoom sous-pixel : au-delà, aucun fond de carte ne propose de niveau. */
 const ZOOM_RECHERCHE_MAX = 22;
-
-/**
- * Décimales conservées sur les bbox et les centres publiés.
- *
- * C'est la précision que porte déjà la source archivée (~1,1 m) : en écrire
- * davantage annoncerait une précision que la donnée n'a pas.
- */
-const DECIMALES_COORDONNEES = 5;
 
 /**
  * Définitions portées par l'artefact de recette.
@@ -252,14 +281,8 @@ export const RECETTE = {
 	zooms_evalues: ZOOMS_EVALUES,
 };
 
-/** Message unique : deux formulations divergentes du même remède se périmeraient séparément. */
-const MAPSHAPER_ABSENT = 'mapshaper est absent : lancer `npm ci` dans includes/domain/massifs/build/.';
-
 /** Forme imposée à `MASSIFS_GENERE_LE` : ISO 8601 en UTC, à la seconde. */
 const FORME_HORODATAGE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
-
-/** Arrêt volontaire de l'import : rien n'a été écrit. */
-export class Arret extends Error {}
 
 /* -------------------------------------------------------------------------- */
 /* Utilitaires                                                                 */
@@ -287,11 +310,6 @@ export function sha256( donnees ) {
 
 function lireJson( chemin ) {
 	return JSON.parse( fs.readFileSync( chemin, 'utf8' ) );
-}
-
-function arrondir( valeur, decimales ) {
-	const facteur = 10 ** decimales;
-	return Math.round( valeur * facteur ) / facteur;
 }
 
 /** Chemin rendu relatif à `build/`, en séparateurs POSIX : rejouable sur n'importe quelle machine. */
@@ -410,211 +428,8 @@ export function echelleParZoom( zooms = ZOOMS_EVALUES ) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Géométrie                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/** Découpe une géométrie GeoJSON en parties, chaque partie = [extérieur, ...trous]. */
-function parties( geometrie ) {
-	if ( 'Polygon' === geometrie.type ) {
-		return [ geometrie.coordinates ];
-	}
-
-	if ( 'MultiPolygon' === geometrie.type ) {
-		return geometrie.coordinates;
-	}
-
-	throw new Arret( `Géométrie non surfacique : ${ geometrie.type }` );
-}
-
-function projeter( [ lon, lat ] ) {
-	return [ lon * METRES_PAR_DEGRE_LON, lat * METRES_PAR_DEGRE_LAT ];
-}
-
-function aireAnneau( anneau ) {
-	let somme = 0;
-
-	for ( let i = 0, j = anneau.length - 1; i < anneau.length; j = i, i++ ) {
-		const [ xi, yi ] = projeter( anneau[ i ] );
-		const [ xj, yj ] = projeter( anneau[ j ] );
-		somme += xj * yi - xi * yj;
-	}
-
-	return Math.abs( somme ) / 2;
-}
-
-function airePartie( partie ) {
-	const trous = partie.slice( 1 ).reduce( ( total, trou ) => total + aireAnneau( trou ), 0 );
-	return aireAnneau( partie[ 0 ] ) - trous;
-}
-
-function aireGeometrie( geometrie ) {
-	return parties( geometrie ).reduce( ( total, partie ) => total + airePartie( partie ), 0 );
-}
-
-function anneaux( geometrie ) {
-	return parties( geometrie ).flat();
-}
-
-function bboxGeometrie( geometrie ) {
-	const boite = { ouest: Infinity, sud: Infinity, est: -Infinity, nord: -Infinity };
-
-	for ( const anneau of anneaux( geometrie ) ) {
-		for ( const [ lon, lat ] of anneau ) {
-			boite.ouest = Math.min( boite.ouest, lon );
-			boite.est = Math.max( boite.est, lon );
-			boite.sud = Math.min( boite.sud, lat );
-			boite.nord = Math.max( boite.nord, lat );
-		}
-	}
-
-	return boite;
-}
-
-function centroideAnneau( anneau ) {
-	let aire2 = 0;
-	let cx = 0;
-	let cy = 0;
-
-	for ( let i = 0, j = anneau.length - 1; i < anneau.length; j = i, i++ ) {
-		const [ xi, yi ] = anneau[ i ];
-		const [ xj, yj ] = anneau[ j ];
-		const croix = xj * yi - xi * yj;
-		aire2 += croix;
-		cx += ( xj + xi ) * croix;
-		cy += ( yj + yi ) * croix;
-	}
-
-	if ( 0 === aire2 ) {
-		return anneau[ 0 ];
-	}
-
-	return [ cx / ( 3 * aire2 ), cy / ( 3 * aire2 ) ];
-}
-
-function dansAnneau( [ lon, lat ], anneau ) {
-	let dedans = false;
-
-	for ( let i = 0, j = anneau.length - 1; i < anneau.length; j = i, i++ ) {
-		const [ xi, yi ] = anneau[ i ];
-		const [ xj, yj ] = anneau[ j ];
-
-		if ( yi > lat !== yj > lat && lon < ( ( xj - xi ) * ( lat - yi ) ) / ( yj - yi ) + xi ) {
-			dedans = ! dedans;
-		}
-	}
-
-	return dedans;
-}
-
-function dansPartie( point, partie ) {
-	if ( ! dansAnneau( point, partie[ 0 ] ) ) {
-		return false;
-	}
-
-	return ! partie.slice( 1 ).some( ( trou ) => dansAnneau( point, trou ) );
-}
-
-/**
- * Point intérieur représentatif : milieu du plus long segment intérieur de la
- * ligne horizontale passant par le centroïde. Le centre ancre les étiquettes de
- * la carte ; posé hors du polygone sur un massif concave ou troué, il pointerait
- * un massif voisin.
- */
-function pointInterieur( partie ) {
-	const centroide = centroideAnneau( partie[ 0 ] );
-
-	if ( dansPartie( centroide, partie ) ) {
-		return centroide;
-	}
-
-	const lat = centroide[ 1 ];
-	const abscisses = [];
-
-	for ( const anneau of partie ) {
-		for ( let i = 0, j = anneau.length - 1; i < anneau.length; j = i, i++ ) {
-			const [ xi, yi ] = anneau[ i ];
-			const [ xj, yj ] = anneau[ j ];
-
-			if ( yi > lat !== yj > lat ) {
-				abscisses.push( ( ( xj - xi ) * ( lat - yi ) ) / ( yj - yi ) + xi );
-			}
-		}
-	}
-
-	abscisses.sort( ( a, b ) => a - b );
-
-	let meilleur = centroide;
-	let largeur = -1;
-
-	for ( let i = 0; i + 1 < abscisses.length; i += 2 ) {
-		const milieu = ( abscisses[ i ] + abscisses[ i + 1 ] ) / 2;
-
-		if ( abscisses[ i + 1 ] - abscisses[ i ] > largeur && dansPartie( [ milieu, lat ], partie ) ) {
-			largeur = abscisses[ i + 1 ] - abscisses[ i ];
-			meilleur = [ milieu, lat ];
-		}
-	}
-
-	return meilleur;
-}
-
-/** bbox + centre d'un massif, calculés sur la géométrie PRÉCISE, jamais sur la simplifiée. */
-export function mesurerMassif( geometrie ) {
-	const listeParties = parties( geometrie );
-	const principale = listeParties.reduce( ( a, b ) => ( airePartie( b ) > airePartie( a ) ? b : a ) );
-	const [ lon, lat ] = pointInterieur( principale );
-	const boite = bboxGeometrie( geometrie );
-
-	return {
-		bbox: {
-			ouest: arrondir( boite.ouest, DECIMALES_COORDONNEES ),
-			sud: arrondir( boite.sud, DECIMALES_COORDONNEES ),
-			est: arrondir( boite.est, DECIMALES_COORDONNEES ),
-			nord: arrondir( boite.nord, DECIMALES_COORDONNEES ),
-		},
-		centre: {
-			lon: arrondir( lon, DECIMALES_COORDONNEES ),
-			lat: arrondir( lat, DECIMALES_COORDONNEES ),
-		},
-	};
-}
-
-/* -------------------------------------------------------------------------- */
 /* Fidélité                                                                    */
 /* -------------------------------------------------------------------------- */
-
-function distancePointSegment( p, a, b ) {
-	const [ px, py ] = projeter( p );
-	const [ ax, ay ] = projeter( a );
-	const [ bx, by ] = projeter( b );
-	const dx = bx - ax;
-	const dy = by - ay;
-	const carre = dx * dx + dy * dy;
-	let t = 0;
-
-	if ( carre > 0 ) {
-		t = Math.max( 0, Math.min( 1, ( ( px - ax ) * dx + ( py - ay ) * dy ) / carre ) );
-	}
-
-	const ex = ax + t * dx - px;
-	const ey = ay + t * dy - py;
-
-	return Math.sqrt( ex * ex + ey * ey );
-}
-
-function distanceAnneau( point, anneau ) {
-	let minimum = Infinity;
-
-	for ( let i = 0, j = anneau.length - 1; i < anneau.length; j = i, i++ ) {
-		const distance = distancePointSegment( point, anneau[ j ], anneau[ i ] );
-
-		if ( distance < minimum ) {
-			minimum = distance;
-		}
-	}
-
-	return minimum;
-}
 
 /**
  * Apparie les anneaux source aux anneaux simplifiés, au plus proche centroïde,
@@ -900,8 +715,18 @@ export function reconcilier( sourceFC, registre ) {
 	return { lignes, journal };
 }
 
-/** Construit les 25 lignes de massif, pré-triées par `tri`. */
-export function construireLignes( appariement ) {
+/**
+ * Construit les 25 lignes de massif, pré-triées par `tri`.
+ *
+ * `communes` ne vient PAS du registre d'identités : elle est calculée au build,
+ * massif par massif, sur la source pleine précision. Le registre gèle des
+ * IDENTITÉS — un code, un libellé, un identifiant préfectoral — et une liste de
+ * communes n'en est pas une : elle se recalcule à chaque millésime communal.
+ *
+ * @param {Array}  appariement Massifs appariés à leur entité source.
+ * @param {Object} communes    Table `code -> [noms de communes]`, triée par surface décroissante.
+ */
+export function construireLignes( appariement, communes ) {
 	const lignes = appariement.map( ( { identite, feature, gid } ) => {
 		const mesures = feature
 			? mesurerMassif( feature.geometry )
@@ -911,8 +736,11 @@ export function construireLignes( appariement ) {
 			code: identite.code,
 			libelle: identite.libelle,
 			tri: slugifier( identite.libelle ),
-			communes: identite.communes,
-			communes_source: identite.communes_source,
+			communes: communes[ identite.code ] || [],
+			// Un massif retiré n'a plus de surface à intersecter : sa liste est vide
+			// parce qu'on ne sait pas, pas parce qu'aucune commune ne serait
+			// concernée. Les deux se distinguent ici, jamais par la vacuité seule.
+			communes_source: feature ? sourceCommunesParMassif() : 'inconnue',
 			actif: ! identite.retire_le,
 			retire_le: identite.retire_le,
 			bbox: mesures.bbox,
@@ -993,7 +821,7 @@ function rendrePhpValeur( valeur, retrait ) {
 }
 
 /** Assemble l'arbre de données rendu dans `data/massifs-13.php`. */
-export function construireDonnees( { lignes, geometrie, genereLe, sourceSha256, archive } ) {
+export function construireDonnees( { lignes, geometrie, genereLe, sourceSha256, archive, communes } ) {
 	// Les massifs retirés n'ont plus de géométrie, donc plus de bbox : ils ne
 	// participent pas à l'emprise.
 	const avecBbox = lignes.filter( ( ligne ) => ligne.bbox );
@@ -1066,6 +894,13 @@ export function construireDonnees( { lignes, geometrie, genereLe, sourceSha256, 
 			lien_licence: LICENCE.url,
 		},
 		geometrie,
+		/*
+		 * Bloc du référentiel communal, SÉPARÉ de `source` et de `attribution` :
+		 * deux producteurs, deux licences, deux millésimes. Les fusionner
+		 * produirait une phrase qui n'attribue correctement ni la DDTM ni l'IGN,
+		 * et la Licence Ouverte 2.0 impose une citation exacte.
+		 */
+		communes,
 		emprise: {
 			bbox: {
 				ouest: flottant( arrondir( bbox.ouest, DECIMALES_COORDONNEES ) ),
@@ -1140,8 +975,15 @@ return `;
 /* Contrôles et fichier de fidélité                                            */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Forme d'un code INSEE. Sert à REFUSER, jamais à valider : `massifs[].communes`
+ * porte des NOMS. Un code INSEE y serait expédié tel quel dans le JSON public et
+ * affiché au visiteur (interdit 6 du contrat #45).
+ */
+const FORME_CODE_INSEE = /^[0-9][0-9AB][0-9]{3}$/;
+
 /** Contrôles booléens de recette : ce qui rend §4.1 vérifiable plutôt qu'affirmé. */
-export function controler( { lignes, simplifieFC, octets, emprise } ) {
+export function controler( { lignes, simplifieFC, octets, emprise, lookup } ) {
 	const codes = lignes.map( ( ligne ) => ligne.code );
 	const regex = new RegExp( SEUILS.code_regex );
 	const formeIdentifiant = new RegExp( SEUILS.identifiant_prefecture_regex );
@@ -1171,6 +1013,34 @@ export function controler( { lignes, simplifieFC, octets, emprise } ) {
 		features_25: SEUILS.features_attendues === simplifieFC.features.length,
 		geometrie_proprietes_code_seul: proprietes,
 		budget_geometrie_tenu: octets <= SEUILS.octets_bruts_max,
+		// Un massif actif sans aucune commune signale une intersection qui n'a rien
+		// trouvé — extrait communal amputé, ou emprise fausse. Une liste vide se
+		// lirait « aucune commune concernée », ce qui serait faux.
+		communes_par_massif_peuplees: lignes
+			.filter( ( ligne ) => ligne.actif )
+			.every( ( ligne ) => Array.isArray( ligne.communes ) && ligne.communes.length > 0 ),
+		communes_sont_des_noms: lignes.every( ( ligne ) =>
+			ligne.communes.every( ( nom ) => 'string' === typeof nom && '' !== nom.trim() && ! FORME_CODE_INSEE.test( nom ) )
+		),
+		communes_par_massif_sans_doublon: lignes.every(
+			( ligne ) => new Set( ligne.communes ).size === ligne.communes.length
+		),
+		communes_source_renseignee: lignes.every(
+			( ligne ) => 'string' === typeof ligne.communes_source && '' !== ligne.communes_source
+		),
+		lookup_communes_uniques: new Set( lookup.insee ).size === lookup.insee.length,
+		lookup_marseille_unique: 1 === lookup.insee.filter( ( code ) => '13055' === code ).length,
+		lookup_noms_non_vides: lookup.noms.every( ( nom ) => 'string' === typeof nom && '' !== nom.trim() ),
+		// L'alias mouvant ne se lit dans AUCUN artefact (§2.1) : un millésime qui
+		// dérive en silence afficherait un nom de commune périmé comme courant.
+		lookup_sans_alias_de_millesime: ! lookup.contenu.includes( 'LATEST' ),
+		// La couverture annoncée doit contenir l'emprise des massifs : sinon une
+		// zone de feu du département tomberait « hors couverture » à tort.
+		lookup_couverture_contient_emprise:
+			lookup.couverture.ouest <= emprise.ouest &&
+			lookup.couverture.est >= emprise.est &&
+			lookup.couverture.sud <= emprise.sud &&
+			lookup.couverture.nord >= emprise.nord,
 		bbox_massifs_incluses_dans_emprise: lignes
 			.filter( ( ligne ) => ligne.bbox )
 			.every(
@@ -1381,7 +1251,7 @@ function afficherDerive( ancienne, nouvelle ) {
  * place à ces valeurs. Aucune taille gzip ici — la sortie de zlib varie avec sa
  * version et créerait une dérive fantôme sans aucun changement de géométrie.
  */
-function construireReference( { genereLe, mapshaper, empreinteSource, octetsSource, empreinte, octets, metriques } ) {
+function construireReference( { genereLe, mapshaper, empreinteSource, octetsSource, empreinte, octets, metriques, communes } ) {
 	return {
 		a_propos:
 			'Empreinte de référence des artefacts. ÉMIS PAR `npm run importer`, jamais édité à la main. `npm run verifier` compare les artefacts en place à ces valeurs : une différence est une dérive à expliquer. Si le changement est voulu, régénérer les artefacts ET ce fichier par `npm run importer`, dans le même commit.',
@@ -1402,6 +1272,29 @@ function construireReference( { genereLe, mapshaper, empreinteSource, octetsSour
 			sommets: metriques.global_metrics.out_vertices,
 			ecart_max_m: metriques.global_metrics.max_deviation_m,
 		},
+		/*
+		 * Le référentiel communal entre dans la même empreinte de référence que la
+		 * géométrie, et pour la même raison : `npm run verifier` doit pouvoir dire
+		 * que l'artefact en place est LE MÊME qu'au dernier import assumé, et pas
+		 * seulement qu'il tient les seuils. Le millésime y figure parce qu'un
+		 * changement de millésime change des noms de communes sans changer une
+		 * seule ligne de code.
+		 */
+		communes: {
+			millesime: communes.millesime,
+			extrait: {
+				fichier: CHEMINS_COMMUNES_RELATIFS.extrait,
+				sha256: communes.extrait_sha256,
+				octets: communes.extrait_octets,
+			},
+			lookup: {
+				fichier: CHEMINS_COMMUNES_RELATIFS.lookup,
+				sha256: communes.lookup_sha256,
+				octets: communes.lookup_octets,
+				communes: communes.nombre,
+				sommets: communes.sommets,
+			},
+		},
 	};
 }
 
@@ -1415,9 +1308,33 @@ export async function importer() {
 	const mapshaper = versionMapshaper();
 
 	const { lignes: appariement, journal } = reconcilier( sourceFC, registre );
-	const lignes = construireLignes( appariement );
+
+	/*
+	 * Référentiel communal. L'intersection se fait sur `sourceFC` — la source
+	 * PLEINE PRÉCISION — et jamais sur la géométrie simplifiée : cette dernière a
+	 * perdu ses îlots de moins de 25 ha et subi 90 m de Douglas-Peucker, et une
+	 * commune y apparaîtrait ou en disparaîtrait pour des raisons de rendu (§4.2).
+	 */
+	const extraitCommunes = lireExtraitCommunes();
+	const { parMassif, mesures: mesuresCommunes } = communesParMassif(
+		appariement.map( ( { identite, feature } ) => ( { code: identite.code, feature } ) ),
+		extraitCommunes.fc
+	);
+	const lookup = construireLookup( extraitCommunes.fc, extraitCommunes.manifeste.decoupe );
+	const artefactLookup = JSON.parse( lookup.contenu.toString( 'utf8' ) );
+	// Empreinte calculée UNE FOIS : `data/massifs-13.php` et `reference.json` la
+	// portent tous les deux, et deux calculs de la même empreinte sont deux
+	// occasions d'en consigner deux différentes.
+	const empreinteLookup = sha256( lookup.contenu );
+
+	const lignes = construireLignes( appariement, parMassif );
 
 	journal.forEach( ( entree ) => process.stdout.write( `  · ${ entree }\n` ) );
+
+	process.stdout.write(
+		`  · communes : millésime ${ SOURCE_COMMUNES.millesime }, ${ lookup.communes } dans le lookup ` +
+			`(${ lookup.contenu.length } octets, ${ lookup.sommets } sommets)\n`
+	);
 
 	const { contenu: geometrieBrute, argv } = simplifier( sourceFC );
 	const simplifieFC = JSON.parse( geometrieBrute.toString( 'utf8' ) );
@@ -1446,6 +1363,47 @@ export async function importer() {
 			tolerance_m: SIMPLIFICATION.intervalle_m,
 			precision_decimales: SIMPLIFICATION.precision_decimales,
 		},
+		communes: {
+			producteur: SOURCE_COMMUNES.producteur,
+			jeu_de_donnees: SOURCE_COMMUNES.jeu_de_donnees,
+			couche: SOURCE_COMMUNES.couche,
+			// Le millésime RÉSOLU, jamais l'alias (§2.1).
+			millesime: SOURCE_COMMUNES.millesime,
+			edition: SOURCE_COMMUNES.edition,
+			edition_libelle: SOURCE_COMMUNES.edition_libelle,
+			crs: SOURCE_COMMUNES.crs,
+			departements: SOURCE_COMMUNES.departements,
+			licence: LICENCE_COMMUNES,
+			attribution: attributionCommunes(),
+			seuil_massif_pct: SEUILS_COMMUNES.seuil_massif_pct,
+			plafond_m: SEUILS_COMMUNES.plafond_m,
+			source_liste: sourceCommunesParMassif(),
+			archive: {
+				fichier: CHEMINS_COMMUNES_RELATIFS.extrait,
+				sha256: sha256( extraitCommunes.brut ),
+				octets: extraitCommunes.octets,
+				recupere_le: extraitCommunes.manifeste.recupere_le,
+			},
+			// Métadonnées de l'artefact de lookup. Le module PHP les lit pour SITUER le
+			// fichier, jamais pour se dispenser de le valider : il est ouvert et contrôlé
+			// à chaque fois qu'il sert.
+			lookup: {
+				fichier: CHEMINS_COMMUNES_RELATIFS.lookup,
+				sha256: empreinteLookup,
+				octets: lookup.contenu.length,
+				nombre: lookup.communes,
+				sommets: lookup.sommets,
+				algorithme: LOOKUP.algorithme,
+				tolerance_m: LOOKUP.intervalle_m,
+				precision_decimales: LOOKUP.precision_decimales,
+				couverture: {
+					ouest: flottant( lookup.couverture.ouest ),
+					sud: flottant( lookup.couverture.sud ),
+					est: flottant( lookup.couverture.est ),
+					nord: flottant( lookup.couverture.nord ),
+				},
+			},
+		},
 	} );
 
 	const emprise = {
@@ -1454,7 +1412,18 @@ export async function importer() {
 		est: donnees.emprise.bbox.est.__flottant,
 		nord: donnees.emprise.bbox.nord.__flottant,
 	};
-	const controles = controler( { lignes, simplifieFC, octets, emprise } );
+	const controles = controler( {
+		lignes,
+		simplifieFC,
+		octets,
+		emprise,
+		lookup: {
+			insee: artefactLookup.communes.map( ( commune ) => commune.insee ),
+			noms: artefactLookup.communes.map( ( commune ) => commune.nom ),
+			contenu: lookup.contenu.toString( 'utf8' ),
+			couverture: lookup.couverture,
+		},
+	} );
 	const conclusion = verdict( controles, metriques, octets );
 
 	if ( 'conforme' !== conclusion.statut ) {
@@ -1518,6 +1487,33 @@ export async function importer() {
 		seuils: SEUILS,
 		global_metrics: metriques.global_metrics,
 		per_massif: metriques.per_massif,
+		/*
+		 * Communes par massif : la PREUVE du seuil, pas son affirmation. Chaque part
+		 * mesurée est consignée, y compris celles rejetées — sans elles, personne ne
+		 * peut voir qu'une commune est passée à 0,9 % et savoir que c'est le seuil,
+		 * et non une intersection ratée, qui l'a écartée.
+		 */
+		communes: {
+			a_propos:
+				'Intersection des périmètres DDTM pleine précision avec l\'extrait communal IGN. Surfaces mesurées dans la projection ci-dessus. Une commune est retenue au-delà de `seuil_pct` de la surface du massif ; l\'ordre est celui des surfaces décroissantes.',
+			millesime: SOURCE_COMMUNES.millesime,
+			seuil_pct: SEUILS_COMMUNES.seuil_massif_pct,
+			plafond_m: SEUILS_COMMUNES.plafond_m,
+			extrait: {
+				fichier: CHEMINS_COMMUNES_RELATIFS.extrait,
+				communes: extraitCommunes.fc.features.length,
+				octets: extraitCommunes.octets,
+			},
+			lookup: {
+				fichier: CHEMINS_COMMUNES_RELATIFS.lookup,
+				communes: lookup.communes,
+				sommets: lookup.sommets,
+				octets: lookup.contenu.length,
+				intervalle_m: LOOKUP.intervalle_m,
+				couverture: lookup.couverture,
+			},
+			par_massif: mesuresCommunes,
+		},
 		controles,
 		verdict: conclusion,
 	};
@@ -1530,6 +1526,15 @@ export async function importer() {
 		empreinte,
 		octets,
 		metriques,
+		communes: {
+			millesime: SOURCE_COMMUNES.millesime,
+			extrait_sha256: donnees.communes.archive.sha256,
+			extrait_octets: extraitCommunes.octets,
+			lookup_sha256: empreinteLookup,
+			lookup_octets: lookup.contenu.length,
+			nombre: lookup.communes,
+			sommets: lookup.sommets,
+		},
 	} );
 
 	afficherDerive( fs.existsSync( CHEMINS.reference ) ? lireJson( CHEMINS.reference ) : null, reference );
@@ -1539,6 +1544,10 @@ export async function importer() {
 		{ chemin: CHEMINS.metadonnees, contenu: rendrePhp( donnees ) },
 		{ chemin: CHEMINS.fidelite, contenu: `${ JSON.stringify( fidelite, null, 2 ) }\n` },
 		{ chemin: CHEMINS.reference, contenu: `${ JSON.stringify( reference, null, 2 ) }\n` },
+		// L'artefact de lookup part dans le MÊME renommage en bloc que les autres :
+		// des communes par massif d'un millésime et des polygones d'un autre se
+		// contrediraient sans que rien ne le signale.
+		{ chemin: CHEMINS_COMMUNES.lookup, contenu: lookup.contenu },
 	] );
 
 	process.stdout.write(

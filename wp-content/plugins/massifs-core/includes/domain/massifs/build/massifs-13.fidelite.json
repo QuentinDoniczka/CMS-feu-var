@@ -1,7 +1,7 @@
 {
   "artefact": "massifs-13.geometrie.json",
   "a_propos": "Recette de fidélité des périmètres (§4.1, §12). Artefact de recette : hors contrat, aucun consommateur applicatif ne le lit. Régénéré par `npm run importer`, revérifié par `npm run verifier`.",
-  "genere_le": "2026-08-17T07:54:55Z",
+  "genere_le": "2026-08-20T06:34:29Z",
   "source": {
     "file": "includes/domain/massifs/build/source/massifs-13.full.geojson",
     "features": 25,
@@ -522,6 +522,1272 @@
       "quantization_max_m": 6.402
     }
   ],
+  "communes": {
+    "a_propos": "Intersection des périmètres DDTM pleine précision avec l'extrait communal IGN. Surfaces mesurées dans la projection ci-dessus. Une commune est retenue au-delà de `seuil_pct` de la surface du massif ; l'ordre est celui des surfaces décroissantes.",
+    "millesime": "2026",
+    "seuil_pct": 1,
+    "plafond_m": 5000,
+    "extrait": {
+      "fichier": "includes/domain/massifs/build/source/communes-13-limitrophes.geojson",
+      "communes": 298,
+      "octets": 1494991
+    },
+    "lookup": {
+      "fichier": "includes/domain/massifs/communes-13.lookup.json",
+      "communes": 298,
+      "sommets": 27890,
+      "octets": 501375,
+      "intervalle_m": 25,
+      "couverture": {
+        "ouest": 4.56834,
+        "sud": 43.05254,
+        "est": 5.90133,
+        "nord": 44.00715
+      }
+    },
+    "par_massif": [
+      {
+        "code": "alpilles",
+        "aire_m2": 194898616,
+        "candidates": 27,
+        "retenues": 15,
+        "parts": [
+          {
+            "insee": "13100",
+            "nom": "Saint-Rémy-de-Provence",
+            "part_pct": 16.428
+          },
+          {
+            "insee": "13035",
+            "nom": "Eyguières",
+            "part_pct": 15.185
+          },
+          {
+            "insee": "13067",
+            "nom": "Orgon",
+            "part_pct": 10.061
+          },
+          {
+            "insee": "13034",
+            "nom": "Eygalières",
+            "part_pct": 9.443
+          },
+          {
+            "insee": "13038",
+            "nom": "Fontvieille",
+            "part_pct": 9.258
+          },
+          {
+            "insee": "13058",
+            "nom": "Maussane-les-Alpilles",
+            "part_pct": 6.765
+          },
+          {
+            "insee": "13011",
+            "nom": "Les Baux-de-Provence",
+            "part_pct": 6.674
+          },
+          {
+            "insee": "13065",
+            "nom": "Mouriès",
+            "part_pct": 6.336
+          },
+          {
+            "insee": "13094",
+            "nom": "Saint-Étienne-du-Grès",
+            "part_pct": 5.727
+          },
+          {
+            "insee": "13006",
+            "nom": "Aureille",
+            "part_pct": 4.672
+          },
+          {
+            "insee": "13068",
+            "nom": "Paradou",
+            "part_pct": 2.125
+          },
+          {
+            "insee": "13049",
+            "nom": "Lamanon",
+            "part_pct": 2.065
+          },
+          {
+            "insee": "13108",
+            "nom": "Tarascon",
+            "part_pct": 1.795
+          },
+          {
+            "insee": "13097",
+            "nom": "Saint-Martin-de-Crau",
+            "part_pct": 1.732
+          },
+          {
+            "insee": "13105",
+            "nom": "Sénas",
+            "part_pct": 1.01
+          },
+          {
+            "insee": "13076",
+            "nom": "Plan-d'Orgon",
+            "part_pct": 0.471
+          },
+          {
+            "insee": "13004",
+            "nom": "Arles",
+            "part_pct": 0.131
+          },
+          {
+            "insee": "13057",
+            "nom": "Mas-Blanc-des-Alpilles",
+            "part_pct": 0.122
+          }
+        ]
+      },
+      {
+        "code": "arbois",
+        "aire_m2": 116807780,
+        "candidates": 18,
+        "retenues": 9,
+        "parts": [
+          {
+            "insee": "13001",
+            "nom": "Aix-en-Provence",
+            "part_pct": 24.985
+          },
+          {
+            "insee": "13019",
+            "nom": "Cabriès",
+            "part_pct": 19.117
+          },
+          {
+            "insee": "13117",
+            "nom": "Vitrolles",
+            "part_pct": 16.247
+          },
+          {
+            "insee": "13112",
+            "nom": "Velaux",
+            "part_pct": 11.393
+          },
+          {
+            "insee": "13114",
+            "nom": "Ventabren",
+            "part_pct": 10.893
+          },
+          {
+            "insee": "13081",
+            "nom": "Rognac",
+            "part_pct": 6.941
+          },
+          {
+            "insee": "13071",
+            "nom": "Les Pennes-Mirabeau",
+            "part_pct": 5.281
+          },
+          {
+            "insee": "13014",
+            "nom": "Berre-l'Étang",
+            "part_pct": 1.917
+          },
+          {
+            "insee": "13015",
+            "nom": "Bouc-Bel-Air",
+            "part_pct": 1.46
+          },
+          {
+            "insee": "13054",
+            "nom": "Marignane",
+            "part_pct": 0.702
+          },
+          {
+            "insee": "13102",
+            "nom": "Saint-Victoret",
+            "part_pct": 0.543
+          },
+          {
+            "insee": "13118",
+            "nom": "Coudoux",
+            "part_pct": 0.51
+          },
+          {
+            "insee": "13032",
+            "nom": "Éguilles",
+            "part_pct": 0.011
+          },
+          {
+            "insee": "13037",
+            "nom": "La Fare-les-Oliviers",
+            "part_pct": 0
+          }
+        ]
+      },
+      {
+        "code": "calanques",
+        "aire_m2": 76844737,
+        "candidates": 4,
+        "retenues": 2,
+        "parts": [
+          {
+            "insee": "13055",
+            "nom": "Marseille",
+            "part_pct": 93.088
+          },
+          {
+            "insee": "13022",
+            "nom": "Cassis",
+            "part_pct": 6.312
+          },
+          {
+            "insee": "13005",
+            "nom": "Aubagne",
+            "part_pct": 0.018
+          },
+          {
+            "insee": "13070",
+            "nom": "La Penne-sur-Huveaune",
+            "part_pct": 0.009
+          }
+        ]
+      },
+      {
+        "code": "cap-canaille",
+        "aire_m2": 15633342,
+        "candidates": 3,
+        "retenues": 2,
+        "parts": [
+          {
+            "insee": "13028",
+            "nom": "La Ciotat",
+            "part_pct": 61.56
+          },
+          {
+            "insee": "13022",
+            "nom": "Cassis",
+            "part_pct": 36.777
+          }
+        ]
+      },
+      {
+        "code": "castillon",
+        "aire_m2": 38255802,
+        "candidates": 7,
+        "retenues": 5,
+        "parts": [
+          {
+            "insee": "13098",
+            "nom": "Saint-Mitre-les-Remparts",
+            "part_pct": 36.135
+          },
+          {
+            "insee": "13039",
+            "nom": "Fos-sur-Mer",
+            "part_pct": 23.398
+          },
+          {
+            "insee": "13056",
+            "nom": "Martigues",
+            "part_pct": 15.982
+          },
+          {
+            "insee": "13047",
+            "nom": "Istres",
+            "part_pct": 14.496
+          },
+          {
+            "insee": "13077",
+            "nom": "Port-de-Bouc",
+            "part_pct": 9.699
+          }
+        ]
+      },
+      {
+        "code": "chaine-des-cotes",
+        "aire_m2": 44069643,
+        "candidates": 9,
+        "retenues": 6,
+        "parts": [
+          {
+            "insee": "13050",
+            "nom": "Lambesc",
+            "part_pct": 36.573
+          },
+          {
+            "insee": "13082",
+            "nom": "Rognes",
+            "part_pct": 25.181
+          },
+          {
+            "insee": "13084",
+            "nom": "La Roque-d'Anthéron",
+            "part_pct": 24.149
+          },
+          {
+            "insee": "13024",
+            "nom": "Charleval",
+            "part_pct": 8.542
+          },
+          {
+            "insee": "13115",
+            "nom": "Vernègues",
+            "part_pct": 2.818
+          },
+          {
+            "insee": "13053",
+            "nom": "Mallemort",
+            "part_pct": 2.736
+          }
+        ]
+      },
+      {
+        "code": "chambremont",
+        "aire_m2": 17313875,
+        "candidates": 5,
+        "retenues": 3,
+        "parts": [
+          {
+            "insee": "13097",
+            "nom": "Saint-Martin-de-Crau",
+            "part_pct": 88.209
+          },
+          {
+            "insee": "13004",
+            "nom": "Arles",
+            "part_pct": 7.919
+          },
+          {
+            "insee": "13065",
+            "nom": "Mouriès",
+            "part_pct": 2.929
+          },
+          {
+            "insee": "13058",
+            "nom": "Maussane-les-Alpilles",
+            "part_pct": 0.733
+          },
+          {
+            "insee": "13068",
+            "nom": "Paradou",
+            "part_pct": 0.21
+          }
+        ]
+      },
+      {
+        "code": "collines-de-gardanne",
+        "aire_m2": 23245681,
+        "candidates": 10,
+        "retenues": 5,
+        "parts": [
+          {
+            "insee": "13041",
+            "nom": "Gardanne",
+            "part_pct": 41.732
+          },
+          {
+            "insee": "13040",
+            "nom": "Fuveau",
+            "part_pct": 35.713
+          },
+          {
+            "insee": "13062",
+            "nom": "Mimet",
+            "part_pct": 15.62
+          },
+          {
+            "insee": "13107",
+            "nom": "Simiane-Collongue",
+            "part_pct": 4.687
+          },
+          {
+            "insee": "13046",
+            "nom": "Gréasque",
+            "part_pct": 1.437
+          },
+          {
+            "insee": "13101",
+            "nom": "Saint-Savournin",
+            "part_pct": 0.497
+          },
+          {
+            "insee": "13060",
+            "nom": "Meyreuil",
+            "part_pct": 0.314
+          }
+        ]
+      },
+      {
+        "code": "concors",
+        "aire_m2": 198964398,
+        "candidates": 26,
+        "retenues": 8,
+        "parts": [
+          {
+            "insee": "13048",
+            "nom": "Jouques",
+            "part_pct": 30.243
+          },
+          {
+            "insee": "13099",
+            "nom": "Saint-Paul-lès-Durance",
+            "part_pct": 18.41
+          },
+          {
+            "insee": "13111",
+            "nom": "Vauvenargues",
+            "part_pct": 15.21
+          },
+          {
+            "insee": "13059",
+            "nom": "Meyrargues",
+            "part_pct": 11.425
+          },
+          {
+            "insee": "13074",
+            "nom": "Peyrolles-en-Provence",
+            "part_pct": 11.134
+          },
+          {
+            "insee": "13095",
+            "nom": "Saint-Marc-Jaumegarde",
+            "part_pct": 7.751
+          },
+          {
+            "insee": "13113",
+            "nom": "Venelles",
+            "part_pct": 3.492
+          },
+          {
+            "insee": "13001",
+            "nom": "Aix-en-Provence",
+            "part_pct": 2.198
+          },
+          {
+            "insee": "83104",
+            "nom": "Rians",
+            "part_pct": 0.084
+          },
+          {
+            "insee": "83150",
+            "nom": "Vinon-sur-Verdon",
+            "part_pct": 0.043
+          },
+          {
+            "insee": "83066",
+            "nom": "Ginasservis",
+            "part_pct": 0.007
+          },
+          {
+            "insee": "84014",
+            "nom": "Beaumont-de-Pertuis",
+            "part_pct": 0.004
+          },
+          {
+            "insee": "13079",
+            "nom": "Puyloubier",
+            "part_pct": 0
+          }
+        ]
+      },
+      {
+        "code": "cote-bleue",
+        "aire_m2": 131197675,
+        "candidates": 13,
+        "retenues": 8,
+        "parts": [
+          {
+            "insee": "13056",
+            "nom": "Martigues",
+            "part_pct": 28.139
+          },
+          {
+            "insee": "13033",
+            "nom": "Ensuès-la-Redonne",
+            "part_pct": 17.728
+          },
+          {
+            "insee": "13088",
+            "nom": "Le Rove",
+            "part_pct": 15.446
+          },
+          {
+            "insee": "13026",
+            "nom": "Châteauneuf-les-Martigues",
+            "part_pct": 10.144
+          },
+          {
+            "insee": "13071",
+            "nom": "Les Pennes-Mirabeau",
+            "part_pct": 8.855
+          },
+          {
+            "insee": "13104",
+            "nom": "Sausset-les-Pins",
+            "part_pct": 7.128
+          },
+          {
+            "insee": "13021",
+            "nom": "Carry-le-Rouet",
+            "part_pct": 6.543
+          },
+          {
+            "insee": "13055",
+            "nom": "Marseille",
+            "part_pct": 4.824
+          },
+          {
+            "insee": "13106",
+            "nom": "Septèmes-les-Vallons",
+            "part_pct": 0.785
+          },
+          {
+            "insee": "13043",
+            "nom": "Gignac-la-Nerthe",
+            "part_pct": 0.167
+          }
+        ]
+      },
+      {
+        "code": "etoile",
+        "aire_m2": 87842431,
+        "candidates": 16,
+        "retenues": 9,
+        "parts": [
+          {
+            "insee": "13107",
+            "nom": "Simiane-Collongue",
+            "part_pct": 26.504
+          },
+          {
+            "insee": "13055",
+            "nom": "Marseille",
+            "part_pct": 19.605
+          },
+          {
+            "insee": "13106",
+            "nom": "Septèmes-les-Vallons",
+            "part_pct": 14.117
+          },
+          {
+            "insee": "13002",
+            "nom": "Allauch",
+            "part_pct": 13.45
+          },
+          {
+            "insee": "13062",
+            "nom": "Mimet",
+            "part_pct": 12.525
+          },
+          {
+            "insee": "13075",
+            "nom": "Plan-de-Cuques",
+            "part_pct": 5.653
+          },
+          {
+            "insee": "13020",
+            "nom": "Cadolive",
+            "part_pct": 3.165
+          },
+          {
+            "insee": "13101",
+            "nom": "Saint-Savournin",
+            "part_pct": 2.756
+          },
+          {
+            "insee": "13015",
+            "nom": "Bouc-Bel-Air",
+            "part_pct": 1.707
+          },
+          {
+            "insee": "13073",
+            "nom": "Peypin",
+            "part_pct": 0.333
+          },
+          {
+            "insee": "13071",
+            "nom": "Les Pennes-Mirabeau",
+            "part_pct": 0.184
+          }
+        ]
+      },
+      {
+        "code": "garlaban",
+        "aire_m2": 57692524,
+        "candidates": 14,
+        "retenues": 6,
+        "parts": [
+          {
+            "insee": "13002",
+            "nom": "Allauch",
+            "part_pct": 46.948
+          },
+          {
+            "insee": "13005",
+            "nom": "Aubagne",
+            "part_pct": 17.825
+          },
+          {
+            "insee": "13086",
+            "nom": "Roquevaire",
+            "part_pct": 16.806
+          },
+          {
+            "insee": "13073",
+            "nom": "Peypin",
+            "part_pct": 8.716
+          },
+          {
+            "insee": "13055",
+            "nom": "Marseille",
+            "part_pct": 8.272
+          },
+          {
+            "insee": "13031",
+            "nom": "La Destrousse",
+            "part_pct": 1.303
+          },
+          {
+            "insee": "13007",
+            "nom": "Auriol",
+            "part_pct": 0.13
+          }
+        ]
+      },
+      {
+        "code": "grand-caunet",
+        "aire_m2": 86961492,
+        "candidates": 14,
+        "retenues": 9,
+        "parts": [
+          {
+            "insee": "13085",
+            "nom": "Roquefort-la-Bédoule",
+            "part_pct": 29.572
+          },
+          {
+            "insee": "13023",
+            "nom": "Ceyreste",
+            "part_pct": 23.469
+          },
+          {
+            "insee": "13005",
+            "nom": "Aubagne",
+            "part_pct": 15.369
+          },
+          {
+            "insee": "13022",
+            "nom": "Cassis",
+            "part_pct": 10.061
+          },
+          {
+            "insee": "13030",
+            "nom": "Cuges-les-Pins",
+            "part_pct": 8.238
+          },
+          {
+            "insee": "13028",
+            "nom": "La Ciotat",
+            "part_pct": 8.065
+          },
+          {
+            "insee": "13070",
+            "nom": "La Penne-sur-Huveaune",
+            "part_pct": 1.756
+          },
+          {
+            "insee": "13042",
+            "nom": "Gémenos",
+            "part_pct": 1.675
+          },
+          {
+            "insee": "13119",
+            "nom": "Carnoux-en-Provence",
+            "part_pct": 1.427
+          },
+          {
+            "insee": "83035",
+            "nom": "Le Castellet",
+            "part_pct": 0.18
+          },
+          {
+            "insee": "83027",
+            "nom": "La Cadière-d'Azur",
+            "part_pct": 0.113
+          },
+          {
+            "insee": "13055",
+            "nom": "Marseille",
+            "part_pct": 0.04
+          },
+          {
+            "insee": "83112",
+            "nom": "Saint-Cyr-sur-Mer",
+            "part_pct": 0.004
+          }
+        ]
+      },
+      {
+        "code": "lancon",
+        "aire_m2": 48757300,
+        "candidates": 13,
+        "retenues": 4,
+        "parts": [
+          {
+            "insee": "13051",
+            "nom": "Lançon-Provence",
+            "part_pct": 54.648
+          },
+          {
+            "insee": "13092",
+            "nom": "Saint-Chamas",
+            "part_pct": 30.601
+          },
+          {
+            "insee": "13037",
+            "nom": "La Fare-les-Oliviers",
+            "part_pct": 11.286
+          },
+          {
+            "insee": "13029",
+            "nom": "Cornillon-Confoux",
+            "part_pct": 2.985
+          },
+          {
+            "insee": "13103",
+            "nom": "Salon-de-Provence",
+            "part_pct": 0.403
+          },
+          {
+            "insee": "13069",
+            "nom": "Pélissanne",
+            "part_pct": 0.057
+          }
+        ]
+      },
+      {
+        "code": "les-roques",
+        "aire_m2": 48993882,
+        "candidates": 12,
+        "retenues": 8,
+        "parts": [
+          {
+            "insee": "13103",
+            "nom": "Salon-de-Provence",
+            "part_pct": 22.802
+          },
+          {
+            "insee": "13008",
+            "nom": "Aurons",
+            "part_pct": 18.254
+          },
+          {
+            "insee": "13115",
+            "nom": "Vernègues",
+            "part_pct": 16.982
+          },
+          {
+            "insee": "13050",
+            "nom": "Lambesc",
+            "part_pct": 14.013
+          },
+          {
+            "insee": "13003",
+            "nom": "Alleins",
+            "part_pct": 10.024
+          },
+          {
+            "insee": "13069",
+            "nom": "Pélissanne",
+            "part_pct": 7.865
+          },
+          {
+            "insee": "13049",
+            "nom": "Lamanon",
+            "part_pct": 7.796
+          },
+          {
+            "insee": "13053",
+            "nom": "Mallemort",
+            "part_pct": 2.264
+          }
+        ]
+      },
+      {
+        "code": "montagnette",
+        "aire_m2": 34173657,
+        "candidates": 9,
+        "retenues": 4,
+        "parts": [
+          {
+            "insee": "13010",
+            "nom": "Barbentane",
+            "part_pct": 31.453
+          },
+          {
+            "insee": "13017",
+            "nom": "Boulbon",
+            "part_pct": 29.059
+          },
+          {
+            "insee": "13108",
+            "nom": "Tarascon",
+            "part_pct": 28.242
+          },
+          {
+            "insee": "13045",
+            "nom": "Graveson",
+            "part_pct": 11.246
+          }
+        ]
+      },
+      {
+        "code": "montaiguet",
+        "aire_m2": 26476333,
+        "candidates": 10,
+        "retenues": 4,
+        "parts": [
+          {
+            "insee": "13060",
+            "nom": "Meyreuil",
+            "part_pct": 36.926
+          },
+          {
+            "insee": "13001",
+            "nom": "Aix-en-Provence",
+            "part_pct": 30.957
+          },
+          {
+            "insee": "13015",
+            "nom": "Bouc-Bel-Air",
+            "part_pct": 23.852
+          },
+          {
+            "insee": "13041",
+            "nom": "Gardanne",
+            "part_pct": 8.021
+          },
+          {
+            "insee": "13109",
+            "nom": "Le Tholonet",
+            "part_pct": 0.244
+          }
+        ]
+      },
+      {
+        "code": "pont-de-rhaud",
+        "aire_m2": 21652444,
+        "candidates": 7,
+        "retenues": 5,
+        "parts": [
+          {
+            "insee": "13044",
+            "nom": "Grans",
+            "part_pct": 31.412
+          },
+          {
+            "insee": "13063",
+            "nom": "Miramas",
+            "part_pct": 30.315
+          },
+          {
+            "insee": "13029",
+            "nom": "Cornillon-Confoux",
+            "part_pct": 27.307
+          },
+          {
+            "insee": "13092",
+            "nom": "Saint-Chamas",
+            "part_pct": 8.245
+          },
+          {
+            "insee": "13103",
+            "nom": "Salon-de-Provence",
+            "part_pct": 2.618
+          },
+          {
+            "insee": "13051",
+            "nom": "Lançon-Provence",
+            "part_pct": 0.084
+          }
+        ]
+      },
+      {
+        "code": "quatre-termes",
+        "aire_m2": 79057216,
+        "candidates": 14,
+        "retenues": 9,
+        "parts": [
+          {
+            "insee": "13009",
+            "nom": "La Barben",
+            "part_pct": 23.028
+          },
+          {
+            "insee": "13032",
+            "nom": "Éguilles",
+            "part_pct": 19.687
+          },
+          {
+            "insee": "13051",
+            "nom": "Lançon-Provence",
+            "part_pct": 13.737
+          },
+          {
+            "insee": "13050",
+            "nom": "Lambesc",
+            "part_pct": 12.575
+          },
+          {
+            "insee": "13091",
+            "nom": "Saint-Cannat",
+            "part_pct": 12.367
+          },
+          {
+            "insee": "13118",
+            "nom": "Coudoux",
+            "part_pct": 7.65
+          },
+          {
+            "insee": "13114",
+            "nom": "Ventabren",
+            "part_pct": 5.729
+          },
+          {
+            "insee": "13069",
+            "nom": "Pélissanne",
+            "part_pct": 3.177
+          },
+          {
+            "insee": "13001",
+            "nom": "Aix-en-Provence",
+            "part_pct": 2.011
+          },
+          {
+            "insee": "13037",
+            "nom": "La Fare-les-Oliviers",
+            "part_pct": 0.039
+          }
+        ]
+      },
+      {
+        "code": "regagnas",
+        "aire_m2": 98603480,
+        "candidates": 21,
+        "retenues": 9,
+        "parts": [
+          {
+            "insee": "13110",
+            "nom": "Trets",
+            "part_pct": 38.857
+          },
+          {
+            "insee": "13072",
+            "nom": "Peynier",
+            "part_pct": 17.21
+          },
+          {
+            "insee": "13013",
+            "nom": "Belcodène",
+            "part_pct": 11.133
+          },
+          {
+            "insee": "13007",
+            "nom": "Auriol",
+            "part_pct": 9.333
+          },
+          {
+            "insee": "13016",
+            "nom": "La Bouilladisse",
+            "part_pct": 7.799
+          },
+          {
+            "insee": "13040",
+            "nom": "Fuveau",
+            "part_pct": 5.343
+          },
+          {
+            "insee": "13073",
+            "nom": "Peypin",
+            "part_pct": 4.357
+          },
+          {
+            "insee": "13046",
+            "nom": "Gréasque",
+            "part_pct": 3.615
+          },
+          {
+            "insee": "13101",
+            "nom": "Saint-Savournin",
+            "part_pct": 1.71
+          },
+          {
+            "insee": "13020",
+            "nom": "Cadolive",
+            "part_pct": 0.396
+          },
+          {
+            "insee": "13031",
+            "nom": "La Destrousse",
+            "part_pct": 0.102
+          },
+          {
+            "insee": "83120",
+            "nom": "Saint-Zacharie",
+            "part_pct": 0.083
+          },
+          {
+            "insee": "83097",
+            "nom": "Pourrières",
+            "part_pct": 0.056
+          },
+          {
+            "insee": "83087",
+            "nom": "Nans-les-Pins",
+            "part_pct": 0.005
+          },
+          {
+            "insee": "13086",
+            "nom": "Roquevaire",
+            "part_pct": 0
+          },
+          {
+            "insee": "83096",
+            "nom": "Pourcieux",
+            "part_pct": 0
+          }
+        ]
+      },
+      {
+        "code": "rougadou",
+        "aire_m2": 2536283,
+        "candidates": 3,
+        "retenues": 2,
+        "parts": [
+          {
+            "insee": "13066",
+            "nom": "Noves",
+            "part_pct": 60.361
+          },
+          {
+            "insee": "13027",
+            "nom": "Châteaurenard",
+            "part_pct": 39.585
+          },
+          {
+            "insee": "13036",
+            "nom": "Eyragues",
+            "part_pct": 0.055
+          }
+        ]
+      },
+      {
+        "code": "sainte-baume",
+        "aire_m2": 76904094,
+        "candidates": 15,
+        "retenues": 4,
+        "parts": [
+          {
+            "insee": "13030",
+            "nom": "Cuges-les-Pins",
+            "part_pct": 34.349
+          },
+          {
+            "insee": "13042",
+            "nom": "Gémenos",
+            "part_pct": 30.923
+          },
+          {
+            "insee": "13007",
+            "nom": "Auriol",
+            "part_pct": 27.691
+          },
+          {
+            "insee": "13086",
+            "nom": "Roquevaire",
+            "part_pct": 5.828
+          },
+          {
+            "insee": "13005",
+            "nom": "Aubagne",
+            "part_pct": 0.843
+          },
+          {
+            "insee": "83105",
+            "nom": "Riboux",
+            "part_pct": 0.143
+          },
+          {
+            "insee": "83093",
+            "nom": "Plan-d'Aups-Sainte-Baume",
+            "part_pct": 0.14
+          },
+          {
+            "insee": "83127",
+            "nom": "Signes",
+            "part_pct": 0.038
+          },
+          {
+            "insee": "83035",
+            "nom": "Le Castellet",
+            "part_pct": 0.033
+          },
+          {
+            "insee": "83120",
+            "nom": "Saint-Zacharie",
+            "part_pct": 0.007
+          },
+          {
+            "insee": "13085",
+            "nom": "Roquefort-la-Bédoule",
+            "part_pct": 0.003
+          }
+        ]
+      },
+      {
+        "code": "sainte-victoire",
+        "aire_m2": 91953622,
+        "candidates": 15,
+        "retenues": 10,
+        "parts": [
+          {
+            "insee": "13111",
+            "nom": "Vauvenargues",
+            "part_pct": 21.988
+          },
+          {
+            "insee": "13079",
+            "nom": "Puyloubier",
+            "part_pct": 21.721
+          },
+          {
+            "insee": "13090",
+            "nom": "Saint-Antonin-sur-Bayon",
+            "part_pct": 15.119
+          },
+          {
+            "insee": "13025",
+            "nom": "Châteauneuf-le-Rouge",
+            "part_pct": 9.335
+          },
+          {
+            "insee": "13012",
+            "nom": "Beaurecueil",
+            "part_pct": 8.479
+          },
+          {
+            "insee": "13109",
+            "nom": "Le Tholonet",
+            "part_pct": 7.435
+          },
+          {
+            "insee": "13095",
+            "nom": "Saint-Marc-Jaumegarde",
+            "part_pct": 6.202
+          },
+          {
+            "insee": "13087",
+            "nom": "Rousset",
+            "part_pct": 5.498
+          },
+          {
+            "insee": "13001",
+            "nom": "Aix-en-Provence",
+            "part_pct": 2.853
+          },
+          {
+            "insee": "13060",
+            "nom": "Meyreuil",
+            "part_pct": 1.289
+          },
+          {
+            "insee": "13110",
+            "nom": "Trets",
+            "part_pct": 0.056
+          },
+          {
+            "insee": "83097",
+            "nom": "Pourrières",
+            "part_pct": 0.024
+          },
+          {
+            "insee": "83104",
+            "nom": "Rians",
+            "part_pct": 0.001
+          }
+        ]
+      },
+      {
+        "code": "sulauze",
+        "aire_m2": 10280770,
+        "candidates": 3,
+        "retenues": 2,
+        "parts": [
+          {
+            "insee": "13047",
+            "nom": "Istres",
+            "part_pct": 87.701
+          },
+          {
+            "insee": "13063",
+            "nom": "Miramas",
+            "part_pct": 11.383
+          }
+        ]
+      },
+      {
+        "code": "trevaresse",
+        "aire_m2": 69971260,
+        "candidates": 13,
+        "retenues": 8,
+        "parts": [
+          {
+            "insee": "13082",
+            "nom": "Rognes",
+            "part_pct": 36.024
+          },
+          {
+            "insee": "13080",
+            "nom": "Le Puy-Sainte-Réparade",
+            "part_pct": 22.259
+          },
+          {
+            "insee": "13001",
+            "nom": "Aix-en-Provence",
+            "part_pct": 19.249
+          },
+          {
+            "insee": "13091",
+            "nom": "Saint-Cannat",
+            "part_pct": 9.205
+          },
+          {
+            "insee": "13113",
+            "nom": "Venelles",
+            "part_pct": 5.037
+          },
+          {
+            "insee": "13050",
+            "nom": "Lambesc",
+            "part_pct": 3.474
+          },
+          {
+            "insee": "13093",
+            "nom": "Saint-Estève-Janson",
+            "part_pct": 3.191
+          },
+          {
+            "insee": "13059",
+            "nom": "Meyrargues",
+            "part_pct": 1.546
+          },
+          {
+            "insee": "13084",
+            "nom": "La Roque-d'Anthéron",
+            "part_pct": 0.016
+          }
+        ]
+      }
+    ]
+  },
   "controles": {
     "codes_uniques": true,
     "identifiants_prefecture_presents": true,
@@ -535,6 +1801,15 @@
     "features_25": true,
     "geometrie_proprietes_code_seul": true,
     "budget_geometrie_tenu": true,
+    "communes_par_massif_peuplees": true,
+    "communes_sont_des_noms": true,
+    "communes_par_massif_sans_doublon": true,
+    "communes_source_renseignee": true,
+    "lookup_communes_uniques": true,
+    "lookup_marseille_unique": true,
+    "lookup_noms_non_vides": true,
+    "lookup_sans_alias_de_millesime": true,
+    "lookup_couverture_contient_emprise": true,
     "bbox_massifs_incluses_dans_emprise": true
   },
   "verdict": {

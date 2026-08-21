@@ -49,6 +49,7 @@ import {
 	SCHEMA,
 	FLUX_PREFECTURE,
 } from './importer.mjs';
+import { CHEMINS_COMMUNES, LOOKUP, SEUILS_COMMUNES, SOURCE_COMMUNES } from './communes.mjs';
 
 /*
  * `PHP_BIN` peut porter des arguments : le premier jeton est l'exécutable, les
@@ -162,6 +163,8 @@ const cheminPhp = CHEMINS.metadonnees;
 const cheminFidelite = CHEMINS.fidelite;
 const cheminReference = CHEMINS.reference;
 const cheminSource = CHEMINS.source;
+const cheminExtraitCommunes = CHEMINS_COMMUNES.extrait;
+const cheminLookup = CHEMINS_COMMUNES.lookup;
 
 /*
  * Intitulés des contrôles qu'un segment tombé n'aura pas joués.
@@ -185,7 +188,7 @@ const CONTROLES_DE_LA_MESURE = [
 	'référence : écart maximal recalculé',
 ];
 
-/** Les 23 contrôles que porte le fichier de métadonnées PHP. */
+/** Les 29 contrôles que porte le fichier de métadonnées PHP. */
 const CONTROLES_DES_METADONNEES = [
 	'métadonnées : schéma connu',
 	'métadonnées : sha256 de la géométrie',
@@ -210,27 +213,47 @@ const CONTROLES_DES_METADONNEES = [
 	'correspondance : identifiants en surnombre consignés',
 	'emprise : contient toutes les bbox de massifs',
 	'emprise : zoom maximal',
+	'communes : millésime consigné',
+	'communes : sha256 de l\'artefact de lookup',
+	'communes : octets de l\'artefact de lookup',
+	'communes : sha256 de l\'extrait archivé',
+	'communes : mention d\'attribution non vide',
+	'communes : liste peuplée pour tout massif actif',
 ];
 
 /**
  * Sans artefact analysable, AUCUN contrôle ultérieur ne peut être joué : la
- * liste vaut donc 48 intitulés. Ils sont annoncés en catégories COMPTÉES, et
+ * liste vaut donc 68 intitulés. Ils sont annoncés en catégories COMPTÉES, et
  * c'est un choix, pas un raccourci — le compteur ne ment pas (le total est
- * exact), tandis que 48 libellés déroulés noieraient un diagnostic qui tient
+ * exact), tandis que 68 libellés déroulés noieraient un diagnostic qui tient
  * en un mot : l'artefact nommé juste avant est illisible.
  *
  * Le segment des métadonnées fait l'inverse, et pour la raison inverse : cette
- * panne-là ne se localise pas d'un coup d'œil, ses 23 intitulés sont utiles.
+ * panne-là ne se localise pas d'un coup d'œil, ses 29 intitulés sont utiles.
  */
 const CONTROLES_DE_LA_LECTURE = [
 	'octets (2)',
 	'géométrie (7)',
-	'métadonnées et identités (23)',
+	'métadonnées et identités (29)',
 	'fidélité et recette (6)',
 	'recette : verdict et empreinte consignés (2)',
 	'référence : tailles et empreintes (4)',
 	'référence : sommets et écart recalculé (2)',
 	'référence : outillage (2)',
+	'communes : artefact de lookup (8)',
+	'communes : dérive de référence (6)',
+];
+
+/** Les 8 contrôles que porte l'artefact de lookup communal. */
+const CONTROLES_DU_LOOKUP = [
+	'communes : aucune fin de ligne CRLF dans communes-13.lookup.json',
+	'communes : type et version de l\'artefact',
+	'communes : cardinal annoncé',
+	'communes : codes INSEE uniques',
+	'communes : Marseille (13055) présente exactement une fois',
+	'communes : noms officiels non vides',
+	'communes : aucun alias de millésime dans l\'artefact',
+	'communes : plafond de distance consigné',
 ];
 
 /**
@@ -257,7 +280,7 @@ function analyser( chemin, contenu ) {
  * Joue un segment susceptible de lever, sans laisser sa chute emporter le rapport.
  *
  * Le précédent est le `try` posé plus bas autour de `versionMapshaper()` : non
- * rattrapée, une levée tuait le processus AVANT l'affichage, et 53 contrôles
+ * rattrapée, une levée tuait le processus AVANT l'affichage, et les 75 contrôles
  * partaient avec elle. `tenter()` généralise ce traitement aux segments qui
  * peuvent lever pour de bon — un JSON malformé, une re-mesure impossible.
  *
@@ -291,7 +314,7 @@ function tenter( phase, fn, avals ) {
  * s'en charge, pour qu'il le soit quel que soit le sort de cette fonction.
  */
 function main() {
-	for ( const chemin of [ cheminGeometrie, cheminPhp, cheminFidelite, cheminSource ] ) {
+	for ( const chemin of [ cheminGeometrie, cheminPhp, cheminFidelite, cheminSource, cheminExtraitCommunes ] ) {
 		controler( `présence de ${ path.basename( chemin ) }`, fs.existsSync( chemin ) );
 	}
 
@@ -310,6 +333,23 @@ function main() {
 	}
 
 	/*
+	 * L'artefact de lookup est contrôlé APRÈS la sortie ci-dessus, et son absence
+	 * n'interrompt donc pas la recette. C'est la propriété §4.6 rendue vérifiable
+	 * plutôt qu'affirmée : les communes par massif sont bakées dans
+	 * `data/massifs-13.php` et ne dépendent d'aucun fichier de géométrie. Le
+	 * traiter comme fatal ici affirmerait mécaniquement le contraire.
+	 */
+	const lookupPresent = fs.existsSync( cheminLookup );
+
+	controler(
+		`présence de ${ path.basename( cheminLookup ) }`,
+		lookupPresent,
+		undefined,
+		'artefact de lookup manquant : `massifs_commune_de_la_zone()` répondra `artefact_absent` et les ' +
+			'communes par massif resteront servies ; `npm run importer` le réémet'
+	);
+
+	/*
 	 * Les cinq artefacts sont présents — les contrôles ci-dessus l'ont établi —
 	 * mais rien ne dit qu'ils sont analysables. Un seul JSON malformé tuait ici le
 	 * processus : ni contrôle joué, ni contrôle affiché. Aucun aval ne survit à
@@ -322,6 +362,7 @@ function main() {
 	let sourceFC;
 	let fidelite;
 	let reference;
+	let extraitCommunesBrut;
 
 	const artefactsLus = tenter(
 		'lecture des artefacts',
@@ -333,6 +374,7 @@ function main() {
 			sourceFC = analyser( cheminSource, sourceBrute.toString( 'utf8' ) );
 			fidelite = analyser( cheminFidelite, fs.readFileSync( cheminFidelite, 'utf8' ) );
 			reference = analyser( cheminReference, fs.readFileSync( cheminReference, 'utf8' ) );
+			extraitCommunesBrut = fs.readFileSync( cheminExtraitCommunes );
 		},
 		CONTROLES_DE_LA_LECTURE
 	);
@@ -406,6 +448,66 @@ function main() {
 		`${ octets } / ${ SEUILS.octets_bruts_max }`
 	);
 
+	/* -------------------------------------------------------------------------- */
+	/* Référentiel communal                                                        */
+	/* -------------------------------------------------------------------------- */
+
+	let lookupBrut = null;
+	let lookup = null;
+	let empreinteLookup = '';
+
+	if ( lookupPresent ) {
+		tenter(
+			'communes : lecture de l\'artefact de lookup',
+			() => {
+				lookupBrut = fs.readFileSync( cheminLookup );
+				lookup = analyser( cheminLookup, lookupBrut.toString( 'utf8' ) );
+				empreinteLookup = sha256( lookupBrut );
+			},
+			CONTROLES_DU_LOOKUP
+		);
+	}
+
+	if ( lookup ) {
+		const insee = ( lookup.communes || [] ).map( ( commune ) => commune.insee );
+
+		controler(
+			'communes : aucune fin de ligne CRLF dans ' + path.basename( cheminLookup ),
+			! lookupBrut.includes( 0x0d ),
+			undefined,
+			'votre clone a converti les fins de ligne, les empreintes ne peuvent plus correspondre ; ' +
+				'vérifier `.gitattributes` et `git check-attr -a` sur ce fichier (attendu : `text: unset`)'
+		);
+		controler( 'communes : type et version de l\'artefact', LOOKUP.type === lookup.type && LOOKUP.version === lookup.version );
+		controler( 'communes : cardinal annoncé', insee.length === lookup.nombre, `${ insee.length }` );
+		controler( 'communes : codes INSEE uniques', new Set( insee ).size === insee.length );
+		controler(
+			'communes : Marseille (13055) présente exactement une fois',
+			1 === insee.filter( ( code ) => '13055' === code ).length,
+			undefined,
+			'la couche COG CARTO peut porter des arrondissements municipaux : leur apparition doit rougir'
+		);
+		controler(
+			'communes : noms officiels non vides',
+			( lookup.communes || [] ).every( ( commune ) => 'string' === typeof commune.nom && '' !== commune.nom.trim() )
+		);
+		/*
+		 * L'alias mouvant ne se lit dans AUCUN artefact (§2.1). Le contrôle porte sur
+		 * les OCTETS du fichier et non sur une clé : c'est la seule forme qui attrape
+		 * aussi un alias glissé dans une phrase de provenance.
+		 */
+		controler(
+			'communes : aucun alias de millésime dans l\'artefact',
+			! lookupBrut.toString( 'utf8' ).includes( 'LATEST' ),
+			`millésime ${ lookup.millesime }`
+		);
+		controler(
+			'communes : plafond de distance consigné',
+			SEUILS_COMMUNES.plafond_m === lookup.plafond_m,
+			`${ lookup.plafond_m } m`
+		);
+	}
+
 	const lecture = lireMetadonneesPhp( cheminPhp );
 
 	if ( lecture.erreur ) {
@@ -417,7 +519,7 @@ function main() {
 		/*
 		 * Les métadonnées sont analysables, mais leur STRUCTURE n'est pas garantie :
 		 * un bloc absent lève un `TypeError` sur la chaîne de propriétés qui le lit.
-		 * Le segment est donc joué sous `tenter()`, qui nomme les 23 contrôles perdus
+		 * Le segment est donc joué sous `tenter()`, qui nomme les 29 contrôles perdus
 		 * plutôt que de laisser le compteur en annoncer un seul.
 		 */
 		tenter(
@@ -541,6 +643,46 @@ function main() {
 						meta.emprise.zoom_max === meta.geometrie?.zoom_max,
 					`z${ meta.emprise?.zoom_max }`
 				);
+				controler(
+					'communes : millésime consigné',
+					SOURCE_COMMUNES.millesime === meta.communes?.millesime,
+					`${ meta.communes?.millesime }`
+				);
+				/*
+				 * Les deux contrôles d'empreinte du lookup ne sont joués QUE si
+				 * l'artefact est là. Les faire rougir en son absence ferait passer une
+				 * panne indépendante et voulue (§4.6) pour une dérive du référentiel.
+				 */
+				controler(
+					'communes : sha256 de l\'artefact de lookup',
+					! lookupPresent || meta.communes?.lookup?.sha256 === empreinteLookup,
+					lookupPresent ? undefined : 'non joué : artefact absent'
+				);
+				controler(
+					'communes : octets de l\'artefact de lookup',
+					! lookupPresent || meta.communes?.lookup?.octets === lookupBrut.length,
+					lookupPresent ? `${ lookupBrut.length }` : 'non joué : artefact absent'
+				);
+				controler(
+					'communes : sha256 de l\'extrait archivé',
+					meta.communes?.archive?.sha256 === sha256( extraitCommunesBrut )
+				);
+				controler(
+					'communes : mention d\'attribution non vide',
+					'string' === typeof meta.communes?.attribution?.phrase && meta.communes.attribution.phrase.length > 0
+				);
+				/*
+				 * LE contrôle qui prouve §4.6 : les communes par massif sont servies
+				 * depuis le fichier de métadonnées, sans que l'artefact de lookup soit
+				 * seulement ouvert. Il reste vert artefact supprimé.
+				 */
+				controler(
+					'communes : liste peuplée pour tout massif actif',
+					lignes
+						.filter( ( l ) => l.actif )
+						.every( ( l ) => Array.isArray( l.communes ) && l.communes.length > 0 ),
+					`${ lignes.filter( ( l ) => l.actif && l.communes.length > 0 ).length } massifs actifs peuplés`
+				);
 			},
 			CONTROLES_DES_METADONNEES
 		);
@@ -549,9 +691,9 @@ function main() {
 	/*
 	 * La re-mesure est le cœur de la recette, et elle lève pour de bon : massif
 	 * absent de la géométrie simplifiée, géométrie non surfacique. Non rattrapée,
-	 * elle emportait le rapport ENTIER — les 53 contrôles, puisque rien n'était
+	 * elle emportait le rapport ENTIER — les 75 contrôles, puisque rien n'était
 	 * encore affiché. C'est le défaut que corrige cette passe : seuls les 8
-	 * contrôles qui consomment la mesure tombent désormais, les 45 autres sont
+	 * contrôles qui consomment la mesure tombent désormais, les 67 autres sont
 	 * joués et imprimés.
 	 */
 	let metriques;
@@ -624,6 +766,26 @@ function main() {
 
 	controlerDerive( 'référence : sha256 de la source archivée', reference.source.sha256, sha256( sourceBrute ) );
 	controlerDerive( 'référence : octets de la source archivée', reference.source.octets, sourceBrute.length );
+
+	/*
+	 * Dérive du référentiel communal. Le millésime est en tête : un changement de
+	 * millésime change des NOMS DE COMMUNES sans changer une ligne de code, et
+	 * c'est exactement la dérive silencieuse que le §2.1 du contrat #45 refuse.
+	 */
+	controlerDerive( 'référence : millésime communal', reference.communes.millesime, SOURCE_COMMUNES.millesime );
+	controlerDerive( 'référence : sha256 de l\'extrait communal', reference.communes.extrait.sha256, sha256( extraitCommunesBrut ) );
+	controlerDerive( 'référence : octets de l\'extrait communal', reference.communes.extrait.octets, extraitCommunesBrut.length );
+
+	if ( lookupPresent && lookup ) {
+		controlerDerive( 'référence : sha256 du lookup communal', reference.communes.lookup.sha256, empreinteLookup );
+		controlerDerive( 'référence : octets du lookup communal', reference.communes.lookup.octets, lookupBrut.length );
+		controlerDerive( 'référence : communes du lookup', reference.communes.lookup.communes, lookup.nombre );
+	} else {
+		avertissements.push(
+			'artefact de lookup absent : les trois contrôles de dérive qui le concernent ne sont pas joués. ' +
+				'Les communes par massif, elles, restent servies — c\'est la panne indépendante du §4.6.'
+		);
+	}
 
 	/*
 	 * Écart recalculé alors que les octets sont identiques : ce n'est pas une dérive

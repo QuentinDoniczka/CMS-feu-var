@@ -221,11 +221,19 @@ if ( 'zones_disponibles' === $etat ) {
 			);
 		}
 
-		// Aucun référentiel communal n'existe encore dans le projet : la clé vaut
-		// `''` en permanence et la paire est PUREMENT OMISE (contrat #11, A-8).
-		// Aucun tiret, aucun « non renseigné », aucune hauteur réservée, et
-		// surtout aucune substitution par le massif le plus proche — l'emplacement
-		// existe, il se tait proprement, il accueillera la donnée sans refonte.
+		// La clé est désormais PEUPLÉE par l'ingestion EFFIS, qui résout la
+		// commune à partir de la géométrie entière de la zone et fige le nom dans
+		// le relevé (contrat #11, A-8, tel qu'amendé par le contrat #45 §14.2).
+		// Elle vaut `''` quand aucune commune n'est résolue sous le plafond de
+		// 5 km, ou quand la zone déborde l'emprise couverte par le référentiel
+		// communal.
+		//
+		// Dans ces deux cas la paire est PUREMENT OMISE : aucun tiret, aucun
+		// « non renseigné », aucune hauteur réservée, et surtout aucune
+		// substitution par le massif le plus proche. La règle d'omission propre
+		// survit intacte ; elle cesse seulement d'être le seul comportement
+		// possible. Le seuil et le plafond appartiennent au serveur : rien n'est
+		// recalculé ici, la valeur est rendue telle qu'elle a été servie.
 		$commune = is_string( $zone['commune_la_plus_proche'] ) ? trim( $zone['commune_la_plus_proche'] ) : '';
 
 		if ( '' !== $commune ) {

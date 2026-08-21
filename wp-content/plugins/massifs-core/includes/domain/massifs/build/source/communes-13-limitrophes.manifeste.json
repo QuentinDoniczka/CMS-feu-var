@@ -1,0 +1,152 @@
+{
+	"a_propos": "Provenance de l'extrait communal IGN ADMIN EXPRESS. ÉMIS PAR `npm run recuperer-communes`, jamais édité à la main. Ce qui est commité est l'EXTRAIT DÉRIVÉ, découpé à l'emprise des massifs élargie : committer ADMIN EXPRESS national n'est pas viable, et la propriété qui compte — un import rejouable depuis le seul dépôt — est préservée. Écart au précédent des massifs assumé et consigné (§10 du contrat #45).",
+	"recupere_le": "2026-08-18T22:27:38Z",
+	"producteur": "IGN",
+	"jeu_de_donnees": "ADMIN EXPRESS COG Carto",
+	"couche": "commune",
+	"millesime": "2026",
+	"edition": "2026-01-01",
+	"resolution_millesime": {
+		"methode": "identité de la charge d'attributs des communes du département témoin entre l'alias mouvant et chaque millésime daté publié par les GetCapabilities. La variante CARTO ne publie aucun millésime daté : le nom ne peut pas résoudre l'alias, la mesure le peut.",
+		"departement_temoin": "13",
+		"attributs_temoins": [
+			"code_insee",
+			"nom_officiel",
+			"nom_officiel_en_majuscules",
+			"statut",
+			"population",
+			"date_du_recensement",
+			"code_insee_du_canton",
+			"code_insee_de_l_arrondissement",
+			"code_insee_du_departement",
+			"code_siren",
+			"code_postal",
+			"superficie_cadastrale"
+		],
+		"empreinte_attributs_md5": "5701a8618b11dd19ee6f020f56d53ffe",
+		"titre_publie": "ADMINEXPRESS COG 2026 Commune ; édition 2026-01-01",
+		"candidats": [
+			{
+				"millesime": "2026",
+				"interrogeable": true,
+				"concordant": true
+			},
+			{
+				"millesime": "2025",
+				"interrogeable": true,
+				"concordant": false
+			},
+			{
+				"millesime": "2024",
+				"interrogeable": false,
+				"concordant": false
+			},
+			{
+				"millesime": "2023",
+				"interrogeable": false,
+				"concordant": false
+			},
+			{
+				"millesime": "2022",
+				"interrogeable": false,
+				"concordant": false
+			},
+			{
+				"millesime": "2021",
+				"interrogeable": false,
+				"concordant": false
+			},
+			{
+				"millesime": "2020",
+				"interrogeable": false,
+				"concordant": false
+			},
+			{
+				"millesime": "2019",
+				"interrogeable": false,
+				"concordant": false
+			},
+			{
+				"millesime": "2018",
+				"interrogeable": false,
+				"concordant": false
+			},
+			{
+				"millesime": "2017",
+				"interrogeable": false,
+				"concordant": false
+			}
+		]
+	},
+	"point_acces": "https://data.geopf.fr/wfs/ows",
+	"agent": "massifs-core/1.0 (referentiel communal, build hors ligne)",
+	"crs": "EPSG:4326",
+	"licence": {
+		"nom": "Licence Ouverte",
+		"version": "2.0",
+		"identifiant": "etalab-2.0",
+		"url": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf"
+	},
+	"departements": [
+		"13",
+		"83",
+		"84",
+		"30"
+	],
+	"requetes": {
+		"13": "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=<alias de la couche, résolu au millésime ci-dessus>%3Acommune&SRSNAME=EPSG%3A4326&COUNT=1000&OUTPUTFORMAT=application%2Fjson&CQL_FILTER=code_insee_du_departement%3D%2713%27&PROPERTYNAME=code_insee%2Cnom_officiel%2Ccode_insee_du_departement%2Csuperficie_cadastrale%2Cgeometrie",
+		"30": "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=<alias de la couche, résolu au millésime ci-dessus>%3Acommune&SRSNAME=EPSG%3A4326&COUNT=1000&OUTPUTFORMAT=application%2Fjson&CQL_FILTER=code_insee_du_departement%3D%2730%27&PROPERTYNAME=code_insee%2Cnom_officiel%2Ccode_insee_du_departement%2Csuperficie_cadastrale%2Cgeometrie",
+		"83": "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=<alias de la couche, résolu au millésime ci-dessus>%3Acommune&SRSNAME=EPSG%3A4326&COUNT=1000&OUTPUTFORMAT=application%2Fjson&CQL_FILTER=code_insee_du_departement%3D%2783%27&PROPERTYNAME=code_insee%2Cnom_officiel%2Ccode_insee_du_departement%2Csuperficie_cadastrale%2Cgeometrie",
+		"84": "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=<alias de la couche, résolu au millésime ci-dessus>%3Acommune&SRSNAME=EPSG%3A4326&COUNT=1000&OUTPUTFORMAT=application%2Fjson&CQL_FILTER=code_insee_du_departement%3D%2784%27&PROPERTYNAME=code_insee%2Cnom_officiel%2Ccode_insee_du_departement%2Csuperficie_cadastrale%2Cgeometrie"
+	},
+	"reponses": {
+		"13": {
+			"md5_reponse": "18563327c7d4c4625de7181e8f47edfa",
+			"octets_reponse": 949340,
+			"ms": 186,
+			"communes": 119
+		},
+		"30": {
+			"md5_reponse": "8a9d7af9dd5c0652687ddf12607ac447",
+			"octets_reponse": 1701296,
+			"ms": 285,
+			"communes": 350
+		},
+		"83": {
+			"md5_reponse": "239d6a7951fd09958fe523b9f75a9f95",
+			"octets_reponse": 1752527,
+			"ms": 361,
+			"communes": 153
+		},
+		"84": {
+			"md5_reponse": "573b39da75fc569aebe55477df4932f2",
+			"octets_reponse": 707873,
+			"ms": 281,
+			"communes": 151
+		}
+	},
+	"emprise_massifs": {
+		"ouest": 4.65642,
+		"sud": 43.15731,
+		"est": 5.81325,
+		"nord": 43.90238
+	},
+	"decoupe": {
+		"marge_deg": 0.15,
+		"ouest": 4.50642,
+		"sud": 43.00731,
+		"est": 5.96325,
+		"nord": 44.05238,
+		"note": "Sélection par recoupement d'emprises : les communes retenues gardent leur géométrie ENTIÈRE, aucune n'est coupée. Un polygone tronqué à la bbox porterait un bord artificiel, et la distance au bord la plus proche mesurerait ce bord-là."
+	},
+	"precision_decimales": 5,
+	"communes_recuperees": 773,
+	"communes_retenues": 298,
+	"sommets": 76409,
+	"archive": {
+		"fichier": "includes/domain/massifs/build/source/communes-13-limitrophes.geojson",
+		"sha256": "43cc1925904fd08d14a03a22c8fd3d956c023d004acd6ac90f7c8ced7e1626cc",
+		"md5": "c9e938b84add61d68524d0ac09cbe583",
+		"octets": 1494991
+	}
+}

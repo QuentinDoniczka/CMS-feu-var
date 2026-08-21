@@ -1,5 +1,10 @@
 # Contrat d'interface — Issue #8 — Exposer l'API REST publique de lecture des statuts du jour au format JSON
 
+**Amendé le 21 août 2026 par `lead-issue-cms` (chaîne #45)** — voir [`issue-45.md`](issue-45.md) §14.1.
+Amendement : **A-11**, `massifs[].communes` devient **peuplé** et `referentiel.communes_statut` vaut
+`'calculee'` en nominal. **Aucune clé n'est ajoutée ni retirée ; aucun consommateur n'a d'adaptation à
+faire.** Le raisonnement d'A-11 reste **intact** — voir le renvoi porté sur A-11 même.
+
 > **Gelé le 13 août 2026.** Epic 3 — Carte interactive (milestone #3). Domaine : `statuts`.
 >
 > Ce contrat fait **autorité sur la forme des données** servies par l'extension aux consommateurs
@@ -486,7 +491,7 @@ le plan back et les règles du projet.
 | **A-8** | Callback `'schema'` sur la route ? | **Non.** | Doublerait la taille du module et créerait une **seconde représentation de la même forme**, qui dérivera. Ce contrat + le `README.md` du module sont la documentation ; `OPTIONS` expose déjà les `args`. |
 | **A-9** | `Retry-After` sur les `503` ? | **Non.** | Nous ne connaissons pas le délai de rétablissement ; l'inventer mettrait une donnée fausse dans un en-tête. |
 | **A-10** | Clé de version de format ? | **Non.** | `massifs/v1` la porte. |
-| **A-11** | `communes: []` exposé ou clé omise ? | **Exposé**, plus `referentiel.communes_statut: "inconnue"`. | La lacune est **documentée par le domaine** (`massifs_lacunes()`, `STATUT_COMMUNES_DEFAUT`), pas inventée. Une clé omise obligerait à un `isset()` (contre I-7) ; une liste vide **seule** se lirait « aucune commune concernée », ce que le contrat #6 interdit. Le drapeau est la seule valeur qui ne puisse pas être relue ainsi. L'enrichissement par IGN ADMIN EXPRESS relève d'une issue `referentiel` distincte. |
+| **A-11** | `communes: []` exposé ou clé omise ? | **Exposé**, plus `referentiel.communes_statut: "inconnue"`. | La lacune est **documentée par le domaine** (`massifs_lacunes()`, `STATUT_COMMUNES_DEFAUT`), pas inventée. Une clé omise obligerait à un `isset()` (contre I-7) ; une liste vide **seule** se lirait « aucune commune concernée », ce que le contrat #6 interdit. Le drapeau est la seule valeur qui ne puisse pas être relue ainsi. L'enrichissement par IGN ADMIN EXPRESS relève d'une issue `referentiel` distincte.<br><br>**Amendé le 21 août 2026 par l'issue #45 — l'issue `referentiel` annoncée ci-dessus est celle-là.** `communes` **reste exposé et devient peuplé** (noms officiels IGN, triés par surface décroissante de la part du massif, jamais de code INSEE) ; `communes_statut` vaut **`'calculee'`** en nominal et **conserve `'inconnue'` en replié**. **Le raisonnement d'A-11 n'est pas corrigé, il est confirmé** : une liste vide **seule** se lirait toujours « aucune commune concernée », et le drapeau reste la seule valeur qui ne puisse pas être relue ainsi — c'est pourquoi il survit au remplissage au lieu de disparaître avec la lacune. `'calculee'` plutôt que `'disponible'` dit au réutilisateur que la liste **résulte de notre propre calcul** (intersection avec ADMIN EXPRESS COG Carto 2026, seuil de 1 % de la surface du massif) et **n'est pas une publication officielle de la DDTM**. **Aucune clé ajoutée ni retirée ; aucun consommateur n'a d'adaptation à faire.** |
 | **A-12** | Champ `licence` de notre agrégat ? | **Absent.** Question remontée, jamais comblée. | Le §9 n'énumère que les attributions **amont**. La licence de notre agrégat est une décision du propriétaire du projet, pas une déduction. |
 | **A-13** | `?_jsonp=` désarmé ? | **Non, laissé tel quel.** | `rest_jsonp_enabled` est **site-wide** : un module `rest/public` n'a pas à trancher pour tout le site. Et le cœur renvoie déjà **l'origine présentée** en écho (§6.0), ce qui autorise en pratique n'importe quel domaine : JSONP n'ajoute donc aucune exposition — la donnée est publique par destination (§5.4). |
 

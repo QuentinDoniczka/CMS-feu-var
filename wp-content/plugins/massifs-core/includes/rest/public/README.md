@@ -105,7 +105,7 @@ dans tous les états : une liste raccourcie se lirait « aucune restriction ».
 |---|---|---|
 | `code` | chaîne | Identifiant stable du massif. |
 | `libelle` | chaîne | Nom affichable, issu du référentiel. |
-| `communes` | tableau de chaînes | Communes concernées. **Vide aujourd'hui** : l'attribut n'existe pas dans la couche source (voir `referentiel.communes_statut`). |
+| `communes` | tableau de chaînes | Communes concernées, **noms officiels**, triées par surface décroissante de la part du massif. Jamais de code INSEE. La liste est **calculée par nous** — l'attribut n'existe dans aucune couche source (voir `referentiel.communes_statut`). |
 | `etat` | chaîne | Voir §3. |
 | `jour_validite` | chaîne | Toujours identique au `jour` de l'enveloppe. |
 | `niveau` | objet ou `null` | Objet **si et seulement si** `etat` vaut `disponible`. Sinon `null`. |
@@ -140,7 +140,11 @@ aucun intitulé « Consigne » ne doit être affiché.
 | Clé | Type | Contenu |
 |---|---|---|
 | `nombre` | entier | Nombre de massifs servis. |
-| `communes_statut` | chaîne | Drapeau de lacune. `inconnue` signifie **« nous ne savons pas »**, et non « aucune commune concernée ». |
+| `communes_statut` | chaîne | Provenance de `massifs[].communes`. `calculee` signifie que **nous avons calculé la liste** par intersection avec IGN ADMIN EXPRESS — ce n'est pas une publication officielle de la DDTM. `inconnue` signifie **« nous ne savons pas »**, et non « aucune commune concernée » : c'est la valeur de repli, servie quand le référentiel est indisponible. |
+
+Une liste `communes` vide accompagnée de `communes_statut: "calculee"` ne veut pas dire « aucune
+commune » : elle veut dire qu'aucune commune n'atteint le seuil de 1 % de la surface du massif, ce qui
+n'arrive aujourd'hui pour aucun massif actif.
 
 ### 2.8 `geometrie` et `emprise`
 

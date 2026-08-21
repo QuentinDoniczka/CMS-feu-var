@@ -15,15 +15,23 @@ Ce fichier ne décrit que la **procédure de ré-import**.
 | `etats.php` | Constantes d'état et de raison, version du module |
 | `referentiel.php` | Chargement, validation, lecture des lignes de massif |
 | `geometrie.php` | Emprise et métadonnées de l'artefact géométrique |
-| `attribution.php` | Mention §9 et lacunes assumées |
-| `compat.php` | Les 16 fonctions publiques `massifs_*()` |
-| `.htaccess` | Interdit l'accès web à tout ce répertoire — code, outillage, et surtout l'archive source de 3 Mo |
+| `attribution.php` | Mention §9 des périmètres et lacunes assumées |
+| `communes.php` | Référentiel communal : `massifs_commune_de_la_zone()`, mention §9 de l'IGN |
+| `compat.php` | Les 19 fonctions publiques `massifs_*()` |
+| `.htaccess` | Interdit l'accès web à tout ce répertoire — code, outillage, et surtout les archives source |
+| `.gitattributes` | Interdit toute conversion de fins de ligne sur `communes-13.lookup.json`, dont les octets sont empreintés |
+| `communes-13.lookup.json` | **Généré.** Polygones communaux simplifiés. **Strictement serveur**, jamais servi, ouvert seulement sur le chemin cron |
 | `build/package.json` · `build/package-lock.json` · `build/.nvmrc` · `build/.gitignore` | Outillage de build seulement ; jamais exécuté à l'exécution du site. Le lockfile et le `.nvmrc` sont ce qui rend l'import **rejouable à l'octet** |
 | `build/.gitattributes` · `../../../data/.gitattributes` | Interdisent toute conversion de fins de ligne sur les fichiers dont les octets sont mesurés |
 | `build/identites.json` | **Registre d'identités gelées, édité à la main, en ajout seul. Fait autorité sur l'identité** |
+| `build/geometrie.mjs` | Primitives géométriques partagées par l'import et le référentiel communal |
+| `build/communes.mjs` | Communes par massif (au build) et construction de l'artefact de lookup. **Hors ligne** |
+| `build/recuperer-communes.mjs` | **Le seul fichier du module qui touche le réseau.** Acquisition IGN, résolution du millésime |
 | `build/importer.mjs` | Chaîne d'import reproductible |
 | `build/verifier.mjs` | Recette : rejoue tous les contrôles sans rien réécrire |
 | `build/source/massifs-13.full.geojson` | Source archivée (3 Mo), entrée du pipeline |
+| `build/source/communes-13-limitrophes.geojson` | Extrait communal archivé (1,5 Mo), entrée du pipeline communal |
+| `build/source/communes-13-limitrophes.manifeste.json` | Provenance de l'extrait : millésime résolu, emprise de découpe, empreintes |
 | `build/massifs-13.fidelite.json` | **Généré.** Recette de fidélité, hors contrat, aucun consommateur applicatif |
 | `build/reference.json` | **Généré.** Empreinte de référence des artefacts : c'est elle que la recette compare pour détecter une dérive |
 | `../../../data/massifs-13.php` | **Généré.** Métadonnées et 25 lignes de massif |
@@ -34,8 +42,14 @@ artefacts de recette vivent donc dans `build/`, sous le `.htaccess` de ce réper
 Apache de `docker/wordpress/plugins-guard.conf`. Un artefact de recette accessible à une URL publique
 exposerait la mécanique interne du projet sans qu'aucun consommateur en ait besoin.
 
-Les **quatre** artefacts générés ne s'éditent **jamais** à la main, `reference.json` compris — il est émis
-par l'import, en même temps que les trois autres.
+Les **cinq** artefacts générés ne s'éditent **jamais** à la main, `reference.json` compris — ils sont émis
+ensemble, par le même import, dans un unique renommage en bloc.
+
+**`communes-13.lookup.json` est la seule exception au rangement ci-dessus, et elle est délibérée.** Il ne
+vit ni dans `data/` ni dans `build/` mais à la racine du module, parce qu'il n'est ni servi au navigateur
+ni un artefact de recette : c'est une donnée que **PHP lit**, sur le seul chemin cron. `data/` le
+publierait à une URL publique (le garde-fou Apache épargne délibérément ce répertoire) ; `build/`
+laisserait croire qu'il n'est lu qu'au build.
 
 ## Source et licence
 
@@ -173,9 +187,20 @@ cd wp-content/plugins/massifs-core/includes/domain/massifs/build
 nvm use                # lit .nvmrc : Node 24 (le majeur, pas le correctif)
 npm ci                 # JAMAIS `npm install` : `ci` installe le lockfile à l'identique
 # remplacer build/source/massifs-13.full.geojson par la nouvelle source (EPSG:4326)
-npm run importer       # émet les 4 artefacts, ou s'arrête sans rien écrire
+npm run importer       # émet les 5 artefacts, ou s'arrête sans rien écrire
 npm run verifier       # rejoue tous les contrôles, code de sortie ≠ 0 en cas de dérive
 ```
+
+**`npm run importer` ne touche jamais le réseau.** Il relit l'extrait communal commité sous
+`build/source/`, comme il relit la source des massifs. Rafraîchir cet extrait est une opération distincte,
+manuelle, et volontairement séparée :
+
+```sh
+npm run recuperer-communes   # SEULE commande réseau du module ; s'arrête si le millésime a bougé
+npm run importer && npm run verifier
+```
+
+L'extrait et son manifeste sont **à commiter** : c'est ce qui garde l'import rejouable hors ligne.
 
 `npm ci` et non `npm install` : `install` peut **remonter** une dépendance transitive de mapshaper et
 produire une géométrie aux octets différents à source identique. C'est arrivé, et c'est mesuré — voir
@@ -217,7 +242,7 @@ C'est ce qui sépare deux questions que les seuils confondaient :
 
 Un artefact peut tenir tous les seuils et avoir néanmoins changé sans que personne l'ait décidé. Quand la
 recette signale une dérive : la comprendre d'abord. Si le changement est voulu, régénérer les artefacts
-**et** `reference.json` par `npm run importer`, **dans le même commit** — les quatre artefacts forment un
+**et** `reference.json` par `npm run importer`, **dans le même commit** — les cinq artefacts forment un
 tout, et un `reference.json` en retard laisse la recette rouge en permanence, donc bientôt ignorée.
 
 L'import affiche de lui-même, avant d'écrire, un bloc `DÉRIVE PAR RAPPORT À reference.json` clé par clé.
@@ -234,9 +259,10 @@ consignée : tout est calculé sur les octets du fichier. Avec `core.autocrlf=tr
 Windows — un clone convertirait ces octets sans changer les empreintes consignées. La recette échouerait
 sur trois contrôles d'empreinte sans jamais nommer la cause, et `massifs_geometrie()['version']` mentirait.
 
-Les deux `.gitattributes` (`data/` et `build/`) posent `-text` sur les fichiers mesurés :
-`massifs-13.geometrie.json`, `massifs-13.php`, `source/massifs-13.full.geojson`,
-`massifs-13.fidelite.json`, `reference.json`. `-text` et non `binary` (qui implique `-diff`, or relire le
+Les **trois** `.gitattributes` (`data/`, `build/` et la racine du module) posent `-text` sur les fichiers
+mesurés : `massifs-13.geometrie.json`, `massifs-13.php`, `source/massifs-13.full.geojson`,
+`massifs-13.fidelite.json`, `reference.json`, `source/communes-13-limitrophes.geojson` et son manifeste,
+`communes-13.lookup.json`. `-text` et non `binary` (qui implique `-diff`, or relire le
 diff de `massifs-13.php` est un contrôle imposé ci-dessous) ; `-text` et non `text eol=lf` (qui
 absorberait la conversion au commit et découplerait les octets du disque de ceux du blob).
 
@@ -256,7 +282,7 @@ aucune raison de bouger.
 assumé.**
 
 Vérifié : deux imports consécutifs, à `MASSIFS_GENERE_LE` figé, produisent les **mêmes sha256 sur les
-quatre artefacts**. Ce qui le garantit :
+cinq artefacts**. Ce qui le garantit :
 
 | Élément | Ce qu'il fixe |
 |---|---|
@@ -297,12 +323,12 @@ Aucun artefact n'est écrit si l'un d'eux échoue (émission atomique : fichiers
 **Un seuil ne se desserre jamais pour faire passer un import.** Si l'import s'arrête sur un seuil, c'est le
 seuil qui a raison.
 
-Le renommage final porte sur les quatre artefacts. S'il échouait à mi-parcours, le dépôt porterait une
+Le renommage final porte sur les cinq artefacts, artefact de lookup communal compris. S'il échouait à mi-parcours, le dépôt porterait une
 géométrie neuve avec des métadonnées anciennes — donc un jeton de cache-busting **faux**. Dans ce cas
 l'import purge les temporaires restants, **nomme les fichiers déjà remplacés** et donne la commande
 `git checkout --` pour les restaurer. Il ne tente **aucun retour en arrière automatique** : ce serait une
 seconde écriture dans un état déjà incertain. Corollaire : partir d'un arbre de travail propre sur ces
-quatre fichiers.
+cinq fichiers.
 
 ## Simplification et budget
 
@@ -400,14 +426,183 @@ Depuis le lockfile, cette ambiguïté est fermée : les seuils disent que la gé
 `reference.json` dit qu'elle est **la même**, et les deux se mesurent contre l'archive versionnée — la
 seule source que n'importe qui peut recalculer depuis le dépôt.
 
+## Référentiel communal
+
+Deux besoins, deux mécanismes, et **ils échouent indépendamment**.
+
+| | Communes **par massif** | Polygones communaux |
+|---|---|---|
+| Calcul | **au build**, exact | — |
+| Stockage | baké dans `data/massifs-13.php` | `communes-13.lookup.json` |
+| Coût à l'exécution | **nul** | ouverture **paresseuse**, chemin cron uniquement |
+| Lecteur | `massifs_massif( $code )['communes']` | `massifs_commune_de_la_zone()` |
+
+Supprimer l'artefact de lookup ne retire pas les communes par massif : elles ne dépendent d'aucun fichier
+de géométrie. La recette le **prouve** — `npm run verifier` reste vert sur les communes par massif quand
+l'artefact est absent, et nomme les seuls contrôles qu'il ne peut plus jouer.
+
+### Le millésime ne s'écrit JAMAIS `LATEST`
+
+La couche `ADMINEXPRESS-COG-CARTO` n'est publiée au WFS que derrière l'**alias mouvant** `.LATEST` :
+aucune couche datée `ADMINEXPRESS-COG-CARTO.<AAAA>` n'existe (vérifié, HTTP 400). Épingler l'alias
+produirait un millésime qui dérive en silence — une commune fusionnée ou renommée s'afficherait comme
+courante sans qu'aucun artefact ne le signale.
+
+`recuperer-communes.mjs` **résout** donc l'alias avant de s'en servir, et par mesure plutôt que par nom :
+les attributs des 119 communes du 13 sont demandés à l'alias et à chacun des millésimes datés de la
+famille `ADMINEXPRESS-COG` publiés par les `GetCapabilities`, et le millésime dont la charge d'attributs
+est **identique** à celle de l'alias EST le millésime de l'alias. Zéro concordance, ou plus d'une :
+arrêt, rien n'est écrit. Le millésime résolu — **2026**, édition du 1er janvier 2026 — est consigné dans
+le manifeste de l'extrait, dans `data/massifs-13.php`, dans `build/reference.json` et dans la phrase
+d'attribution. **Aucun artefact ne porte la chaîne `LATEST`, et la recette le contrôle sur les octets.**
+
+Une montée de millésime est une **décision humaine** : le script s'arrête si le millésime résolu diffère
+de celui épinglé dans `SOURCE_COMMUNES` (`build/communes.mjs`).
+
+### Les règles de domaine
+
+- **Commune « concernée » par un massif** : au moins **1 %** de la surface du massif, tri par surface
+  décroissante. L'intersection se calcule sur `build/source/massifs-13.full.geojson` — la source **pleine
+  précision** — et **jamais** sur `data/massifs-13.geometrie.json`, qui a perdu ses îlots de moins de 25 ha
+  et subi 90 m de Douglas-Peucker : une commune y apparaîtrait ou en disparaîtrait **pour des raisons de
+  rendu**.
+- **Commune d'une zone de feu** : la plus proche de la GÉOMÉTRIE de la zone. Si plusieurs sont à
+  distance zéro — la zone les chevauche — celle qui porte la plus grande **part de surface** de la zone
+  l'emporte. À part strictement égale, le plus petit `code_insee` tranche : ce dernier critère est là
+  pour la **reproductibilité**, pas pour la correction, et ne se relit pas comme une préférence entre
+  deux communes.
+- **Jamais un point qui résume la zone** — ni centre d'emprise, ni centroïde, ni premier sommet. Une
+  zone de 30 ha et plus est couramment en croissant, en L, ou en plusieurs parties : son centre
+  d'emprise peut tomber hors d'elle, dans une commune que le feu n'a jamais touchée, ou en mer. **Le
+  plafond de 5 km ne rattrape pas cela** — un centre à 2 km du foyer réel, dans une commune voisine,
+  renverrait le nom de cette voisine avec assurance et SOUS le plafond. Le scénario 40 le rend
+  falsifiable : sur une zone en U réelle, les deux méthodes nomment deux communes différentes.
+- **Plafond de 5 km** : au-delà, le serveur **n'émet rien** plutôt qu'un nom trompeur.
+- **Hors couverture** : l'artefact déclare une emprise `couverture`, égale à l'emprise de découpe de
+  l'extrait **rétrécie du plafond**. C'est la seule zone où une réponse est honnête : au-delà, une commune
+  plus proche a pu ne pas être retenue dans l'extrait, et le lookup nommerait la deuxième plus proche en
+  la présentant comme la plus proche.
+- **Aucun code INSEE dans `massifs[].communes`** : ce tableau porte des **noms**, qui partent tels quels
+  dans le JSON public et s'affichent au visiteur.
+
+### Écart assumé au précédent des massifs
+
+`build/source/massifs-13.full.geojson` est commité **en entier**. L'extrait communal, lui, est un
+**dérivé** : communes des départements 13, 83, 84 et 30 dont l'emprise recoupe celle des massifs élargie
+de 0,15°, coordonnées ramenées à 5 décimales (~1,1 m), quatre attributs conservés. Committer ADMIN EXPRESS
+national n'est pas viable ; la propriété qui compte — **un import rejouable depuis le seul dépôt** — est
+préservée, et la provenance est consignée dans le manifeste : emprise de découpe, empreinte de chaque
+réponse reçue, empreinte de l'extrait, millésime résolu.
+
+Les communes sont **sélectionnées entières**, jamais coupées à l'emprise : un polygone tronqué porterait
+un bord artificiel, et la distance au bord le plus proche mesurerait ce bord-là.
+
+### Mesuré, pas postulé
+
+| Mesure | Valeur |
+|---|---|
+| Communes retenues | **298** sur 773 récupérées (13 : 119, 84 : 91, 30 : 45, 83 : 43) |
+| Extrait commité | **1 494 991** octets, 76 409 sommets |
+| Artefact de lookup | **501 375** octets, 27 890 sommets, Douglas-Peucker 25 m |
+| Mémoire PHP au premier appel | **+4,0 Mo** (pic réel 53,3 → 57,3 Mo) |
+| Premier appel : ouverture, décodage, résolution | **10,8 ms** |
+| Zone de 8 à 100 sommets, dans une commune | **< 1 ms** |
+| Zone de 8 à 100 sommets, à cheval (départage par les parts) | **1 à 5 ms** |
+| Zone de 8 à 100 sommets, en mer (passe de distance) | **3 à 32 ms** |
+| Zone de 1 000 sommets, pire cas (en mer) | **322 ms** |
+| Zone de 20 000 sommets — le PLAFOND du validateur EFFIS —, pire cas | **6,5 s** |
+
+Le coût est linéaire en `sommets de la zone × sommets de la commune` : c'est le prix d'une mesure
+exacte sans index spatial. Les zones EFFIS réelles se comptent en dizaines de sommets, et le chemin est
+celui du cron, quatre fois par jour. Le plafond de 20 000 sommets par entité, lui, est une garde
+défensive du validateur contre une charge aberrante, pas une valeur attendue — mais une charge qui
+l'atteindrait coûterait plusieurs secondes par zone. **C'est le seul coût non borné du module, et il est
+consigné ici plutôt que découvert en production.**
+
+### Lecture
+
+**Le seam est de forme géométrique, et ce n'est pas une commodité d'appel.** Une signature par point est
+structurellement incapable d'exprimer « la plus grande part de la zone » : elle ne reçoit pas la zone. Un
+relecteur qui déduit la règle de la signature doit y lire la bonne, sinon le défaut revient au prochain
+passage.
+
+```php
+massifs_commune_de_la_zone( $zone['geometrie'] );
+// [ 'trouvee' => true, 'insee' => '13055', 'nom' => 'Marseille',
+//   'departement' => '13', 'distance_m' => 0, 'etat' => 'communes_ok' ]
+
+massifs_commune_de_la_zone( $zone_a_nice );   // hors de l'emprise couverte
+// [ 'trouvee' => false, 'insee' => '', 'nom' => '', 'departement' => '',
+//   'distance_m' => null, 'etat' => 'communes_hors_couverture' ]
+
+massifs_commune_de_la_zone( array( 'type' => 'Point', … ) );  // géométrie inexploitable
+// [ …, 'etat' => 'communes_inconnues' ]
+
+massifs_commune_de_la_zone_nom( $zone['geometrie'] );  // 'Marseille', ou '' — le silence, jamais un tiret
+massifs_attribution_communes()['phrase'];              // mention §9 de l'IGN, millésime compris
+```
+
+`$geometrie` est le `Polygon` ou le `MultiPolygon` que la zone porte déjà sous sa clé `geometrie` : rien de
+nouveau ne traverse la frontière. Le retour est **total** — toutes les clés sont toujours présentes, y
+compris artefact absent, artefact malformé ou géométrie illisible, et le consommateur n'écrit jamais
+`isset()`. `nom` est le `nom_officiel` de l'archive, **verbatim**, UTF-8 brut, **jamais échappé dans le
+module** : l'échappement appartient au point de sortie.
+
+**`massifs_attribution_communes()` ne fusionne JAMAIS avec `massifs_attribution()`** : deux producteurs,
+deux licences, deux millésimes. La Licence Ouverte 2.0 impose une citation exacte, et une phrase composée
+à partir des deux n'attribuerait correctement ni l'un ni l'autre.
+
+### Comment la part de surface est calculée
+
+Le départage des communes chevauchées demande une aire d'intersection, et **ce module n'embarque pas de
+découpeur de polygones général**. Chaque surface est décomposée en un **éventail de triangles signés**
+depuis le premier sommet de chacun de ses anneaux ; l'indicatrice d'un anneau est la somme des
+indicatrices de ses triangles affectées du signe de leur orientation, d'où
+
+```
+aire( A ∩ B ) = Σ_a Σ_b signe(a) · signe(b) · aire( |a| ∩ |b| )
+```
+
+et l'intersection de deux **triangles** est convexe, donc calculable par un simple découpage de
+Sutherland-Hodgman. Les trous sont pris en charge par les signes, sans code particulier — c'est pour cela
+que l'orientation est imposée **par position** (anneau 0 extérieur, suivants trous) plutôt que déduite du
+producteur.
+
+Vérifié exactement sur carrés décalés, polygone à trou, U concave, MultiPolygon et anneau en sens
+indirect ; recoupé sur données réelles contre un échantillonnage 200 × 200, écart maximal **0,02 point**.
+
+**Ce qui borne la conséquence d'une erreur** : la part n'arbitre qu'entre des communes que la zone
+chevauche **déjà toutes les deux**. Chacune est donc une réponse vraie ; une erreur d'arbitrage nommerait
+la deuxième plus grande, jamais une commune que le feu n'a pas touchée. C'est ce plafond de conséquence
+qui autorise cette méthode plutôt qu'une bibliothèque — et c'est aussi pourquoi il ne faut pas y ajouter
+une couche de robustesse numérique ou une gestion des auto-intersections : elle changerait de nature sans
+changer ce qui est en jeu.
+
 ## Lacunes assumées
 
-- **Communes concernées** : l'attribut n'existe nulle part dans la couche source. `communes` est donc
-  **toujours vide**, et `lacunes.communes.statut` vaut `inconnue`. Le thème **omet** la ligne ; il n'écrit
-  jamais « aucune commune ». Les peupler demande un second import (IGN ADMIN EXPRESS), avec sa licence, sa
-  propre attribution §9 et son millésime : une issue à part entière. **Absent vaut mieux que faux.**
+- **Communes concernées — lacune LEVÉE par l'issue #45.** L'attribut n'existe toujours nulle part dans la
+  couche source, mais la liste est désormais **calculée** par intersection avec IGN ADMIN EXPRESS :
+  `communes` est peuplée et `lacunes.communes.statut` vaut `calculee`. `inconnue` reste la valeur de
+  **repli**, servie quand le référentiel est indisponible — c'est la seule qui ne puisse jamais être relue
+  comme « aucune commune concernée ». Le thème **omet** toujours la ligne quand elle est vide ; il n'écrit
+  jamais « aucune commune ». Voir « Référentiel communal » ci-dessus.
+- **Limitation du seuil de 1 %, connue et acceptée** : sur un très grand massif, 1 % de la surface reste
+  une surface importante, et une petite commune réellement concernée peut passer sous le seuil.
+- **Les limites communales du lookup sont simplifiées à 25 m** : un point à moins de 25 m d'une limite
+  peut basculer d'une commune à l'autre. Deux ordres de grandeur sous le plafond de 5 km, et sous
+  l'incertitude d'un périmètre estimé par satellite : ce que l'artefact ne peut pas trancher, il ne doit
+  pas prétendre le trancher.
+- **Le coût de la résolution n'est pas borné par la taille de la zone** : il croît linéairement en
+  `sommets de la zone × sommets de la commune`. Voir « Mesuré, pas postulé ».
+- **Aucune donnée d'entrée n'est redressée** : une géométrie de zone au type inattendu, malformée ou
+  portant une coordonnée non finie est refusée, et l'état vaut `communes_inconnues`. Deviner une commune
+  depuis une géométrie qu'on n'a pas su lire serait affirmer sans avoir mesuré.
 - **27 identifiants côté préfecture pour 25 massifs** : `1326` et `1327` sont en surnombre et **ne
   correspondent à aucun massif de la couche réglementaire**. Aucun nom n'a été inventé pour combler l'écart :
   `massifs_code_depuis_source()` renvoie `null` pour eux, `massifs_massif_existe()` renvoie `false`, et
   l'ingestion comme le portail doivent traiter un identifiant inconnu **sans rien écrire**. Voir
   « Correspondance avec le flux préfectoral » ci-dessus.
+
+**« Absent vaut mieux que faux. »** Ce principe n'était pas un constat d'état, et il ne tombe pas avec la
+lacune qu'il commentait : c'est lui qui justifie le plafond de 5 km, le silence hors couverture, les deux
+identifiants sans nom, et le refus de tout repli approchant.

@@ -1,5 +1,10 @@
 # Contrat d'interface — Issue #11 — Afficher les zones parcourues par le feu (EFFIS/Copernicus) en couche surfacique
 
+**Amendé le 21 août 2026 par `lead-issue-cms` (chaîne #45)** — voir [`issue-45.md`](issue-45.md) §14.2.
+Amendement : **A-8**, `commune_la_plus_proche` **cesse de valoir `''` en permanence** et est peuplée quand
+une commune est résolue à moins de 5 km. **La règle d'omission propre de la paire survit intacte** ; elle
+cesse seulement d'être le seul comportement possible. Voir le renvoi porté sur A-8 même.
+
 **Gelé le** 14 août 2026 · **Par** `lead-issue-cms`, chaîne #11
 **Lignes de DoD servies** : §12 du brief (couche EFFIS, nominal + indisponibilité) · §4.4 (Zones parcourues
 par le feu, en entier) · et, par conséquence directe, §5.3 (équivalent textuel) et §9 (attribution).
@@ -473,6 +478,27 @@ signalant la dette plutôt qu'en bloquant. Traitement par phrase :
 **Dette signalée à `lead-design-cms`, pas blocage** (§10 D-1, D-2).
 
 ### A-8 · « Commune la plus proche » — l'emplacement existe et se tait
+
+> **AMENDÉ le 21 août 2026 par l'issue #45** (voir [`issue-45.md`](issue-45.md) §14.2). Le référentiel
+> communal annoncé ci-dessous comme « une issue à part entière » **a été importé** : IGN ADMIN EXPRESS
+> COG Carto, millésime **2026** résolu par mesure. Ce qui change et ce qui ne change pas :
+>
+> - **Change** : la clé ne vaut plus `''` en permanence. Elle porte le **nom officiel de la commune la
+>   plus proche de la GÉOMÉTRIE de la zone**, résolue **à l'ingestion EFFIS** et jamais au rendu, et
+>   **plafonnée à 5 km** — au-delà, le serveur n'émet rien plutôt qu'un nom trompeur.
+> - **Ne change pas** : **la décision d'omission propre**, mot pour mot. Aucun tiret, aucun « non
+>   renseigné », aucune hauteur réservée. Elle cesse d'être **permanente** et devient **atteignable**
+>   par le plafond de 5 km et par le hors-couverture — le filtre EFFIS retenant les entités par
+>   *intersection* de bbox, une zone peut légitimement tomber dans le Var, le Gard ou **en mer**. Les
+>   deux branches sont désormais prouvées en recette (`tests/scenarios/47`), là où une seule l'était.
+> - **Ne change pas** : **les deux substitutions refusées ci-dessous restent refusées.** #45 leur en
+>   ajoute deux, par le même raisonnement : (c) les **points chefs-lieux**, et (d) **tout point qui
+>   résume la zone** — centre de bbox, centroïde, premier sommet. Une zone de 30 ha est couramment en
+>   croissant ou en L : le centre de son emprise peut tomber **hors d'elle**, dans une commune que le
+>   feu n'a jamais touchée, et **le plafond de 5 km ne rattrape pas cela**. La distance se mesure depuis
+>   la géométrie de la zone, jamais depuis un point qui la résume.
+>
+> **La question bloquante du §11 Q1 est close** : elle a reçu réponse du propriétaire du projet.
 
 Les deux plans convergent, et leur convergence est confirmée. `includes/domain/massifs/README.md`
 l. 405-408 acte qu'**aucun référentiel communal n'existe dans le projet** — `communes` est toujours vide,

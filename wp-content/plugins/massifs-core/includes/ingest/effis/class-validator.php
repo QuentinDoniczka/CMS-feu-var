@@ -442,12 +442,28 @@ final class Validator {
 			'surface_ha'             => $surface_ha,
 			'premiere_observation'   => self::instant_iso( $proprietes[ $attributs['premiere_observation'] ] ?? null ),
 			'derniere_observation'   => self::instant_iso( $proprietes[ $attributs['derniere_observation'] ] ?? null ),
-			// Aucun référentiel communal n'existe dans le projet : la clé
-			// existe, elle se tait, et elle accueillera la donnée sans
-			// refonte. Substituer le massif le plus proche serait une
-			// conflation, et lire un attribut de commune de la source serait
-			// inventer un fait sur un schéma que nous n'avons jamais relevé.
-			'commune_la_plus_proche' => '',
+			// Résolue ICI, au moment de l'ingestion, et JAMAIS au rendu : le
+			// panneau est rendu par le serveur, et une résolution à la lecture
+			// ouvrirait la géométrie communale à chaque affichage de la page
+			// d'accueil.
+			//
+			// LA GÉOMÉTRIE ENTIÈRE EST PASSÉE, jamais un point qui la résume.
+			// Une zone de 30 ha et plus est couramment en croissant, en L, ou
+			// en plusieurs parties : le centre de son emprise peut tomber hors
+			// d'elle, dans une commune que le feu n'a jamais touchée, ou en
+			// mer. Le plafond de 5 km ne rattrape pas cela — un centre situé à
+			// 2 km du foyer réel, dans une commune voisine, renverrait le nom
+			// de cette voisine avec assurance et SOUS le plafond. C'est le
+			// quatrième contournement refusé, et c'est le raisonnement exact
+			// qui avait déjà fait refuser les points chefs-lieux, le massif le
+			// plus proche et l'attribut `commune` de la source.
+			//
+			// Chaîne vide quand aucune commune n'est résolue à moins de 5 km,
+			// ou quand la zone déborde l'emprise couverte : le gabarit omet
+			// alors proprement la paire.
+			'commune_la_plus_proche' => function_exists( 'massifs_commune_de_la_zone_nom' )
+				? massifs_commune_de_la_zone_nom( $entite['geometrie'] )
+				: '',
 			'geometrie'              => $entite['geometrie'],
 		);
 	}

@@ -1,0 +1,17 @@
+# Les octets SONT le contrat, ici aussi.
+#
+# `communes-13.lookup.json` porte une empreinte sha256 calculée au build sur les
+# octets du fichier, consignée dans `data/massifs-13.php` et dans
+# `build/reference.json`. Une conversion de fins de ligne au clone
+# (`core.autocrlf=true`, valeur courante sous Windows) changerait ces octets
+# sans changer l'empreinte consignée : la recette échouerait pour une raison qui
+# n'a rien à voir avec le référentiel communal.
+#
+# `-text` et non `binary` : `binary` implique `-diff`, or relire le diff de cet
+# artefact — un nom de commune apparu, disparu ou changé — est précisément ce
+# qu'une montée de millésime demande de regarder.
+#
+# PAS de motif fourre-tout : les fichiers PHP de ce répertoire n'ont aucune
+# empreinte contractuelle, et les soumettre au même régime serait un piège pour
+# les chaînes suivantes.
+communes-13.lookup.json -text

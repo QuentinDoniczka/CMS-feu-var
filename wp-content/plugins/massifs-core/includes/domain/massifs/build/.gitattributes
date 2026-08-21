@@ -12,6 +12,8 @@
 # absorberait la conversion au commit et découplerait les octets du disque —
 # ceux dont on calcule l'empreinte — de ceux du blob.
 source/massifs-13.full.geojson -text
+source/communes-13-limitrophes.geojson -text
+source/communes-13-limitrophes.manifeste.json -text
 massifs-13.fidelite.json       -text
 reference.json                 -text
 

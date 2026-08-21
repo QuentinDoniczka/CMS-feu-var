@@ -110,6 +110,7 @@ if ( have_posts() ) :
 				// ---------------------------------------------------------------
 
 				$massifs_perimetres = function_exists( 'massifs_attribution' ) ? massifs_attribution() : null;
+				$massifs_communes   = function_exists( 'massifs_attribution_communes' ) ? massifs_attribution_communes() : null;
 				$massifs_fond       = function_exists( 'massifs_attribution_fond_de_carte' ) ? massifs_attribution_fond_de_carte() : null;
 				$massifs_statuts    = function_exists( 'massifs_attribution_statuts' ) ? massifs_attribution_statuts() : null;
 				$massifs_zones      = function_exists( 'massifs_attribution_zones_parcourues_par_le_feu' ) ? massifs_attribution_zones_parcourues_par_le_feu() : null;
@@ -122,12 +123,13 @@ if ( have_posts() ) :
 
 				// On ne rend pas de titre de section vide — et « vide » ne veut pas
 				// seulement dire « extension absente » : chaque sous-bloc ci-dessous
-				// exige EN PLUS une phrase non vide, donc les cinq lectures peuvent
+				// exige EN PLUS une phrase non vide, donc les six lectures peuvent
 				// répondre et n'imprimer rien. La garde rejoue donc exactement la
 				// condition des sous-blocs, sinon un <h2> annoncerait une section
 				// absente — ce qu'interdit le §3 du contrat #18 (« ni intitulé, ni
 				// tiret »). Même garde que celle des mentions légales.
 				$massifs_a_une_source = ( null !== $massifs_perimetres && '' !== $massifs_perimetres['phrase'] )
+					|| ( null !== $massifs_communes && '' !== $massifs_communes['phrase'] )
 					|| ( null !== $massifs_fond && '' !== $massifs_fond['phrase'] )
 					|| ( null !== $massifs_statuts && '' !== $massifs_statuts['texte'] )
 					|| ( null !== $massifs_zones && '' !== $massifs_zones['phrase'] )
@@ -165,6 +167,42 @@ if ( have_posts() ) :
 							massifs_demarche_fait( 'Identifiant du jeu de données', $massifs_faits['dataset_id'] );
 							?>
 						</dl>
+						<?php
+					endif;
+
+					// --- Référentiel communal ---
+					// Placé juste après les périmètres : les deux sont des
+					// référentiels géographiques vectoriels sous Licence Ouverte, et
+					// c'est le second qui fournit les noms de communes rattachés aux
+					// massifs du premier.
+					if ( null !== $massifs_communes && '' !== $massifs_communes['phrase'] ) :
+						?>
+						<h3>Référentiel communal</h3>
+						<p>
+							<?php
+							/*
+							 * INTERDIT DE DÉCOUPE, même règle qu'au fond de carte :
+							 * la Licence Ouverte 2.0 impose une formulation exacte,
+							 * et `phrase` porte le millésime résolu du référentiel
+							 * (contrat #45 §2.1). Elle est rendue ENTIÈRE.
+							 */
+							if ( '' !== $massifs_communes['lien_licence'] ) :
+								?>
+								<a href="<?php echo esc_url( $massifs_communes['lien_licence'] ); ?>"><?php echo esc_html( $massifs_communes['phrase'] ); ?></a>
+								<?php
+							else :
+								echo esc_html( $massifs_communes['phrase'] );
+							endif;
+							/*
+							 * Aucune <dl> de faits, à la différence des périmètres et
+							 * du fond de carte : le contrat #45 §5 gèle la FORME du
+							 * retour, pas les clés de son bloc `faits`. Nommer ici un
+							 * `<dt>` sur une clé non contractée serait inventer une
+							 * étiquette et lire une clé qui peut ne pas exister. Les
+							 * statuts et la météo se rendent déjà ainsi.
+							 */
+							?>
+						</p>
 						<?php
 					endif;
 

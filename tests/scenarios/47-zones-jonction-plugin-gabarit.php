@@ -17,7 +17,9 @@
  *  C. L'ASSERTION N° 1 DE L'ISSUE, au niveau du RENDU cette fois : les deux
  *     états portent `nombre === 0` et ne produisent JAMAIS les mêmes octets.
  *  D. `zones_disponibles` — la liste, les surfaces déjà formatées par le
- *     serveur, les instants, et l'omission pure de la commune (A-8).
+ *     serveur, les instants, et LES DEUX BRANCHES de la commune la plus
+ *     proche : la paire rendue quand le serveur la résout, purement omise
+ *     quand il se tait (A-8, amendé par #45).
  *  E. La garde d'attribution — évaluée AVANT toute autre, zéro octet à son
  *     échec, LISTE COMPRISE (I-11.6).
  *  F. Le repli A-15 et le repli d'état inconnu — tous deux vers
@@ -252,7 +254,53 @@ t_assert( str_contains( $html_zones, '<dt class="zones-parcourues__etiquette">De
 // donnait qu'un jour civil est PUREMENT OMISE, jamais comblée par un midi UTC.
 t_egal( 1, substr_count( $html_zones, 'Première observation' ), 'D. jour civil nu ⇒ la paire est omise : AUCUN midi fabriqué (A-11)' );
 t_egal( 2, substr_count( $html_zones, 'Dernière observation' ), 'D. les deux instants complets sont rendus' );
-t_assert( ! str_contains( $html_zones, 'Commune la plus proche' ), 'D. aucune paire « Commune la plus proche » tant que la donnée est vide : ni tiret, ni « non renseigné » (A-8)' );
+/*
+ * Bascule #45 — LES DEUX BRANCHES, jamais une seule. A-8 gelait « l'emplacement
+ * existe et se tait » ; l'amendement le peuple quand une commune est résolue à
+ * moins de 5 km, et le laisse vide sinon. Prouver la seule branche peuplée
+ * laisserait la règle d'omission propre sans test ; prouver la seule branche
+ * vide reviendrait à ne pas tester la fonctionnalité de l'issue.
+ */
+t_egal( 2, substr_count( $html_zones, 'Commune la plus proche' ), 'D. branche PEUPLÉE : la paire est rendue pour chaque zone dont la commune est résolue' );
+
+foreach ( $couche_zones['zones'] as $zone ) {
+	t_assert(
+		'' !== $zone['commune_la_plus_proche'] && str_contains( $html_zones, '<dd class="zones-parcourues__valeur">' . esc_html( $zone['commune_la_plus_proche'] ) . '</dd>' ),
+		'D. branche peuplée : « ' . $zone['commune_la_plus_proche'] . ' » est rendue telle que le serveur l\'a servie — le thème ne compose aucun nom de commune',
+		$zone['commune_la_plus_proche'],
+		$html_zones
+	);
+}
+
+// Branche VIDE : hors couverture ou au-delà du plafond de 5 km, le serveur
+// n'émet rien, et le gabarit omet la paire — ni tiret, ni « non renseigné ».
+$html_sans_commune = t_rendre_partie(
+	'panneau-feu',
+	array(
+		'zones_parcourues' => array_merge(
+			$couche_zones,
+			array(
+				'zones' => array_map(
+					static function ( array $zone ): array {
+						return array_merge( $zone, array( 'commune_la_plus_proche' => '' ) );
+					},
+					$couche_zones['zones']
+				),
+			)
+		),
+	)
+);
+
+t_assert( ! str_contains( $html_sans_commune, 'Commune la plus proche' ), 'D. branche VIDE : aucune paire « Commune la plus proche » quand la donnée est vide — ni tiret, ni « non renseigné » (A-8, amendé par #45)' );
+t_assert( ! str_contains( $html_sans_commune, 'non renseigné' ) && ! str_contains( $html_sans_commune, '<dd class="zones-parcourues__valeur">—</dd>' ), 'D. branche vide : aucun substitut n\'est fabriqué à la place du nom absent' );
+t_assert( str_contains( $html_sans_commune, 'Surface estimée' ), 'D. branche vide : le reste du panneau est rendu à l\'identique — seule la paire manque' );
+
+// Le serveur, lui, sait DIRE pourquoi il se tait : le silence du gabarit repose
+// sur une donnée vide, jamais sur une inconnue muette.
+$hors = massifs_commune_de_la_zone( t_effis_carre( 7.262, 43.71 ) );
+t_egal( false, $hors['trouvee'], 'D. branche vide : le domaine répond explicitement « pas trouvée »' );
+t_egal( 'communes_hors_couverture', $hors['etat'], 'D. branche vide : l\'état nomme la cause, hors couverture' );
+t_egal( null, $hors['distance_m'], 'D. branche vide : aucune distance inventée' );
 
 // Les deux clés de transport ne traversent jamais la frontière du rendu.
 t_assert( ! str_contains( $html_zones, 'coordinates' ) && ! str_contains( $html_zones, 'Polygon' ), 'D. `geometrie` n\'est jamais lue : ce gabarit rend du texte, il ne projette rien (interdit 5)' );
@@ -300,7 +348,7 @@ t_assert( '' !== $html_avec_mention, 'E. …et la même couche rend bien du HTML
 // ---------------------------------------------------------------------------
 // F. Les deux replis — vers `couche_effis_indisponible`, JAMAIS vers `aucune_zone`.
 // ---------------------------------------------------------------------------
-$avant   = $replis;
+$avant     = $replis;
 $illisible = t_rendre_partie(
 	'panneau-feu',
 	array(

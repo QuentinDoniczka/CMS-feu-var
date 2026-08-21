@@ -67,9 +67,17 @@ function attribution(): array {
 /**
  * Lacunes connues et citables du référentiel.
  *
- * `communes` est vide parce que l'attribut n'existe nulle part dans la couche
- * source, et non parce qu'aucune commune ne serait concernée : le thème omet la
- * ligne, il n'écrit jamais « aucune commune ».
+ * `communes` n'est plus une lacune permanente. L'attribut n'existe toujours nulle
+ * part dans la couche source — la liste est donc CALCULÉE PAR NOUS, par
+ * intersection des périmètres DDTM avec IGN ADMIN EXPRESS, au seuil de 1 % de la
+ * surface du massif. `statut` vaut dès lors `calculee` en nominal : la valeur dit
+ * à un réutilisateur que la liste résulte de NOTRE calcul et n'est pas une
+ * publication officielle de la DDTM.
+ *
+ * `inconnue` reste la valeur de repli, servie quand le référentiel est
+ * indisponible, et reste la seule qui ne puisse jamais être relue comme « aucune
+ * commune concernée » : sur ce repli le thème omet la ligne, il n'écrit jamais
+ * « aucune commune ».
  *
  * @return array{communes:array{statut:string,raison:string,source_pressentie:string}}
  */

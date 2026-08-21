@@ -5,12 +5,12 @@
  * Gabarit de la page « Mentions légales » (brief §5.1 et §9).
  *
  * CE QUE CE FICHIER PORTE : les faits d'identité fournis par le propriétaire du
- * projet le 16 août 2026 (contrat #18 §4), et les CINQ attributions servies par
+ * projet le 16 août 2026 (contrat #18 §4), et les SIX attributions servies par
  * l'extension. La prose qui les encadre vit dans le contenu (arbitrage A-1).
  *
- * POURQUOI LES CINQ ATTRIBUTIONS ICI, alors que templates/footer.php en rend
+ * POURQUOI LES SIX ATTRIBUTIONS ICI, alors que templates/footer.php en rend
  * déjà deux sur toutes les pages (arbitrage A-4) : le §9 du brief et le §16 de
- * MASTER.md exigent que les cinq figurent aux mentions légales. Le pied les
+ * MASTER.md exigent que les six figurent aux mentions légales. Le pied les
  * traite comme des CRÉDITS attachés à une donnée affichée — sa doctrine écrite
  * est « créditer une source dont aucune donnée n'est affichée est une
  * affirmation fausse » ; cette page les traite comme une TABLE DES SOURCES ET
@@ -182,12 +182,15 @@ if ( have_posts() ) :
 
 				<?php
 				// -------------------------------------------------------------------
-				// Les cinq attributions du §9 du brief. Toutes servies par
-				// l'extension, toutes sous garde : la page reste valide extension
-				// désactivée, et aucune phrase n'est rédigée ici.
+				// Les six attributions : les cinq du §9 du brief, plus le
+				// référentiel communal, exigible dès la diffusion des noms de
+				// communes par la Licence Ouverte 2.0 (contrat #45 §9). Toutes
+				// servies par l'extension, toutes sous garde : la page reste valide
+				// extension désactivée, et aucune phrase n'est rédigée ici.
 				// -------------------------------------------------------------------
 
 				$massifs_perimetres = function_exists( 'massifs_attribution' ) ? massifs_attribution() : null;
+				$massifs_communes   = function_exists( 'massifs_attribution_communes' ) ? massifs_attribution_communes() : null;
 				$massifs_fond       = function_exists( 'massifs_attribution_fond_de_carte' ) ? massifs_attribution_fond_de_carte() : null;
 				$massifs_statuts    = function_exists( 'massifs_attribution_statuts' ) ? massifs_attribution_statuts() : null;
 				$massifs_zones      = function_exists( 'massifs_attribution_zones_parcourues_par_le_feu' ) ? massifs_attribution_zones_parcourues_par_le_feu() : null;
@@ -199,6 +202,7 @@ if ( have_posts() ) :
 				$massifs_meteo = function_exists( 'massifs_meteo_du_jour' ) ? massifs_meteo_du_jour()['attribution'] : null;
 
 				$massifs_a_une_source = ( null !== $massifs_perimetres && '' !== $massifs_perimetres['phrase'] )
+					|| ( null !== $massifs_communes && '' !== $massifs_communes['phrase'] )
 					|| ( null !== $massifs_fond && '' !== $massifs_fond['phrase'] )
 					|| ( null !== $massifs_statuts && '' !== $massifs_statuts['texte'] )
 					|| ( null !== $massifs_zones && '' !== $massifs_zones['phrase'] )
@@ -214,6 +218,19 @@ if ( have_posts() ) :
 								'Périmètres des massifs',
 								$massifs_perimetres['phrase'],
 								$massifs_perimetres['lien_licence']
+							);
+						}
+
+						// Juste après les périmètres : les deux sont des référentiels
+						// géographiques vectoriels sous Licence Ouverte, et c'est le
+						// second qui fournit les noms de communes rattachés aux
+						// massifs du premier. Les lire côte à côte dit d'où vient
+						// chaque moitié du même fait.
+						if ( null !== $massifs_communes ) {
+							massifs_mentions_source(
+								'Référentiel communal',
+								$massifs_communes['phrase'],
+								$massifs_communes['lien_licence']
 							);
 						}
 

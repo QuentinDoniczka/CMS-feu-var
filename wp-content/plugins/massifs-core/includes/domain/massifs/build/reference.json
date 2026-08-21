@@ -1,6 +1,6 @@
 {
   "a_propos": "Empreinte de référence des artefacts. ÉMIS PAR `npm run importer`, jamais édité à la main. `npm run verifier` compare les artefacts en place à ces valeurs : une différence est une dérive à expliquer. Si le changement est voulu, régénérer les artefacts ET ce fichier par `npm run importer`, dans le même commit.",
-  "genere_le": "2026-08-17T07:54:55Z",
+  "genere_le": "2026-08-20T06:34:29Z",
   "outillage": {
     "mapshaper": "0.6.102",
     "node_major": 24
@@ -16,5 +16,20 @@
     "octets": 193137,
     "sommets": 11317,
     "ecart_max_m": 93.62
+  },
+  "communes": {
+    "millesime": "2026",
+    "extrait": {
+      "fichier": "includes/domain/massifs/build/source/communes-13-limitrophes.geojson",
+      "sha256": "43cc1925904fd08d14a03a22c8fd3d956c023d004acd6ac90f7c8ced7e1626cc",
+      "octets": 1494991
+    },
+    "lookup": {
+      "fichier": "includes/domain/massifs/communes-13.lookup.json",
+      "sha256": "53c4b91e82b282a733e8a7371d2110e29eaf661131122f0c12fe0273eac86f47",
+      "octets": 501375,
+      "communes": 298,
+      "sommets": 27890
+    }
   }
 }

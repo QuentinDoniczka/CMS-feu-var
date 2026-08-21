@@ -181,7 +181,77 @@ t_egal( '4,5' . $insecable . 'ha', $couche['zones'][1]['surface_texte'], 'sous 1
 t_egal( '2026-08-12T09:30:00Z', $couche['zones'][0]['premiere_observation'], 'instant ISO 8601 UTC complet' );
 t_egal( '', $couche['zones'][1]['premiere_observation'], 'jour civil nu ⇒ chaîne vide : AUCUN midi UTC fabriqué' );
 t_egal( '2026-08-13T18:00:00Z', $couche['zones'][1]['derniere_observation'], 'l\'autre instant de la même zone reste servi' );
-t_egal( '', $couche['zones'][0]['commune_la_plus_proche'], 'commune la plus proche : l\'emplacement existe et se tait (aucun référentiel communal)' );
+/*
+ * Bascule #45 : l'emplacement cesse de se taire. Le référentiel communal existe
+ * désormais, et la commune est résolue À L'INGESTION — jamais au rendu — depuis
+ * la GÉOMÉTRIE de la zone, jamais depuis un point qui la résume (interdit 7.d).
+ * Les deux carrés de la simulation sont posés autour du centre de l'emprise
+ * départementale : ils tombent sur deux communes DIFFÉRENTES, ce qui prouve que
+ * la valeur est résolue et non constante.
+ *
+ * La règle « paire omise quand la valeur est vide » n'est pas retirée : elle
+ * cesse d'être permanente et devient atteignable par le plafond de 5 km et le
+ * hors-couverture. Ses deux branches sont prouvées en 47.
+ */
+t_egal( 'Velaux', $couche['zones'][0]['commune_la_plus_proche'], 'commune la plus proche RÉSOLUE, verbatim de l\'archive IGN' );
+t_egal( 'Ventabren', $couche['zones'][1]['commune_la_plus_proche'], 'la seconde zone résout SA commune : la valeur n\'est pas une constante' );
+
+/*
+ * LE SEAM EST DE FORME GÉOMÉTRIQUE — et ce contrôle-ci SAIT ROUGIR.
+ *
+ * La zone ci-dessous est un U ouvert vers l'est, posé sur des limites communales
+ * réelles. Son centre d'emprise tombe dans le CREUX du U, donc hors de la zone,
+ * et dans une commune que le feu n'aurait pas touchée. Les deux méthodes donnent
+ * deux réponses DIFFÉRENTES — Peypin par la géométrie, Belcodène par le centre —
+ * et c'est ce qui rend l'interdit 7.d vérifiable au lieu d'être affirmé : une
+ * régression vers un point qui résume la zone ferait basculer la première
+ * assertion sans toucher à la seconde.
+ */
+$zone_en_u = array(
+	'type'        => 'Polygon',
+	'coordinates' => array(
+		array(
+			array( 5.5600, 43.3900 ),
+			array( 5.5900, 43.3900 ),
+			array( 5.5900, 43.3954 ),
+			array( 5.5684, 43.3954 ),
+			array( 5.5684, 43.4146 ),
+			array( 5.5900, 43.4146 ),
+			array( 5.5900, 43.4200 ),
+			array( 5.5600, 43.4200 ),
+			array( 5.5600, 43.3900 ),
+		),
+	),
+);
+
+/** Zone ponctuelle : un carré de 44 m de côté, pour interroger un lieu précis. */
+$t_lieu = static function ( float $lon, float $lat ): array {
+	$d = 0.0002;
+
+	return array(
+		'type'        => 'Polygon',
+		'coordinates' => array(
+			array(
+				array( $lon - $d, $lat - $d ),
+				array( $lon + $d, $lat - $d ),
+				array( $lon + $d, $lat + $d ),
+				array( $lon - $d, $lat + $d ),
+				array( $lon - $d, $lat - $d ),
+			),
+		),
+	);
+};
+
+t_egal( 'Peypin', massifs_commune_de_la_zone_nom( $zone_en_u ), 'zone en U : la commune vient de la GÉOMÉTRIE, jamais d\'un point qui la résume (interdit 7.d)' );
+t_egal( 'Belcodène', massifs_commune_de_la_zone_nom( $t_lieu( 5.5750, 43.4050 ) ), 'le centre de l\'emprise de ce U tombe dans une AUTRE commune : l\'assertion ci-dessus est falsifiable' );
+
+t_assert(
+	'' === massifs_commune_de_la_zone_nom( $t_lieu( 7.262, 43.71 ) ),
+	'hors de l\'emprise couverte, le serveur n\'émet RIEN plutôt qu\'un nom trompeur',
+	'(silence)',
+	massifs_commune_de_la_zone_nom( $t_lieu( 7.262, 43.71 ) )
+);
+t_egal( 'communes_inconnues', massifs_commune_de_la_zone( array( 'type' => 'Point', 'coordinates' => array( 5.37, 43.29 ) ) )['etat'], 'géométrie inexploitable : on ne sait pas, et on le dit — aucune commune devinée' );
 
 $horodatage = massifs_horodatage( $couche['releve_le'] );
 t_assert( '' !== $horodatage['date_longue'], 'releve_le est consommable tel quel par massifs_horodatage()', 'date lisible', $horodatage );
