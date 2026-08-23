@@ -9,12 +9,19 @@
  * l'extension. La prose qui les encadre vit dans le contenu (arbitrage A-1).
  *
  * POURQUOI LES SIX ATTRIBUTIONS ICI, alors que templates/footer.php en rend
- * déjà deux sur toutes les pages (arbitrage A-4) : le §9 du brief et le §16 de
- * MASTER.md exigent que les six figurent aux mentions légales. Le pied les
- * traite comme des CRÉDITS attachés à une donnée affichée — sa doctrine écrite
- * est « créditer une source dont aucune donnée n'est affichée est une
- * affirmation fausse » ; cette page les traite comme une TABLE DES SOURCES ET
- * LICENCES du site, ce qui est un autre objet. La duplication de deux phrases
+ * déjà deux sur toutes les pages (arbitrage A-4) : DEUX FONDEMENTS DISTINCTS,
+ * à ne pas confondre. Le §9 du brief et le §16 de MASTER.md exigent que CINQ
+ * attributions figurent aux mentions légales — ni l'un ni l'autre ne cite
+ * l'IGN. La SIXIÈME, le référentiel communal, est exigée par la Licence
+ * Ouverte 2.0, qui se déclenche à la DIFFUSION : `massifs[].communes` part dans
+ * le JSON public au moment même où le référentiel est rempli (contrat #45 §9).
+ *
+ * Le pied, lui, traite les attributions comme des CRÉDITS attachés à une donnée
+ * affichée — sa doctrine écrite est « créditer une source dont aucune donnée
+ * n'est affichée est une affirmation fausse » ; cette page les traite comme une
+ * TABLE DES SOURCES ET LICENCES du site, ce qui est un autre objet. Et le pied
+ * ne rend pas de communes : il ne crédite pas l'IGN, par décision et non par
+ * oubli (contrat #45 §9). La duplication de deux phrases
  * est réelle, PRÉ-EXISTANTE et déjà enregistrée au contrat #24, report F-3 :
  * la résoudre demande templates/footer.php, hors empreinte de l'issue #18.
  *

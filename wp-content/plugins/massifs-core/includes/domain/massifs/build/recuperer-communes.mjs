@@ -506,7 +506,13 @@ async function principal() {
 			departement_temoin: DEPARTEMENT_TEMOIN,
 			attributs_temoins: ATTRIBUTS_TEMOINS,
 			empreinte_attributs_md5: resolution.empreinte,
-			titre_publie: resolution.titre,
+			// `<Title>` de la couche TÉMOIN datée `ADMINEXPRESS-COG.<AAAA>` ayant
+			// servi à résoudre l'alias par mesure — JAMAIS celui de la couche
+			// `ADMINEXPRESS-COG-CARTO.LATEST` d'où vient la géométrie livrée. Le
+			// suffixe `_temoin` est là pour que ce champ ne soit pas relu comme
+			// décrivant la couche livrée : il voisine `jeu_de_donnees`, qui vaut
+			// « ADMIN EXPRESS COG Carto », et les deux valeurs sont exactes.
+			titre_publie_temoin: resolution.titre,
 			candidats: resolution.candidats,
 		},
 		point_acces: POINT_ACCES,

@@ -18,6 +18,18 @@ comme un « **point** hors emprise ». Le code teste bien l'**emprise entière d
 couverture de l'artefact. Encore le vocabulaire de l'API par point, encore le code qui a raison contre le
 contrat. Trouvé par `dev-integration-cms`.
 
+**Quatrième réalignement, 23 août 2026, sur le §2 — et c'est le plus dangereux des quatre.** Le §2
+donnait la couche comme `ADMINEXPRESS-COG-CARTO.<millésime>:commune`, **en la classant « mesurée »**
+au §12. **Aucune couche datée `ADMINEXPRESS-COG-CARTO.<AAAA>` n'existe** : la variante CARTO n'est
+servie que derrière l'alias `.LATEST`, et une interrogation datée répond **HTTP 400**
+(`recuperer-communes.mjs` l. 20-24, README du domaine l. 446-447). La forme datée qui existe appartient
+à la famille **`ADMINEXPRESS-COG`**, sans `-CARTO`, et elle ne sert **qu'à résoudre l'alias par mesure** —
+elle n'est la source d'aucune géométrie livrée. Le §2 décrivait donc une couche interrogeable qui ne
+l'est pas, sous l'autorité d'une mention « requête réelle ». **Un fait faux estampillé « mesuré » est
+pire qu'un fait absent** : il ferme l'enquête au lieu de l'ouvrir, et le prochain relecteur serait allé
+interroger une couche inexistante en concluant à une panne du service. Le §2.1 disait déjà juste ; c'est
+le tableau du §2 qui le contredisait. Trouvé par `review-cms`.
+
 **Provenance de ce contrat — à lire avant de s'en servir.** Les deux `leaddev` de cette chaîne
 (`leaddev-back-45`, `leaddev-front-45`) **n'avaient rendu aucun plan au moment du gel** : lancés, ils ont
 accusé réception des consignes, puis n'ont pas répondu dans la fenêtre, y compris à un ping de liveness
@@ -52,7 +64,8 @@ Deux besoins, aujourd'hui non tenus faute de donnée :
 | Fait | Valeur | Comment il a été établi |
 |---|---|---|
 | Service | `data.geopf.fr` WFS 2.0.0, `OUTPUTFORMAT=application/json` | Requête réelle, 18 août 2026 |
-| Couche | `ADMINEXPRESS-COG-CARTO.<millésime>:commune` | idem |
+| Couche interrogée | `ADMINEXPRESS-COG-CARTO.LATEST:commune` — **un alias, la seule forme servie** | idem |
+| Famille témoin datée | `ADMINEXPRESS-COG.<AAAA>:commune` — sert **uniquement** à résoudre l'alias par mesure | idem |
 | Filtre | `CQL_FILTER=code_insee_du_departement='13'` (+ départements limitrophes, §4.2) | idem |
 | Projection | `SRSNAME=EPSG:4326` | idem |
 | Entités (13 seul) | **119** | Compté sur la réponse |

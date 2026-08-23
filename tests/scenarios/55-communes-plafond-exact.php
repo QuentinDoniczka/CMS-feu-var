@@ -4,9 +4,16 @@
  *
  * Le §4.4 dit : « **Au-delà** du plafond de 5 km, silence ». *Au-delà* exclut
  * la borne : une commune située à exactement 5 000 m doit donc être NOMMÉE,
- * avec `distance_m = 5000`. Le code compare `$mesure < $distance` avec
- * `$distance` initialisé au plafond (`communes.php`, `commune_de_la_zone()`) :
- * la borne exacte tombe du mauvais côté.
+ * avec `distance_m = 5000`. CE SCÉNARIO PROUVE QUE LE PLAFOND EST INCLUSIF.
+ *
+ * Il a été écrit pour trouver un défaut, qu'il a trouvé : le code confondait
+ * alors la borne de recherche et la meilleure mesure en une seule variable
+ * amorcée au plafond, si bien que la comparaison `$mesure < $distance` faisait
+ * tomber la borne exacte du mauvais côté. Corrigé au commit `6deded0` : la
+ * borne de recherche et la meilleure mesure sont désormais DEUX variables
+ * distinctes, l'acceptation face au plafond est LARGE (`$mesure <= $plafond`)
+ * et le départage entre deux mesures reste STRICT (`$mesure < $distance`)
+ * (`communes.php`, `commune_de_la_zone()`).
  *
  * CE CONTRÔLE EXISTE PARCE QUE LA BORNE N'EST PAS ATTEIGNABLE SUR LE
  * RÉFÉRENTIEL RÉEL. Vérifié par bissection sur l'artefact commité : entre deux

@@ -454,10 +454,16 @@ function commune_de_la_zone( array $geometrie ): array {
 		$mesure = distance_zone_commune( $zone, $candidate['commune'], $lookup['lon_m'], $lookup['lat_m'], $borne );
 
 		// Acceptation LARGE contre le plafond, départage STRICT entre deux mesures :
-		// à distance strictement égale, la commune déjà retenue gagne, et le tri
-		// stable a conservé l'ordre du code INSEE. C'est le même départage que celui
-		// des parts, et pour la même raison : la reproductibilité, pas une
-		// préférence entre deux communes.
+		// à distance strictement égale, la commune déjà retenue gagne. L'ordre de
+		// parcours est celui des ÉCARTS D'EMPRISES croissants, pas celui des codes
+		// INSEE : la stabilité de `usort` ne préserve l'ordre INSEE de l'artefact
+		// qu'ENTRE ÉCARTS ÉGAUX. Entre deux candidates d'écarts différents mais de
+		// distances réelles finalement égales, c'est l'écart le plus petit qui a
+		// été vu en premier, donc qui gagne. La sortie reste déterministe — c'est
+		// tout ce qui est demandé ici : la reproductibilité, pas une préférence
+		// entre deux communes. Le départage par plus petit INSEE que gèle le §4.3
+		// porte sur la PART DE SURFACE strictement égale, et c'est
+		// `departager_chevauchees()` qui l'honore, pas cette boucle.
 		if ( $mesure <= $plafond && $mesure < $distance ) {
 			$distance  = $mesure;
 			$borne     = $mesure;
