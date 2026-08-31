@@ -26,11 +26,13 @@ wp-config.php
 *.sql.gz
 /backups/
 
-# Dépendances
+# Dépendances — la racine est une installation WordPress, pas une racine de projet :
+# ces règles sont ancrées à dessein. Plus bas dans l'arbre, un lockfile appartient à
+# une chaîne de build et rend reproductible l'installation exigée au §11 du brief : il reste suivi.
 /vendor/
 /node_modules/
-composer.lock
-package-lock.json
+/composer.lock
+/package-lock.json
 
 # Données cartographiques volumineuses mises en cache
 /wp-content/uploads/massifs-tiles/
