@@ -1,7 +1,53 @@
 # Contrat d'interface — Issue #27 — Réconcilier la garde du `match()` de `front-page.php` avec l'arbitrage écran-blanc de la chaîne #6
 
-**Gelé le 13 août 2026** par `lead-issue-cms` (chaîne #27) · **Révision 1 — 17 août 2026, issue #31**.
+**Gelé le 13 août 2026** par `lead-issue-cms` (chaîne #27) · **Révision 1 — 17 août 2026, issue #31** ·
+**Révision 2 — 31 août 2026, issue #68**.
 Liant à partir de ce point.
+
+> **Révision 2 — issue #68, alignement de deux assertions sur ce que la recette mesure réellement.**
+> Les **assertions 5 et 6** de la table « Attendus mesurables » décrivaient un attendu que le scénario
+> `etat-inconnu` de `tests/rendu/recette-rendu.mjs` (`s23_ardoiseEtatInconnu`, « 23 — ardoise :
+> etat_global hors des quatre états du gabarit (recette R-27) ») **ne vérifie pas — et contredit**.
+>
+> **Assertion 5, direction dangereuse.** Le contrat exigeait `<a href="#liste">` « dans l'en-tête » et
+> `id="liste"` « exactement une fois ». La recette compte **deux** `a[href="#liste"]` et **une** cible
+> `[id="liste"]`, sur un sélecteur **document-wide**. Les deux liens sont **délibérés** : lien
+> d'évitement de `templates/header.php` (l. 49) **et** lien visible du repli statique de
+> `templates/parts/carte-secours.php` (l. 157), autorisés **explicitement** par le contrat #9 §6 —
+> « deux liens de même nom vers la **même** destination satisfont WCAG 2.4.4, et la redondance est
+> utile ». Pris à la lettre, le contrat commandait de **supprimer un lien d'évitement**, c'est-à-dire le
+> chemin d'accès à la liste textuelle depuis la bande carte sur le **rendu sans JavaScript** —
+> contrainte non négociable #3, brief §5.3 et §8. Deux contrats gelés se contredisaient sur le même
+> rendu : **exactement la classe de défaut que #27 existe pour refermer.**
+>
+> **Assertion 6, direction silencieuse.** Le contrat donnait l'aiguille `Erreur critique sur ce site`,
+> capitale initiale. Le corps réellement servi porte « Il y a eu une **e**rreur critique sur ce site. »,
+> initiale **minuscule** — deux mesures indépendantes : `tests/README.md` l. 180 (13 août 2026) et
+> `docs/contracts/issue-29.md` l. 62 (17 août 2026). L'aiguille du contrat ne peut donc **jamais**
+> matcher : un agent réécrivant la recette depuis le contrat produirait une garde **toujours verte**, y
+> compris sur une page 500 du cœur — un faux négatif sur la **seule** sonde du `try/catch` d'A-31.
+>
+> **Aucune exigence n'est assouplie, aucun comportement ne change, et aucun octet de code ni de recette
+> n'est modifié par #68** : le contrat est aligné sur un comportement livré, correct et déjà couvert.
+> Lignes touchées : les **deux cellules** des assertions 5 et 6, et cette ligne d'en-tête.
+> **Les occurrences en prose de « Erreur critique sur ce site. » — §« Correction factuelle » et
+> dépendance O-27-5 — ne sont PAS touchées** :
+> cette forme capitalisée est un idiome maison employé à l'identique en `front-page.php` l. 110,
+> `docs/contracts/issue-5.md` l. 34 et `docs/contracts/issue-6.md` l. 23, tous **hors empreinte de #68**.
+> La corriger ici seulement désynchroniserait quatre documents décrivant le même fait — refermer une
+> dérive en en ouvrant trois. **Signalé à l'orchestrateur, non traité**, comme les autres écarts
+> contrat/recette relevés au passage et laissés intacts.
+>
+> **Règle de méthode, opposable en revue** — troisième occurrence du même motif (#19 sur
+> `docs/contracts/issue-3.md` l. 392, #31 sur l'assertion 4 ci-dessous, #68 ici) :
+> **(a)** une assertion qui **reproduit une aiguille** de la recette la reproduit **à l'octet** et la
+> nomme comme aiguille ; une chaîne citée **en prose** pour nommer un artefact suit, elle, la convention
+> du dépôt — les deux registres ne se corrigent pas l'un par l'autre. **(b)** Une assertion qui **énonce
+> un compte** l'énonce sur le **même sélecteur** que la recette et nomme ce que le compte borne — **les
+> chemins ou la cible**, jamais les deux confondus. **(c)** Tout compte est écrit avec la **garde sous
+> laquelle il vaut** : un compte sans garde est une exigence fausse dès le premier état dégradé.
+> **(d)** La recette se désigne par **nom de scénario**, jamais par numéro de ligne seul — le fichier
+> dépasse 4 000 lignes et chaque chaîne y insère un scénario ; un numéro de ligne cité l'est **daté**.
 
 > **Révision 1 — issue #31, correction d'une exigence mutuellement insatisfiable.** L'**assertion 4** de
 > la recette R-27 exigeait « aucun caractère `[0-9]` » dans `<section id="ardoise">` sans borner la
@@ -381,8 +427,8 @@ unset( $massifs_synthese['etat_global'] );
 | 2 | Exactement **un** `<h1` dans le document, `id="titre-du-jour"` | aucun |
 | 3 | Texte du `h1` = `Information du jour non disponible. Consultez la carte officielle de la préfecture.` (§11.3 verbatim, un seul espace avant le lien, point final), contenant `<a href="…">la carte officielle de la préfecture</a>` dont le `href` est **non vide** et d'hôte **identique** à celui de `.bandeau-non-officialite__lien` (même source `massifs_attribution_statuts()`). **Ne pas coder l'URL en dur** comme source de vérité de l'assertion | absent |
 | 4 | **[Révision 1, issue #31]** `<section id="ardoise">` ne contient **aucun caractère `[0-9]` dans son contenu textuel** — le `textContent` de la section, espaces normalisés, **attributs exclus** — et **zéro** `.ardoise__chiffre`, **zéro** `<time>` (`fraicheur => false`), **zéro** `.ardoise__publication-partielle`. « Contenu textuel » n'est pas « texte peint » : `textContent` porte aussi les nœuds masqués visuellement, la mesure est donc **plus stricte** que le texte réellement vu, jamais plus laxiste. **L'assertion ne porte pas sur les octets bruts de la section** : l'`href` officiel y contient « /13 », et l'assertion 3 l'exige. Mesurer les octets bruts rendrait les assertions 3 et 4 mutuellement insatisfiables et conduirait à retirer le lien de secours — interdit par le brief §4.2 et par A-35 | sans objet |
-| 5 | `<a href="#liste">` présent dans l'en-tête **et** `id="liste"` présent **exactement une fois** : l'ancre **résout** | sans objet |
-| 6 | Le corps ne contient **aucun** de : `Warning:`, `Notice:`, `Deprecated:`, `Fatal error`, `<b>Warning</b>`, `UnhandledMatchError`, `_doing_it_wrong`, `Erreur critique sur ce site` | `Erreur critique sur ce site` |
+| 5 | **[Révision 2, issue #68]** **Deux** `<a href="#liste">` dans le **document entier** — le lien d'évitement de `templates/header.php` (l. 49) **et** le lien visible du repli statique de `templates/parts/carte-secours.php` (l. 157) — et **une seule** cible `id="liste"`, celle de `templates/parts/liste-statuts.php` (l. 214) : l'ancre **résout**, et elle résout **sans ambiguïté**. Le sélecteur de la recette est **document-wide** ; « dans l'en-tête » était une restriction de portée que la recette ne fait pas, et qui est **fausse du second lien** — celui-ci est dans `<section id="carte">`, hors de l'en-tête. Deux liens de même nom vers la **même** destination sont **délibérés** et satisfont WCAG 2.4.4 : contrat #9 §6, « ce n'est pas un défaut ; la redondance est utile ». **Ce qui doit rester unique, c'est la cible, jamais le nombre de chemins qui y mènent** — un second `id="liste"` serait un identifiant dupliqué, défaut d'accessibilité bloquant, qui casserait de surcroît l'assertion elle-même et le scénario `structure`. **Garde du compte, sans laquelle le nombre est faux.** Les deux liens partagent la **même condition** — `is_front_page()`, `massifs_referentiel`, `massifs_statuts_du_jour`, `locate_template( 'templates/parts/liste-statuts.php' )` : couture C-3 du contrat #9, condition **sémantiquement identique, texte non identique** (nom de variable et indentation diffèrent ; ne pas la décrire comme identique à l'octet). Cette condition **implique strictement** celle de la cible : **aucun lien orphelin vers une ancre absente n'est possible**, ce qui est l'état `ancre_liste_absente` du contrat #9. Le compte de **2** vaut dans les cas 1 et 2, où le repli statique est **intégralement rendu** ; si `carte-secours.php` sort tôt (l. 70, 89, 106 — `fond_statique_indisponible` / `attribution_fond_indisponible`, contrat #9), l'attendu légitime est **1 lien / 1 cible**, et sous panne d'extension **0 / 0** (scénarios `ancre` et `extension`, qui mesurent la cible et l'absence de lien mort, jamais le compte de liens). **Unicité de la cible vraie au regard des sites d'appel actuels** (`front-page.php` l. 545, sans `$args`), non par impossibilité structurelle : quatre parties accepteraient `ancre => 'liste'` si on le leur passait | sans objet |
+| 6 | **[Révision 2, issue #68]** Le corps ne contient **aucun** de : `Warning:`, `Notice:`, `Deprecated:`, `Fatal error`, `<b>Warning</b>`, `UnhandledMatchError`, `_doing_it_wrong`, `rreur critique sur ce site`. **La dernière aiguille est volontairement tronquée de son initiale : ce n'est pas une coquille, ne pas la recapitaliser.** Le corps servi porte « Il y a eu une **e**rreur critique sur ce site. », initiale **minuscule** (mesuré : `tests/README.md` l. 180 ; `docs/contracts/issue-29.md` l. 62) ; la troncature rend l'aiguille indifférente à la casse de cette lettre **sans drapeau `/i`**, là où `Erreur critique sur ce site` ne matcherait **jamais** le corps et rendrait cette garde **toujours verte** — faux négatif silencieux sur la seule sonde du `try/catch` d'A-31. Aiguilles reproduites **à l'octet** depuis le scénario `etat-inconnu` de `tests/rendu/recette-rendu.mjs` (l. 3900 au 31 août 2026) | « Il y a eu une erreur critique sur ce site. » — page du cœur, relevée à 2 697 octets (`tests/README.md` l. 180, 13 août 2026) |
 | 7 | Document complet : exactement un `<main`, `</main>` et `</html>` présents | absents |
 | 8 | **Cas 2 seulement** : `Undefined array key "etat_global"` présent dans le log PHP et **absent du corps** (couvert par 6). Cet avertissement est **voulu** — contrat #5, « une clé absente doit produire un avertissement PHP visible » | idem, puis 500 |
 
