@@ -76,7 +76,7 @@ elle constitue un lot de 3 issues, lance **3 chaînes complètes en parallèle**
         │                       │                       │
   brainstorm-cms             (idem)                  (idem)
   leaddev-back-cms ∥ leaddev-front-cms
-  gel du contrat  →  docs/contracts/issue-<n>.md
+  gel du contrat  →  docs/contracts/issue-<n>.md  (obligatoire si deux faces, cf. bullet ci-dessous)
   dev-back-cms ∥ dev-front-cms ∥ dev-ux-cms
   refacto-cms
   dev-integration-cms        (si thème ET extension touchés)
@@ -92,6 +92,7 @@ elle constitue un lot de 3 issues, lance **3 chaînes complètes en parallèle**
 - Chaque `lead-issue-cms` porte **une seule issue** de bout en bout, dans son propre contexte — c'est ce qui préserve la qualité par rapport à un orchestrateur unique qui ferait tout.
 - `lead-design-cms` tourne **une seule fois** au bootstrap (et sur révision explicite) — il produit `design-system/MASTER.md`, préalable à tout travail visuel.
 - `docker-cms` tourne au bootstrap (création de la stack) et en fin de lot (vérification).
+- **Gel du contrat facultatif en mono-face** : `docs/contracts/issue-<n>.md` est obligatoire dès qu’une issue a deux faces (thème et extension doivent s’accorder sur une clé, une chaîne ou une forme de données). Il est facultatif pour une issue mono-face (infra, outillage, documentation, `.gitignore`, `.gitattributes`, CI) — la chaîne consigne alors son raisonnement dans l’en-tête du fichier livré et dans le corps du commit. Voir `docs/decisions/projet-vitrine.md` (tranché à l’issue #79).
 - **Lots de 3 issues maximum** (contrainte de tokens). Parallèle uniquement si les empreintes fichiers des 3 issues sont disjointes ; sinon séquentiel. Arbre de travail unique, aucune isolation.
 - **Pas de tests unitaires.** Un seul agent de test, une fois par lot, en intégration front+back dans Docker.
 
@@ -105,4 +106,4 @@ elle constitue un lot de 3 issues, lance **3 chaînes complètes en parallèle**
 - **Commits** : Conventional Commits en français, scope = domaine fonctionnel, référence d'issue en fin de sujet (`feat(carte): afficher les massifs du jour (closes #12)`).
 - **PHP** : WordPress Coding Standards, préfixe `massifs_` / namespace `Massifs\`, `declare(strict_types=1)`, échappement systématique en sortie (`esc_html`, `esc_attr`, `esc_url`, `wp_kses_post`), assainissement systématique en entrée, `$wpdb->prepare` pour toute requête.
 - **Licence** : GPL v2 or later pour le thème et l'extension.
-- **Ambiguïté** : question au propriétaire du projet, jamais d'invention silencieuse (règle en tête du brief).
+- **Ambiguïté** : question au propriétaire du projet, jamais d'invention silencieuse (règle en tête du brief) — sauf pour une question de fait réel sans réponse accessible (MASSIFS est un projet vitrine, sans commanditaire réel) : la chaîne retient alors l'hypothèse techniquement la plus défendable, en écrit le motif dans l'issue, et avance. Voir `docs/decisions/projet-vitrine.md` (tranché à l'issue #19).
