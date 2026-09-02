@@ -22,12 +22,13 @@
  *    est reconnu, son `jour` est lisible et connu du dépôt.
  *
  * Seule la seconde conditionne une écriture. La PREMIÈRE, et elle seule,
- * conditionne le verdict `sans_projecteur` du `Runner` — qui est TERMINAL.
- * Un bilan difforme n'écrit donc rien, mais il compte comme une réponse : c'est
- * la preuve qu'un projecteur existe, et il ne doit jamais faire conclure à son
- * absence. Conclure `sans_projecteur` sur un bilan difforme condamnerait la
- * date à ne plus jamais être rejouée, ce qui retourne le garde-fou anti-boucle
- * contre le but qu'il sert.
+ * conditionne le verdict `sans_projecteur` du `Runner`. Un bilan difforme
+ * n'écrit donc rien, mais il compte comme une réponse : c'est la preuve qu'un
+ * projecteur existe, et il ne doit jamais faire conclure à son absence.
+ * Conclure `sans_projecteur` sur un bilan difforme dirait « le domaine est
+ * absent » au moment précis où il vient de parler — un diagnostic faux, posé
+ * sur l'état de l'instantané, que rien en aval ne pourrait plus corriger de
+ * lui-même.
  *
  * @package Massifs\Ingest\Prefecture
  * @license GPL-2.0-or-later https://www.gnu.org/licenses/gpl-2.0.html
@@ -93,8 +94,8 @@ final class ProjectionListener {
 		 *
 		 * Le placer plus bas — après le contrôle de forme, par exemple — ferait
 		 * conclure `sans_projecteur` sur un bilan difforme, alors qu'un
-		 * projecteur vient précisément de parler. Comme `sans_projecteur` est
-		 * terminal, la date ne serait plus jamais rejouée.
+		 * projecteur vient précisément de parler : l'instantané porterait
+		 * durablement un diagnostic faux sur l'état du domaine.
 		 */
 		self::$repondu = true;
 

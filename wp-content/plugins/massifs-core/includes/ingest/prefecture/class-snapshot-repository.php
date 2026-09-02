@@ -47,7 +47,8 @@ final class SnapshotRepository {
 	 * `partiel`         — une partie seulement a été écrite.
 	 * `rejete`          — le domaine a refusé le lot, rien n'a été écrit.
 	 * `sans_projecteur` — personne n'a conclu de projection : le domaine est
-	 *                     absent ou désarmé. ÉTAT TERMINAL.
+	 *                     absent ou désarmé. Rejouable UNIQUEMENT si un abonné
+	 *                     est de nouveau présent — voir `Runner::etat_rejouable()`.
 	 */
 	public const PROJECTION_RESULTATS = array( 'inconnue', 'complet', 'partiel', 'rejete', 'sans_projecteur' );
 
@@ -60,10 +61,13 @@ final class SnapshotRepository {
 	public const PROJECTION_RESULTATS_DU_DOMAINE = array( 'complet', 'partiel', 'rejete' );
 
 	/**
-	 * Résultats qui autorisent un rejeu de projection, et les seuls.
+	 * Résultats qui autorisent un rejeu de projection SANS AUCUNE CONDITION.
 	 *
 	 * Sous-ensemble de `PROJECTION_RESULTATS` : `inconnue` et `complet` n'ont rien
-	 * à réparer, `sans_projecteur` est terminal. La table complète est dans
+	 * à réparer. `sans_projecteur` n'est pas dans cette liste parce qu'il n'est
+	 * pas inconditionnel — il exige la présence d'un abonné, que seul le `Runner`
+	 * sait sonder. La décision entière vit dans `Runner::rejeu_du()`, jamais ici :
+	 * cette constante n'est qu'un vocabulaire. La table complète est dans
 	 * `docs/decisions/rejeu-ingestion-prefecture.md` §3.
 	 */
 	public const PROJECTION_RESULTATS_REJOUABLES = array( 'partiel', 'rejete' );

@@ -2,7 +2,8 @@
 
 **Domaines** `statuts`
 **Date de la décision** : 2 septembre 2026 · **Auteur** : chaîne de l'issue #19
-**Statut** : décision arrêtée
+**Statut** : décision arrêtée · **Amendée le 2 septembre 2026** (§3 bis et §4 bis, passe corrective de
+revue de lot)
 
 > Ce document complète [`docs/decisions/source-prefecture.md`](source-prefecture.md), dont le §7.2 fixe la
 > règle « le hachage ne provoque jamais de rejet », et le README du connecteur
@@ -71,13 +72,19 @@ Ce qui borne ce renversement, et le rend acceptable :
   déclenche rien.
 
 Le connecteur ne projette toujours rien, n'invalide toujours aucun cache de page, ne touche toujours à
-aucune option d'une autre chaîne. Il écoute, c'est tout.
+aucune option d'une autre chaîne. Il écoute, c'est tout — et depuis le §4 bis, il **lit** aussi le
+domaine par sa fonction de lecture publique, avant de décider s'il rejoue. Toujours aucune écriture.
+
+**Conséquence documentaire non traitée ici** : l'en-tête de `ProjecteurPrefecture` porte encore, à ses
+lignes 23-24, l'affirmation « cette classe est donc la SEULE frontière entre les deux modules, et elle
+est à sens unique ». Elle est **fausse depuis ce lot**. Le fichier appartient au domaine, hors de
+l'empreinte de cette issue : la correction est ouverte en suivi.
 
 Le second argument `$motif` (`publication` | `republication` | `rejeu`) est ajouté à
 `massifs_prefecture_snapshot_enregistre`. `ProjecteurPrefecture::projeter` est branché avec
 `accepted_args = 1` : l'abonné existant n'en reçoit qu'un et n'est pas affecté.
 
-## 3. La table des états terminaux
+## 3. La table des états de projection
 
 L'état de projection vit sur l'instantané, dans une clé `projection`. **L'absence totale de la clé se lit
 `inconnue`** : un instantané écrit avant cette issue se relit tel quel, sans migration ni bump de schéma
@@ -89,7 +96,7 @@ L'état de projection vit sur l'instantané, dans une clé `projection`. **L'abs
 | `complet` | **non** | oui | Il n'y a rien à réparer. |
 | `partiel` | **oui**, borné | oui | Une partie du lot manque en base ; l'écrire est le seul remède. |
 | `rejete` | **oui**, borné | oui | Le lot entier a été refusé ; la cause peut être passagère. |
-| `sans_projecteur` | **JAMAIS** | oui | **ÉTAT TERMINAL.** |
+| `sans_projecteur` | **seulement si un abonné est de nouveau présent** | oui | Voir §3 bis. |
 
 **`sans_projecteur` est le piège principal de cette mécanique.** Il ne signifie pas « la projection a
 échoué » mais « personne n'a conclu de projection » : le domaine `statuts` est absent de l'arbre ou
@@ -106,9 +113,41 @@ projecteur cassé n'est pas un projecteur absent.** Le confondre reviendrait à 
 la foi d'une réponse mal formée, et donc à condamner la date au moment précis où le domaine signale qu'il
 va mal — le garde-fou anti-boucle retourné contre le but qu'il sert.
 
-`sans_projecteur` interdit le **rejeu**, pas le **re-contrôle réseau**. Les deux n'ont pas le même
-motif : le rejeu répond à une projection en échec, le re-contrôle à une republication possible de la
-source. Le domaine peut être absent sans que cela justifie de cesser de surveiller la source.
+`sans_projecteur` n'ouvre pas le rejeu de lui-même, mais il n'empêche jamais le **re-contrôle réseau**.
+Les deux n'ont pas le même motif : le rejeu répond à une projection en échec, le re-contrôle à une
+republication possible de la source. Le domaine peut être absent sans que cela justifie de cesser de
+surveiller la source.
+
+## 3 bis. `sans_projecteur` n'est pas terminal : il attend le retour d'un abonné
+
+**Ce qui était décidé.** `sans_projecteur` interdisait tout rejeu, définitivement. Le motif était juste :
+réémettre une action que personne n'écoute ne répare rien, et le faire à chacune des 96 passes du jour
+est une boucle pure.
+
+**Ce qui manquait.** Cet état n'a aucun chemin de récupération **dans la journée**. Si le domaine est
+désarmé au moment de l'unique publication puis réparé une heure plus tard, la date reste sans statut
+**jusqu'à minuit** alors que la donnée est en cache, à une émission d'action de la base. C'est le défaut
+2 de cette issue, simplement décalé dans le temps — le site annonce « information non disponible » sur
+une donnée qu'il détient.
+
+**Ce qui est décidé.** Un instantané en `sans_projecteur` redevient rejouable **lorsque, et seulement
+lorsque, `has_action( 'massifs_prefecture_snapshot_enregistre' )` est vrai** — c'est-à-dire quand
+quelqu'un est de nouveau abonné à l'action.
+
+La sonde est exacte pour ce qu'elle décide, et gratuite :
+
+- si le domaine est **réellement absent**, elle est fausse et **aucun rejeu n'a lieu** : la boucle que le
+  garde-fou d'origine interdisait reste impossible ;
+- si un abonné est **revenu**, l'émission a une chance d'aboutir, et c'est exactement le cas que le
+  garde-fou n'avait aucune raison de condamner ;
+- le rejeu reste plafonné par `REJEUX_MAX_PAR_JOUR`, compteur inchangé.
+
+**Sa limite, nommée.** La sonde compte **tout abonné**, pas seulement un projecteur : un observateur
+passif branché sur l'action (journalisation, métrique) suffit à la rendre vraie. Le coût de cette
+imprécision est borné à `REJEUX_MAX_PAR_JOUR` émissions sans effet par date et par jour, sans un octet
+réseau et sans une ligne d'historique — puisque personne n'écrit. Une sonde plus fine (« un abonné qui
+conclut un bilan ») n'existe pas avant d'avoir émis, et l'émission est précisément ce qu'on cherche à
+décider.
 
 ## 4. On ne rejoue que si la projection a échoué **ou** si le corps a changé
 
@@ -133,6 +172,76 @@ Corollaire imposé par le §7.2 de [`source-prefecture.md`](source-prefecture.md
 court-circuit « corps identique » **écrit désormais une entrée de journal** au lieu de sortir en silence
 — sans quoi le seul chemin nominal d'une date déjà couverte serait devenu invisible à l'exploitation le
 jour même où cette date est redevenue candidate d'une passe à l'autre.
+
+## 4 bis. Un rejeu ne révoque jamais une décision humaine plus récente
+
+C'est l'arbitrage de la passe corrective, et il n'était pas instruit : le §4 ci-dessus décide **quand**
+on ré-émet, jamais **ce qu'une ré-émission écrase**.
+
+**Le fait de base.** Le statut courant d'un couple (massif, jour) est résolu par
+`Depot::selectionner_jour()` — un `INNER JOIN ( SELECT MAX(id) … GROUP BY massif_code )`, c'est-à-dire
+**la dernière écriture gagne, sans aucune préséance de source**. Le portail
+(`admin/ecran-publication/service-publication.php`) et le projecteur (`ProjecteurPrefecture`) passent
+tous deux par `massifs_enregistrer_statuts()`, écrivent dans la même table, pour le même
+`jour_validite`. Le modèle est append-only : une correction est une ligne de plus, jamais un
+écrasement — mais c'est bien la **dernière** ligne qui est présentée.
+
+**La séquence, atteignable telle quelle.**
+
+1. **07 h** — projection `partiel` : la base a refusé une écriture.
+2. **09 h** — le gestionnaire corrige un massif depuis l'écran de publication. « Corriger le statut du
+   jour » est une fonction annoncée du portail (§6 du brief).
+3. **10 h** — passe planifiée, le rejeu est autorisé, **le corps de 07 h est ré-émis** : les 25 lignes
+   préfectorales sont ré-insérées et **la correction de 09 h cesse d'être courante**. Aucune alerte,
+   aucune trace lisible autre que 25 lignes d'historique de plus.
+
+**Pourquoi c'est inacceptable.** Ce n'est pas « la préfecture prime avec une donnée plus fraîche » —
+cela se défendrait. C'est **une copie périmée qui redevient courante par effet de bord d'un mécanisme de
+reprise** : la donnée rejouée n'apporte aucune information nouvelle. On tombe donc sur la règle absolue
+du projet — *ne jamais présenter un statut périmé comme courant* — et sur la promesse du §6. C'est un
+effet **né de cette issue** : avant elle, le garde `has()` interdisait toute ré-émission.
+
+**Ce qui est décidé.** `Runner::rejeu_du()` s'abstient dès qu'il existe, pour ce `jour_validite`, une
+écriture de source `saisie_manuelle` **postérieure au `recupere_le` de l'instantané**. Un rejeu est une
+**reprise technique** ; il n'a aucune raison de révoquer une décision humaine plus récente.
+
+**Le re-contrôle n'est pas concerné, et c'est délibéré.** Un corps réellement nouveau n'est pas une
+copie périmée : c'est une publication que la préfecture vient de faire, elle est plus fraîche que la
+saisie, et la préséance de la source officielle s'y défend. Un re-contrôle écrase donc une saisie
+manuelle antérieure, comme avant.
+
+**Comment le garde lit le domaine, sans jamais y écrire.** Par la fonction de lecture publique
+`massifs_statuts_du_jour()`, dont chaque entrée porte `source` et `enregistre_le`. Pas par
+`massifs_journal_statuts()`, réservée au portail et qui déclencherait un `_doing_it_wrong` en cron. Les
+codes de massif sont dérivés de l'instantané par `massifs_code_depuis_source()`, comme le fait le
+projecteur : l'identité appartient au référentiel.
+
+**Le piège des formats, traité explicitement.** `recupere_le` est écrit par le validateur en ISO 8601
+UTC (`gmdate( 'c' )`, décalage explicite). `enregistre_le` est rendu par le domaine en ISO 8601 UTC lui
+aussi, mais converti depuis un **format de stockage sans fuseau**. Les deux passent par le même parseur
+explicite, `Horloge::instant_depuis_chaine()` : un `strtotime()` appliquerait le fuseau du serveur à la
+forme sans décalage et fausserait la comparaison d'une heure entière en été.
+
+**Échec fermé.** Horodatage illisible ou absent, date de validité incohérente, provenance humaine
+renommée par le domaine : **on s'abstient de rejouer**. Sur une donnée de sécurité, ne rien faire est le
+bon défaut. Le domaine **absent**, en revanche, n'est pas un doute : sans domaine, aucune saisie manuelle
+n'est possible, et transformer son absence en refus retirerait au connecteur sa seule reprise.
+
+**Les limites connues, nommées plutôt que tues.**
+
+- Une saisie manuelle **antérieure** au `recupere_le` de l'instantané reste écrasable par un rejeu. Elle
+  est déjà écrasable par le re-contrôle, pour la même raison, et distinguer les deux exigerait une
+  préséance de source que le modèle ne porte pas.
+- Le garde protège la décision humaine **la plus récente pour ce jour**, pas la lisibilité de
+  l'historique : une reprise légitime ajoute toujours ses lignes.
+- Le garde ne **répare** rien : il s'abstient, et laisse l'état de projection tel quel. Une projection
+  restée `partiel` derrière une saisie manuelle le reste, et se voit sur l'écran d'exploitation.
+
+**Une seule porte, et c'est structurel.** La politique de rejeu est interrogée depuis **trois** chemins —
+la sélection des dates à traiter, le rejeu direct, et le chemin « corps inchangé » d'une récupération
+réussie. Elle vit donc dans **une seule fonction**, `Runner::rejeu_du()`, que les trois appellent. Une
+règle posée dans un seul de ces chemins serait contournable par les deux autres : c'est exactement le
+patron de duplication dénoncé au §1, un cran plus bas.
 
 ## 5. Les bornes, et leur dérivation
 

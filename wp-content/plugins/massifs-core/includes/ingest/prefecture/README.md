@@ -255,6 +255,33 @@ rejoue jamais**.
 Le court-circuit « corps identique » **journalise son passage** (`succes`, avec
 une note distincte). Il ne sort plus en silence.
 
+### Un rejeu ne révoque jamais une décision humaine plus récente
+
+Le statut courant est résolu par **la dernière écriture**, sans préséance de
+source, et le portail écrit dans la même table que la projection. Un rejeu
+ré-émet un corps **ancien** : sans garde, une correction saisie au portail entre
+la publication et le rejeu cesserait d'être courante, sans alerte, alors que la
+donnée rejouée n'apporte aucune information nouvelle.
+
+`Runner::rejeu_du()` s'abstient donc dès qu'il existe, pour ce jour de validité,
+une écriture de source `saisie_manuelle` **postérieure au `recupere_le` de
+l'instantané**. Un rejeu est une **reprise technique**, pas un arbitrage.
+
+Le **re-contrôle réseau n'est pas concerné** : son corps est réellement plus
+frais, et la préséance de la source officielle s'y défend.
+
+Le garde lit le domaine par `massifs_statuts_du_jour()` — jamais par
+`massifs_journal_statuts()`, réservée au portail — et n'y écrit rien. Tout est
+gardé par `function_exists()` : sans domaine, aucune saisie manuelle n'est
+possible, donc le garde ne bloque pas. En cas de doute (horodatage illisible,
+date incohérente), il **s'abstient** : sur une donnée de sécurité, l'échec fermé
+est le bon défaut.
+
+**Une seule porte.** La politique de rejeu est interrogée depuis trois chemins —
+la sélection des dates, le rejeu direct, le chemin « corps inchangé » d'une
+récupération réussie. Elle vit dans **une seule fonction**, `Runner::rejeu_du()`.
+Une règle posée ailleurs serait contournable par les deux autres chemins.
+
 ### Table des états terminaux
 
 | `projection.resultat` | Rejeu ? | Re-contrôle réseau ? | Pourquoi |
@@ -263,12 +290,24 @@ une note distincte). Il ne sort plus en silence.
 | `complet` | non | oui | Il n'y a rien à réparer. |
 | `partiel` | oui, borné | oui | Une partie du lot manque en base ; l'écrire est le seul remède. |
 | `rejete` | oui, borné | oui | Le lot entier a été refusé ; la cause peut être passagère. |
-| `sans_projecteur` | **jamais** | oui | **ÉTAT TERMINAL.** Personne n'a conclu de projection : le domaine est absent ou désarmé. Réémettre indéfiniment une action que personne n'écoute ne réparerait rien. |
+| `sans_projecteur` | **seulement si un abonné est revenu** | oui | Personne n'a conclu de projection : le domaine est absent ou désarmé. Réémettre dans le vide ne réparerait rien — mais condamner la date jusqu'à minuit alors que la donnée est en cache et le domaine réparé une heure plus tard non plus. |
 
-`sans_projecteur` interdit le **rejeu**, pas le **re-contrôle** : les deux n'ont
-pas le même motif. Le rejeu répond à une projection en échec ; le re-contrôle
-répond à une republication possible de la source. Le domaine peut être absent
-sans que cela justifie de cesser de surveiller la source.
+Toute ligne du tableau reste soumise au garde « décision humaine plus récente »
+ci-dessus, et à `REJEUX_MAX_PAR_JOUR`.
+
+**`sans_projecteur` n'est pas terminal : il attend le retour d'un abonné.** La
+sonde est `has_action( 'massifs_prefecture_snapshot_enregistre' )`. Si le domaine
+est réellement absent elle est fausse, **aucun rejeu n'a lieu**, et la boucle que
+ce garde-fou interdit reste impossible. Si un abonné est revenu, l'émission a une
+chance d'aboutir et la date se rattrape le jour même. La sonde compte **tout
+abonné**, pas seulement un projecteur : un observateur passif suffit à la rendre
+vraie, pour un coût borné à `REJEUX_MAX_PAR_JOUR` émissions sans effet — zéro
+octet réseau, zéro ligne d'historique, puisque personne n'écrit.
+
+`sans_projecteur` n'a jamais empêché le **re-contrôle** : les deux n'ont pas le
+même motif. Le rejeu répond à une projection en échec ; le re-contrôle répond à
+une republication possible de la source. Le domaine peut être absent sans que
+cela justifie de cesser de surveiller la source.
 
 Le rejeu **ne coûte aucun octet réseau** : le corps vient du dépôt. Dans une
 passe planifiée, il **prime donc toujours** sur une requête sortante.
@@ -477,17 +516,18 @@ n'écrivent rien et ne cassent rien.
 
 Le drapeau en mémoire répond à une question et une seule : « quelqu'un a-t-il
 conclu une projection pour l'instantané que je viens de publier ? ». Drapeau
-absent = `sans_projecteur`, état terminal. C'est ce qui empêche un connecteur
-dont le domaine est absent de réémettre en boucle.
+absent = `sans_projecteur`. C'est ce qui empêche un connecteur dont le domaine
+est absent de réémettre en boucle : cet état ne redevient rejouable que si un
+abonné réapparaît.
 
 **« A répondu » et « a répondu de façon exploitable » sont deux choses
 distinctes**, et les confondre est un défaut grave. Le drapeau est posé en
 **première instruction** de `capter()`, avant tout contrôle de forme : un bilan
 non tabulaire, un `resultat` inconnu, un `jour` illisible n'écrivent rien, mais
 comptent tous comme une réponse. Un projecteur cassé n'est pas un projecteur
-absent — conclure `sans_projecteur` sur sa réponse difforme condamnerait la date
-à ne plus jamais être rejouée, et retournerait le garde-fou anti-boucle contre le
-but qu'il sert.
+absent — conclure `sans_projecteur` sur sa réponse difforme poserait sur
+l'instantané un diagnostic faux (« le domaine est absent ») au moment précis où
+le domaine vient de parler.
 
 Voir `docs/decisions/rejeu-ingestion-prefecture.md`.
 

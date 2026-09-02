@@ -11,6 +11,10 @@
  * 2. Un instantané enregistré dont la PROJECTION échouait ne laissait aucune
  *    trace côté ingestion, et rien ne relançait l'essai : le site annonçait
  *    « information non disponible » alors que la donnée était en cache.
+ * 3. Et le défaut NÉ de la correction des deux premiers : un rejeu ré-émet un
+ *    corps ANCIEN, et le statut courant se résout par la dernière écriture, sans
+ *    préséance de source. Une reprise technique pouvait donc faire cesser d'être
+ *    courante une correction saisie entre-temps au portail (§H).
  *
  * Et les deux dangers de la correction, qui comptent autant que la correction :
  * ne pas polluer l'historique en ré-émettant un corps inchangé déjà projeté
@@ -104,6 +108,22 @@ $vieillir = static function ( string $cible, int $secondes ): void {
 	$etat                         = StateRepository::get();
 	$etat['tentatives'][ $cible ] = time() - $secondes;
 	update_option( StateRepository::OPTION, $etat, false );
+};
+
+/**
+ * Recule l'instant de RÉCUPÉRATION d'un instantané.
+ *
+ * Ce n'est pas le même horodatage que celui du garde anti-rafale : `recupere_le`
+ * date le CORPS, et c'est lui que le garde de rejeu compare à l'instant d'une
+ * saisie manuelle. Sans ce recul, les deux instants tomberaient dans la même
+ * seconde et le cas §H ne prouverait rien.
+ */
+$vieillir_instantane = static function ( string $cible, int $secondes ): void {
+	$tous = get_option( SnapshotRepository::OPTION );
+
+	$tous[ $cible ]['recupere_le'] = gmdate( 'c', time() - $secondes );
+
+	update_option( SnapshotRepository::OPTION, $tous, false );
 };
 
 /**
@@ -246,6 +266,118 @@ Runner::run_scheduled();
 t_egal( $appels_avant, $appels, 'passe planifiée : le rejeu gratuit prime, aucune requête réseau' );
 t_egal( $emissions_avant + 1, $emissions, 'passe planifiée : l\'action est ré-émise depuis le stockage' );
 
+// ====================================================================== §H
+// UN REJEU NE RÉVOQUE JAMAIS UNE DÉCISION HUMAINE PLUS RÉCENTE.
+//
+// La séquence est atteignable telle quelle :
+//   07 h — projection `partiel`, une écriture refusée par la base ;
+//   09 h — le gestionnaire corrige un massif depuis l'écran de publication
+//          (« correction du jour », §6 du brief) ;
+//   10 h — passe planifiée, le corps de 07 h est candidat au rejeu.
+//
+// Le corps de 07 h n'apporte AUCUNE information nouvelle. Le rejouer ferait
+// cesser d'être courante la correction de 09 h, sans alerte et sans autre trace
+// que 25 lignes d'historique de plus : le statut courant est « la dernière
+// écriture gagne », sans préséance de source.
+t_reset();
+$appels    = 0;
+$emissions = 0;
+$motifs    = array();
+$corps     = t_charge_source( 3, 1 );
+$base      = $lignes_du_jour();
+
+// --- 07 h.
+Runner::run_scheduled();
+t_egal( $base + 25, $lignes_du_jour(), 'précondition §H : la passe de 07 h a projeté ses 25 lignes' );
+
+// Le corps date de 07 h, trois heures avant la passe qui suit. Et la base a
+// refusé une écriture : la projection est partielle, donc rejouable.
+$vieillir_instantane( $ymd, 3 * HOUR_IN_SECONDS );
+SnapshotRepository::update_projection( $ymd, array( 'resultat' => 'partiel', 'motif' => 'une écriture refusée par la base' ) );
+
+// --- CONTRÔLE NÉGATIF, sans lequel l'assertion centrale ne prouverait rien :
+// dans cet état exact, et tant qu'aucun humain n'a tranché, le rejeu a lieu.
+$lignes_avant = $lignes_du_jour();
+t_egal( true, Runner::rejouer_projection( $ymd ), 'CONTRÔLE NÉGATIF : sans saisie manuelle, cet état EST rejouable' );
+t_egal( $lignes_avant + 25, $lignes_du_jour(), 'contrôle négatif : le rejeu écrit bien ses 25 lignes' );
+
+SnapshotRepository::update_projection( $ymd, array( 'resultat' => 'partiel', 'motif' => 'une écriture refusée par la base' ) );
+
+// --- 09 h : le gestionnaire corrige un massif depuis le portail.
+$correction = massifs_enregistrer_statut(
+	array(
+		'massif_code'   => 'sainte-victoire',
+		'jour_validite' => $jour,
+		// « autorise », et surtout PAS le libellé vers lequel le corps de 07 h
+		// projette (`level 3` donne `interdit`) : une correction qui tomberait sur
+		// le même libellé que la source rendrait le rejeu indétectable dans le
+		// rendu, et l'assertion sur le niveau ne mordrait pas.
+		'niveau_cle'    => 'autorise',
+		'zapef_cle'     => null,
+		'source'        => 'saisie_manuelle',
+		'auteur_id'     => 1,
+	)
+);
+t_assert( $correction['enregistre'], 'préalable §H : la correction du gestionnaire est enregistrée', true, $correction );
+
+$apres_saisie = massifs_statut_du_jour( 'sainte-victoire', $jour );
+t_egal( 'saisie_manuelle', $apres_saisie['source'], 'préalable §H : la correction est bien le statut courant' );
+t_egal( 'autorise', $apres_saisie['niveau']['cle'], 'préalable §H : c\'est bien le niveau saisi par le gestionnaire' );
+
+// --- 10 h : la passe planifiée. C'EST ICI QUE LE DÉFAUT SE JOUAIT.
+$emissions_avant = $emissions;
+$appels_avant    = $appels;
+$lignes_avant    = $lignes_du_jour();
+
+t_egal( false, Runner::rejouer_projection( $ymd ), 'DÉFAUT CORRIGÉ : le rejeu s\'abstient devant une saisie manuelle postérieure' );
+
+Runner::run_scheduled();
+
+t_egal( $emissions_avant, $emissions, 'passe planifiée : le corps de 07 h n\'est pas ré-émis' );
+t_egal( $lignes_avant, $lignes_du_jour(), 'passe planifiée : aucune ligne préfectorale ré-insérée' );
+
+$apres_passe = massifs_statut_du_jour( 'sainte-victoire', $jour );
+t_egal( 'saisie_manuelle', $apres_passe['source'], 'LA CORRECTION DE 09 H RESTE LE STATUT COURANT' );
+t_egal( 'autorise', $apres_passe['niveau']['cle'], 'la décision humaine n\'a pas été révoquée par une copie périmée' );
+t_egal( 'partiel', SnapshotRepository::projection( $ymd )['resultat'], 'le garde s\'abstient, il ne prétend pas que la projection est réparée' );
+
+// --- La surveillance de la source, elle, N'EST PAS gelée. Corps inchangé : le
+// re-contrôle a lieu, et n'ouvre pas non plus de rejeu — c'est le TROISIÈME
+// chemin qui interroge la politique, et il doit rendre le même verdict.
+//
+// L'état est REPOSÉ à `partiel` : sans cela, la projection resterait `complet`,
+// ce chemin serait écarté pour cette raison-là, et l'assertion documenterait au
+// lieu de mordre.
+SnapshotRepository::update_projection( $ymd, array( 'resultat' => 'partiel', 'motif' => 'une écriture refusée par la base' ) );
+$vieillir( $ymd, 4 * HOUR_IN_SECONDS );
+$emissions_avant = $emissions;
+$appels_avant    = $appels;
+$lignes_avant    = $lignes_du_jour();
+Runner::run_scheduled();
+
+t_egal( $appels_avant + 1, $appels, 'le garde ne gèle pas la surveillance : le re-contrôle réseau a bien lieu' );
+t_egal( $emissions_avant, $emissions, 'corps inchangé + saisie manuelle postérieure : aucune ré-émission' );
+t_egal( $lignes_avant, $lignes_du_jour(), 'corps inchangé : aucune ligne préfectorale ré-insérée' );
+t_egal( 'saisie_manuelle', massifs_statut_du_jour( 'sainte-victoire', $jour )['source'], 'la correction tient après le re-contrôle' );
+
+// --- Et la préséance qui SUBSISTE, parce qu'elle se défend : un corps
+// réellement nouveau n'est pas une copie périmée, c'est une donnée plus fraîche
+// que la préfecture vient de publier. Elle prime, y compris sur une saisie
+// manuelle antérieure.
+$corps = t_charge_source( 1, 0 );
+$vieillir( $ymd, 4 * HOUR_IN_SECONDS );
+$emissions_avant = $emissions;
+$lignes_avant    = $lignes_du_jour();
+Runner::run_scheduled();
+
+t_egal( $emissions_avant + 1, $emissions, 'republication : un corps réellement nouveau est ré-émis' );
+t_egal( $lignes_avant + 25, $lignes_du_jour(), 'republication : les 25 lignes officielles sont écrites' );
+t_egal(
+	'recuperation_officielle',
+	massifs_statut_du_jour( 'sainte-victoire', $jour )['source'],
+	'PRÉSÉANCE DU RE-CONTRÔLE : une donnée réellement plus fraîche prime, elle'
+);
+
 // ====================================================================== §6
 // BORNE DURE : une cause PERMANENTE d'échec de projection ne boucle pas.
 t_reset();
@@ -289,24 +421,32 @@ t_egal( 0, $appels, 'la borne se tient sans le moindre appel sortant' );
 t_egal( false, Runner::rejouer_projection( $ymd ), 'borne épuisée : plus aucun rejeu pour cette date aujourd\'hui' );
 
 // ====================================================================== §4
-// PROJECTEUR ABSENT : `sans_projecteur`, état TERMINAL, aucun rejeu perpétuel.
+// PROJECTEUR ABSENT, PUIS PROJECTEUR REVENU.
+//
+// Tant que personne n'écoute, réémettre ne répare rien : aucun rejeu, sinon le
+// connecteur boucle jusqu'à sa borne, chaque jour, pour rien. Mais si le domaine
+// est réparé une heure plus tard, laisser la date sans statut jusqu'à minuit
+// alors que la donnée est en cache est le défaut 2, simplement décalé dans le
+// temps. La PRÉSENCE D'UN ABONNÉ tranche entre les deux.
+//
+// LE TÉMOIN EST RETIRÉ ICI, ET C'EST INDISPENSABLE : il est lui-même un abonné
+// de l'action, donc la sonde le verrait et conclurait qu'un projecteur est
+// revenu. Ce qu'il comptait se lit ailleurs — le compteur de rejeux consommés,
+// qui vit sur l'instantané.
 t_reset();
 remove_all_actions( 'massifs_prefecture_snapshot_enregistre' );
-add_action( 'massifs_prefecture_snapshot_enregistre', $temoin, 5, 2 );
 
-$appels    = 0;
-$emissions = 0;
-$corps     = t_charge_source( 2, 0 );
-$base      = $lignes_du_jour();
+$appels = 0;
+$corps  = t_charge_source( 2, 0 );
+$base   = $lignes_du_jour();
 
 Runner::run_scheduled();
 
 t_egal( 1, $appels, 'projecteur absent : la récupération a bien lieu' );
-t_egal( 1, $emissions, 'projecteur absent : l\'instantané est publié une fois' );
 t_assert( SnapshotRepository::has( $ymd ), 'projecteur absent : l\'instantané est quand même en cache' );
-t_egal( 'sans_projecteur', SnapshotRepository::projection( $ymd )['resultat'], 'ÉTAT TERMINAL : « sans_projecteur », jamais confondu avec « rejete »' );
+t_egal( 'sans_projecteur', SnapshotRepository::projection( $ymd )['resultat'], '« sans_projecteur », jamais confondu avec « rejete »' );
 t_egal( $base, $lignes_du_jour(), 'projecteur absent : aucun statut écrit — le site dira « information non disponible »' );
-t_egal( false, Runner::rejouer_projection( $ymd ), 'sans_projecteur : le rejeu est refusé' );
+t_egal( false, Runner::rejouer_projection( $ymd ), 'ABONNÉ ABSENT : le rejeu est refusé' );
 
 // Douze passes, chacune assez espacée pour que le re-contrôle soit dû.
 for ( $n = 0; $n < 12; $n++ ) {
@@ -314,14 +454,28 @@ for ( $n = 0; $n < 12; $n++ ) {
 	Runner::run_scheduled();
 }
 
-t_egal( 1, $emissions, 'APRÈS 12 PASSES : toujours UNE seule ré-émission — aucun rejeu perpétuel' );
-t_egal( 'sans_projecteur', SnapshotRepository::projection( $ymd )['resultat'], 'l\'état terminal n\'a pas bougé' );
+t_egal( 0, SnapshotRepository::projection( $ymd )['rejeux'], 'APRÈS 12 PASSES, ABONNÉ TOUJOURS ABSENT : aucun rejeu consommé' );
+t_egal( 'sans_projecteur', SnapshotRepository::projection( $ymd )['resultat'], 'l\'état n\'a pas bougé' );
+t_egal( $base, $lignes_du_jour(), 'abonné absent : toujours aucun statut écrit' );
 t_egal(
 	1 + Runner::RECONTROLES_MAX_PAR_JOUR,
 	$appels,
 	'BORNE DURE de re-contrôles : le budget réseau tient malgré 12 passes'
 );
-t_egal( false, Runner::rejouer_projection( $ymd ), 'sans_projecteur : le rejeu est refusé, définitivement' );
+
+// --- LE DOMAINE EST RÉPARÉ, EN COURS DE JOURNÉE. La donnée est en cache depuis
+// le début : la date doit se rattraper le jour même, pas à minuit.
+add_action( 'massifs_prefecture_snapshot_enregistre', $temoin, 5, 2 );
+add_action( 'massifs_prefecture_snapshot_enregistre', array( ProjecteurPrefecture::class, 'projeter' ) );
+
+$emissions    = 0;
+$appels_avant = $appels;
+
+t_egal( true, Runner::rejouer_projection( $ymd ), 'ABONNÉ REVENU : la date se rattrape le jour même' );
+t_egal( $appels_avant, $appels, 'rattrapage : ZÉRO APPEL SORTANT, le corps vient du cache' );
+t_egal( 1, $emissions, 'rattrapage : l\'instantané est ré-émis une fois' );
+t_egal( $base + 25, $lignes_du_jour(), 'RATTRAPAGE : les 25 statuts sont enfin écrits, depuis le cache' );
+t_egal( 'complet', SnapshotRepository::projection( $ymd )['resultat'], 'rattrapage : la projection est complète' );
 
 // ====================================================================== §D
 // BILAN NON TABULAIRE : un projecteur CASSÉ n'est pas un projecteur ABSENT.

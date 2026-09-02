@@ -19,6 +19,12 @@
  *    « information non disponible » alors que la donnée était en cache, à un
  *    appel de fonction de la base.
  *
+ * ET LA CONTREPARTIE DE CETTE REPRISE, QUI PÈSE AUTANT QU'ELLE : un rejeu
+ * ré-émet un corps ANCIEN. Comme le statut courant se résout par la dernière
+ * écriture, sans préséance de source, une reprise technique pourrait faire
+ * cesser d'être courante une correction saisie entre-temps au portail. Elle ne
+ * le fait pas : voir `rejeu_du()`, point unique de la décision de rejeu.
+ *
  * @package Massifs\Ingest\Prefecture
  * @license GPL-2.0-or-later https://www.gnu.org/licenses/gpl-2.0.html
  */
@@ -30,6 +36,12 @@ namespace Massifs\Ingest\Prefecture;
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+// Seul emprunt du connecteur au domaine, et il est en LECTURE PURE : le garde
+// de rejeu compare deux horodatages, et `Horloge` est le seul parseur
+// d'instants du dépôt. En écrire un second ici ferait diverger deux lectures
+// du même horodatage.
+use Massifs\Domain\Fraicheur\Horloge;
 
 /**
  * Exécution planifiée et exécution ciblée.
@@ -107,6 +119,18 @@ final class Runner {
 	public const REJEUX_MAX_PAR_JOUR = 3;
 
 	/**
+	 * Provenance d'un statut saisi par un humain, telle que le domaine la nomme.
+	 *
+	 * Le vocabulaire du domaine est fermé, mais il ne se laisse pas interroger
+	 * « laquelle de ces provenances est humaine ? » : `massifs_sources_statut()`
+	 * liste les valeurs sans les qualifier. La valeur est donc nommée ici ET
+	 * vérifiée contre cette liste à chaque contrôle — si le domaine la renommait,
+	 * le garde s'abstiendrait au lieu de laisser passer un rejeu qu'il ne sait
+	 * plus qualifier.
+	 */
+	private const SOURCE_SAISIE_MANUELLE = 'saisie_manuelle';
+
+	/**
 	 * Exécution déclenchée par le planificateur.
 	 */
 	public static function run_scheduled(): void {
@@ -156,9 +180,9 @@ final class Runner {
 	 * @return bool Vrai si un rejeu a réellement été émis.
 	 */
 	public static function rejouer_projection( string $date_ymd ): bool {
-		$instantane = SnapshotRepository::get( $date_ymd );
+		$instantane = self::rejeu_du( $date_ymd );
 
-		if ( null === $instantane || ! self::rejeu_autorise( $date_ymd ) ) {
+		if ( null === $instantane ) {
 			return false;
 		}
 
@@ -183,31 +207,228 @@ final class Runner {
 	}
 
 	/**
-	 * Un rejeu de projection est-il autorisé pour cette date ?
+	 * Instantané à rejouer pour cette date, ou `null` si aucun rejeu n'est dû.
 	 *
-	 * TABLE DES ÉTATS TERMINAUX, ET C'EST LE PIÈGE PRINCIPAL DE CETTE MÉCANIQUE :
+	 * POINT UNIQUE DE LA DÉCISION DE REJEU, ET IL DOIT LE RESTER. La politique
+	 * est interrogée depuis trois chemins — la sélection des dates à traiter, le
+	 * rejeu direct, et le chemin « corps inchangé » d'une récupération réussie.
+	 * Une règle posée dans un seul de ces chemins serait contournable par les
+	 * deux autres : c'est exactement le patron de duplication qui a produit le
+	 * défaut d'origine de cette issue, un cran plus bas.
+	 *
+	 * QUATRE CONDITIONS, ET LEUR ORDRE COMPTE : les trois premières ne lisent que
+	 * l'option d'instantanés, la quatrième interroge la base du domaine. Une date
+	 * qui n'a rien à réparer n'atteint jamais la quatrième.
+	 *
+	 * 1. un instantané couvre la date ;
+	 * 2. son état de projection est rejouable ;
+	 * 3. la borne quotidienne de rejeux n'est pas épuisée ;
+	 * 4. aucune décision humaine plus récente que l'instantané ne serait révoquée.
+	 *
+	 * @param string $date_ymd Date de validité au format `Ymd`.
+	 * @return array<string,mixed>|null
+	 */
+	private static function rejeu_du( string $date_ymd ): ?array {
+		$instantane = SnapshotRepository::get( $date_ymd );
+
+		if ( null === $instantane ) {
+			return null;
+		}
+
+		if ( ! self::etat_rejouable( SnapshotRepository::projection( $date_ymd )['resultat'] ) ) {
+			return null;
+		}
+
+		if ( SnapshotRepository::rejeux_du_jour( $date_ymd ) >= self::REJEUX_MAX_PAR_JOUR ) {
+			return null;
+		}
+
+		if ( self::decision_humaine_plus_recente( $instantane, $date_ymd ) ) {
+			return null;
+		}
+
+		return $instantane;
+	}
+
+	/**
+	 * Cet état de projection ouvre-t-il droit à un rejeu ?
+	 *
+	 * TABLE DES ÉTATS, ET C'EST LE PIÈGE PRINCIPAL DE CETTE MÉCANIQUE :
 	 *
 	 * - `partiel` / `rejete`   → rejeu autorisé, dans la limite quotidienne ;
 	 * - `complet`              → rien à rejouer ;
 	 * - `inconnue`             → aucune raison de croire que la projection a
 	 *                            échoué ; rejouer ré-émettrait une publication
 	 *                            déjà projetée et doublerait l'historique ;
-	 * - `sans_projecteur`      → TERMINAL. Personne n'a conclu de projection :
-	 *                            le domaine `statuts` est absent ou désarmé.
-	 *                            Rejouer reviendrait à réémettre indéfiniment
-	 *                            une action que personne n'écoute. Aucun rejeu,
-	 *                            jamais.
+	 * - `sans_projecteur`      → personne n'a conclu de projection. Rejouer tant
+	 *                            que personne n'écoute réémettrait dans le vide
+	 *                            jusqu'à la borne quotidienne ; ne jamais rejouer
+	 *                            laisserait la date sans statut jusqu'à minuit
+	 *                            alors que la donnée est en cache et le domaine
+	 *                            réparé une heure plus tard. La présence d'un
+	 *                            abonné tranche entre les deux : la sonde est
+	 *                            exacte et gratuite, et si le domaine est
+	 *                            réellement absent elle est fausse — aucune
+	 *                            boucle n'est donc représentable.
 	 *
-	 * @param string $date_ymd Date de validité au format `Ymd`.
+	 * @param string $resultat État de projection consigné sur l'instantané.
 	 */
-	private static function rejeu_autorise( string $date_ymd ): bool {
-		$projection = SnapshotRepository::projection( $date_ymd );
+	private static function etat_rejouable( string $resultat ): bool {
+		if ( 'sans_projecteur' === $resultat ) {
+			// `has_action()` rend une PRIORITÉ, qui peut valoir 0 : la comparer à
+			// `false`, jamais tester la vérité de la valeur rendue.
+			return false !== has_action( 'massifs_prefecture_snapshot_enregistre' );
+		}
 
-		if ( ! in_array( $projection['resultat'], SnapshotRepository::PROJECTION_RESULTATS_REJOUABLES, true ) ) {
+		return in_array( $resultat, SnapshotRepository::PROJECTION_RESULTATS_REJOUABLES, true );
+	}
+
+	/**
+	 * Une décision humaine postérieure à cet instantané serait-elle révoquée ?
+	 *
+	 * LE STATUT COURANT EST « LA DERNIÈRE ÉCRITURE GAGNE », SANS AUCUNE
+	 * PRÉSÉANCE DE SOURCE. Le portail et la projection écrivent dans la même
+	 * table, pour le même jour de validité, et le domaine résout le statut
+	 * courant par le plus grand identifiant. Ré-émettre un corps déjà stocké
+	 * ferait donc cesser d'être courante une correction saisie entre-temps depuis
+	 * l'écran de publication — sans alerte, et sans que la donnée rejouée apporte
+	 * la moindre information nouvelle.
+	 *
+	 * UN REJEU EST UNE REPRISE TECHNIQUE : il ne révoque jamais une décision
+	 * humaine plus récente. Le RE-CONTRÔLE n'est pas concerné et ne passe pas par
+	 * ici — son corps est réellement plus frais, et la préséance de la source
+	 * officielle s'y défend.
+	 *
+	 * ÉCHEC FERMÉ. Horodatage illisible, date incohérente, statut manuel sans
+	 * instant d'enregistrement : on s'abstient de rejouer. Sur une donnée de
+	 * sécurité, ne rien faire est le bon défaut.
+	 *
+	 * Le domaine ABSENT n'est pas un doute : sans domaine, aucune saisie manuelle
+	 * n'est possible, et transformer son absence en refus retirerait au connecteur
+	 * sa seule reprise.
+	 *
+	 * @param array<string,mixed> $instantane Instantané candidat au rejeu.
+	 * @param string              $date_ymd   Date de validité au format `Ymd`.
+	 */
+	private static function decision_humaine_plus_recente( array $instantane, string $date_ymd ): bool {
+		if (
+			! function_exists( 'massifs_statuts_du_jour' )
+			|| ! function_exists( 'massifs_sources_statut' )
+			|| ! function_exists( 'massifs_code_depuis_source' )
+			|| ! class_exists( Horloge::class )
+		) {
 			return false;
 		}
 
-		return SnapshotRepository::rejeux_du_jour( $date_ymd ) < self::REJEUX_MAX_PAR_JOUR;
+		/*
+		 * LES DEUX HORODATAGES N'ONT PAS LA MÊME ORIGINE, ET C'EST UN PIÈGE.
+		 *
+		 * `recupere_le` est écrit par le validateur en ISO 8601 UTC
+		 * (`gmdate( 'c' )`, décalage explicite `+00:00`). `enregistre_le` est
+		 * rendu par le domaine en ISO 8601 UTC lui aussi, mais converti depuis un
+		 * format de STOCKAGE sans fuseau. Les deux passent donc par le même
+		 * parseur explicite du domaine : `strtotime()` appliquerait le fuseau du
+		 * serveur à une forme sans décalage et fausserait la comparaison d'une
+		 * heure entière en été.
+		 */
+		$recupere_le = self::instant_utc( $instantane['recupere_le'] ?? null );
+
+		if ( null === $recupere_le ) {
+			return true;
+		}
+
+		$date = SourceCalendar::from_ymd( $date_ymd );
+
+		if ( null === $date ) {
+			return true;
+		}
+
+		if ( ! in_array( self::SOURCE_SAISIE_MANUELLE, massifs_sources_statut(), true ) ) {
+			// Le domaine a renommé sa provenance humaine : le garde ne sait plus
+			// qualifier ce qu'il lit, donc il s'abstient.
+			return true;
+		}
+
+		$codes = self::codes_de_l_instantane( $instantane );
+
+		if ( array() === $codes ) {
+			// Aucun massif rangeable dans ce corps : un rejeu n'écrirait rien,
+			// il n'y a aucune décision humaine à protéger.
+			return false;
+		}
+
+		try {
+			$statuts = massifs_statuts_du_jour( $codes, $date->format( 'Y-m-d' ) );
+		} catch ( \InvalidArgumentException ) {
+			return true;
+		}
+
+		foreach ( $statuts as $statut ) {
+			if ( ! is_array( $statut ) || self::SOURCE_SAISIE_MANUELLE !== ( $statut['source'] ?? null ) ) {
+				continue;
+			}
+
+			// Un statut manuel dont l'instant d'enregistrement est illisible ne se
+			// compare pas : on s'abstient plutôt que de le supposer ancien.
+			$enregistre_le = self::instant_utc( $statut['enregistre_le'] ?? null );
+
+			if ( null === $enregistre_le || $enregistre_le > $recupere_le ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Codes de rangement des massifs portés par un instantané.
+	 *
+	 * L'IDENTITÉ APPARTIENT AU RÉFÉRENTIEL : les clés d'un instantané sont des
+	 * identifiants de la SOURCE, jamais des codes de rangement. C'est la même
+	 * traduction que celle du projecteur, et pour la même raison — interroger le
+	 * domaine sous l'identifiant de la source ne ramènerait jamais rien, et un
+	 * garde qui ne trouve rien laisse tout passer.
+	 *
+	 * @param array<string,mixed> $instantane Instantané.
+	 * @return list<string>
+	 */
+	private static function codes_de_l_instantane( array $instantane ): array {
+		if ( ! isset( $instantane['massifs'] ) || ! is_array( $instantane['massifs'] ) ) {
+			return array();
+		}
+
+		$codes = array();
+
+		foreach ( array_keys( $instantane['massifs'] ) as $identifiant ) {
+			$code = massifs_code_depuis_source( trim( (string) $identifiant ) );
+
+			if ( null !== $code ) {
+				$codes[] = $code;
+			}
+		}
+
+		return array_values( array_unique( $codes ) );
+	}
+
+	/**
+	 * Parse un instant en UTC explicite, ou `null` s'il est illisible.
+	 *
+	 * N'est appelée qu'après avoir constaté la présence du domaine : `Horloge`
+	 * est le seul parseur d'instants du dépôt, et en écrire un second ici ferait
+	 * diverger deux lectures du même horodatage.
+	 *
+	 * @param mixed $valeur Instant supposé, ISO 8601 ou format de stockage.
+	 */
+	private static function instant_utc( $valeur ): ?\DateTimeImmutable {
+		if ( ! is_string( $valeur ) || '' === trim( $valeur ) ) {
+			return null;
+		}
+
+		try {
+			return Horloge::instant_depuis_chaine( $valeur );
+		} catch ( \InvalidArgumentException ) {
+			return null;
+		}
 	}
 
 	/**
@@ -295,7 +516,7 @@ final class Runner {
 				// Rejeu gratuit : aucun octet à économiser, donc ni anti-rafale
 				// ni intervalle de re-contrôle ne s'y appliquent. Sa seule borne
 				// est `REJEUX_MAX_PAR_JOUR`.
-				if ( self::rejeu_autorise( $date_ymd ) ) {
+				if ( null !== self::rejeu_du( $date_ymd ) ) {
 					$retenues[] = $date;
 					continue;
 				}
@@ -324,11 +545,11 @@ final class Runner {
 	 * la date est encore présentable (aujourd'hui ou demain), la borne
 	 * quotidienne n'est pas épuisée, et l'intervalle minimal est écoulé.
 	 *
-	 * NOTE SUR `sans_projecteur` : cet état interdit tout rejeu, mais pas le
-	 * re-contrôle. Les deux n'ont pas le même motif — le rejeu répond à une
-	 * projection en échec, le re-contrôle à une republication possible de la
-	 * source. Rien ne justifie de cesser de surveiller la source parce que le
-	 * domaine est absent.
+	 * NOTE SUR `sans_projecteur` : le re-contrôle ne s'y intéresse pas. Les deux
+	 * n'ont pas le même motif — le rejeu répond à une projection en échec, le
+	 * re-contrôle à une republication possible de la source. Rien ne justifie de
+	 * cesser de surveiller la source parce que le domaine est absent, ni de
+	 * cesser de la surveiller parce qu'il est revenu.
 	 *
 	 * @param \DateTimeImmutable $date       Date de validité visée.
 	 * @param \DateTimeImmutable $maintenant Instant de référence.
@@ -529,7 +750,7 @@ final class Runner {
 		 * projection est complète ne réparerait rien et polluerait l'historique
 		 * à chacune des 96 passes du jour.
 		 */
-		$rejeu = $inchange && self::rejeu_autorise( $date_ymd );
+		$rejeu = $inchange && null !== self::rejeu_du( $date_ymd );
 
 		if ( $inchange && ! $rejeu ) {
 			// LE PASSAGE EST JOURNALISÉ QUAND MÊME. Sortir ici sans écrire au
