@@ -21,6 +21,7 @@
  * @license GPL-2.0-or-later
  */
 
+import { Buffer } from 'node:buffer';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -99,6 +100,25 @@ async function texteSource( localisateur ) {
 	return brut.replace( /\s+/g, ' ' ).trim();
 }
 
+/**
+ * Normalisation des blancs, à appliquer aux DEUX côtés d'une comparaison.
+ *
+ * `Horodatage::formater()` compose ses heures avec des espaces INSÉCABLES
+ * (U+00A0) : « 17 h 30 » ne contient aucun espace ordinaire. Or le `\s` de
+ * JavaScript matche U+00A0, si bien que `texteSource()` rend l'heure avec des
+ * espaces ordinaires. Une phrase attendue bâtie sur des valeurs serveur brutes
+ * conserverait, elle, ses insécables : la comparaison rougirait pour une raison
+ * qui n'est pas celle qu'elle teste. L'expression est donc celle de
+ * `texteSource()`, appliquée au côté ATTENDU — et réappliquée sans effet au côté
+ * observé, pour que les deux passent littéralement par la même fonction.
+ *
+ * @param {string} texte Texte quelconque.
+ * @return {string} Texte aux blancs normalisés.
+ */
+function normaliserEspaces( texte ) {
+	return texte.replace( /\s+/g, ' ' ).trim();
+}
+
 // ---------------------------------------------------------------- stack
 
 function lireEnv( cle, defaut ) {
@@ -117,13 +137,19 @@ const BASE = `http://localhost:${ PORT }`;
 const ORIGINE = new URL( BASE ).origin;
 
 /**
- * Place la base dans un état de départ connu, à l'intérieur de la stack.
+ * Exécute une fabrique d'états de `tests/rendu/` dans le conteneur d'outillage.
  *
- * @param {string} mode absente | jour-nominal | veille-seule | jour-complet | jour-partiel
- * @param {...(string|number)} parametres Arguments du mode (nombre de massifs renseignés, autorisés…).
+ * Transport commun à toutes les fabriques : le répertoire `tests/` est monté en
+ * lecture seule, `wp eval-file` évalue le fichier demandé, et la seule ligne
+ * `ETAT …` de la sortie est rendue à l'appelant. C'est cette ligne — relue dans
+ * le DOMAINE par la fabrique, jamais ce que la fabrique a cru écrire — qui porte
+ * la précondition anti-vacuité de chaque scénario.
+ *
+ * @param {string} fichier Nom du fichier de fabrique, sans son extension.
+ * @param {...(string|number)} parametres Arguments passés à la fabrique.
  * @return {string} Ligne d'état rendue par la fabrique.
  */
-function poserEtat( mode, ...parametres ) {
+function executerFixture( fichier, ...parametres ) {
 	const sortie = execFileSync(
 		'docker',
 		[
@@ -137,8 +163,7 @@ function poserEtat( mode, ...parametres ) {
 			'wp',
 			'--path=/var/www/html',
 			'eval-file',
-			'/massifs-tests/rendu/etats.php',
-			mode,
+			`/massifs-tests/rendu/${ fichier }.php`,
 			...parametres.map( String ),
 		],
 		{ cwd: RACINE, encoding: 'utf8', env: { ...process.env, MSYS_NO_PATHCONV: '1' } }
@@ -146,6 +171,17 @@ function poserEtat( mode, ...parametres ) {
 	const ligne = sortie.split( '\n' ).find( ( l ) => l.startsWith( 'ETAT ' ) ) ?? '';
 	note( `état posé : ${ ligne.trim() }` );
 	return ligne.trim();
+}
+
+/**
+ * Place la base dans un état de départ connu, à l'intérieur de la stack.
+ *
+ * @param {string} mode absente | jour-nominal | veille-seule | jour-complet | jour-partiel | deux-jours
+ * @param {...(string|number)} parametres Arguments du mode (nombre de massifs renseignés, autorisés…).
+ * @return {string} Ligne d'état rendue par la fabrique.
+ */
+function poserEtat( mode, ...parametres ) {
+	return executerFixture( 'etats', mode, ...parametres );
 }
 
 // ---------------------------------------------------------------- navigateur
@@ -6329,6 +6365,609 @@ async function s32_cspReellementOpposee( navigateur ) {
 	}
 }
 
+// ---------------------------------------------------------------- lot « ligne de fraîcheur : corruption ≡ absence »
+
+/**
+ * Les quatre rendus gelés de la ligne de fraîcheur — le GABARIT vit ici.
+ *
+ * Contrat #5 révision 7 (arbitrage A-44), repris par le contrat #70 §2. Ces
+ * quatre phrases SONT la spécification testée : c'est leur confrontation au HTML
+ * servi qui constitue la preuve. La fixture, elle, n'assemble jamais une phrase
+ * attendue — elle dupliquerait la logique de séparateurs de `front-page.php`, et
+ * le test comparerait deux implémentations de la même règle au lieu de vérifier
+ * la règle. Symétriquement, le scénario ne formate JAMAIS une date, ne traduit
+ * aucun nom de mois ni de jour, ne calcule aucune heure : le serveur possède les
+ * valeurs, il les transmet encodées sur la ligne `ETAT`.
+ */
+const FRAICHEUR_GABARITS = {
+	c1: ( v ) => `Statuts du ${ v.jour_long }, publiés la veille à ${ v.pub_heure } par la préfecture — relevés sur ce site le ${ v.rel_long } à ${ v.rel_heure }.`,
+	c2: ( v ) => `Statuts du ${ v.jour_long } — relevés sur ce site le ${ v.rel_long } à ${ v.rel_heure }.`,
+	c3: ( v ) => `Statuts du ${ v.jour_long }, publiés la veille à ${ v.pub_heure } par la préfecture.`,
+	c4: ( v ) => `Statuts du ${ v.jour_long }.`,
+};
+
+/**
+ * Le `<caption>` de la liste ne suit PAS l'ardoise, et c'est le piège du lot.
+ *
+ * `templates/parts/liste-statuts.php` compose son propre résumé : la clause
+ * « publiés la veille … » n'y est JAMAIS rendue (contrat #6, arbitrage H), et
+ * `dernier_releve_le` est la seule clé de fraîcheur qu'il lit. Il emploie en
+ * outre `date_courte` (« 2 septembre 2026 ») là où l'ardoise emploie
+ * `date_longue` (« mercredi 2 septembre 2026 ») : les deux ne sont pas
+ * interchangeables, d'où les clés distinctes `rel_court` et `rel_long` sur la
+ * ligne `ETAT`. Une assertion qui les confondrait rougirait pour une raison qui
+ * n'est pas celle qu'elle teste.
+ */
+const FRAICHEUR_CAPTIONS = {
+	c1: ( v ) => `Statuts du ${ v.jour_long } — relevés sur ce site le ${ v.rel_court } à ${ v.rel_heure }.`,
+	c2: ( v ) => `Statuts du ${ v.jour_long } — relevés sur ce site le ${ v.rel_court } à ${ v.rel_heure }.`,
+	c3: ( v ) => `Statuts du ${ v.jour_long }.`,
+	c4: ( v ) => `Statuts du ${ v.jour_long }.`,
+};
+
+/**
+ * La grille à deux axes du contrat #70 §3 — sept cas, quatre combinaisons.
+ *
+ * `malforme` et `absent` sur le MÊME axe doivent rendre le même texte : c'est
+ * l'invariance structurelle qui porte la démonstration « corruption ≡ absence ».
+ * Les jumeaux `absent` (cas 3, 5, 7) ne sont pas une variable d'ajustement — les
+ * couper laisserait une vérification de rendu de plus, sans la propriété qui les
+ * relie.
+ */
+const FRAICHEUR_CAS = [
+	{ rang: 1, publication: 'valide', releve: 'valide', combinaison: 'c1', role: 'témoin, les trois propositions' },
+	{ rang: 2, publication: 'malforme', releve: 'valide', combinaison: 'c2', role: 'publication corrompue' },
+	{ rang: 3, publication: 'absent', releve: 'valide', combinaison: 'c2', role: 'publication absente, jumeau du cas 2' },
+	{ rang: 4, publication: 'valide', releve: 'malforme', combinaison: 'c3', role: 'relevé corrompu' },
+	{ rang: 5, publication: 'valide', releve: 'absent', combinaison: 'c3', role: 'relevé absent, jumeau du cas 4' },
+	{ rang: 6, publication: 'malforme', releve: 'malforme', combinaison: 'c4', role: 'les deux corrompus' },
+	{ rang: 7, publication: 'absent', releve: 'absent', combinaison: 'c4', role: 'les deux absents, jumeau du cas 6' },
+];
+
+/**
+ * Forme du quantième porté par la clé `jour` de la ligne `ETAT` (contrat #70 §4).
+ *
+ * Vérifier la FORME et non la seule égalité : deux valeurs absentes seraient
+ * égales, et le vert obtenu ne prouverait rien — même raisonnement que
+ * `comparables()` sur deux rendus vides.
+ */
+const MOTIF_JOUR = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Décode une valeur base64url de la ligne `ETAT`.
+ *
+ * Le harnais parse la ligne par `/(\w+)=([\w-]+)/g` : aucune valeur ne peut
+ * porter d'espace, de `:` ni de `+`. Or une date longue française porte des
+ * espaces, et un instant ISO porte les trois. base64url (alphabet `A-Za-z0-9-_`,
+ * sans remplissage) est le seul encodage qui satisfasse ce motif — le base64
+ * standard, lui, contient `+` et `/`, que le motif couperait SILENCIEUSEMENT,
+ * en tronquant une valeur plutôt qu'en levant une erreur.
+ *
+ * Une valeur absente est émise comme le littéral `-` : le motif exige au moins
+ * un caractère, et une valeur vide disparaîtrait de la ligne sans qu'on puisse
+ * distinguer « absente » de « jamais écrite ».
+ *
+ * @param {string|undefined} valeur Valeur lue sur la ligne `ETAT`.
+ * @return {string} Chaîne décodée, vide si la valeur est absente.
+ */
+function decoderB64u( valeur ) {
+	if ( undefined === valeur || '' === valeur || '-' === valeur ) {
+		return '';
+	}
+	return Buffer.from( valeur, 'base64url' ).toString( 'utf8' );
+}
+
+/**
+ * « Aucune valeur de repli » — assertion POSITIVE, jamais un simple zéro.
+ *
+ * Compter zéro élément ne prouve rien : c'est exactement ce que l'état
+ * `indisponible` produisait déjà, et c'est le défaut que l'issue #70 combat. Là
+ * où une proposition est omise, on fouille donc le texte RÉELLEMENT servi.
+ *
+ * @param {string} intitule        Intitulé du cas.
+ * @param {string} zone            Zone observée.
+ * @param {string} brut            Texte de la zone, blancs NON normalisés.
+ * @param {string[]} fragmentsOmis Fragments des propositions que la combinaison omet.
+ */
+function verifierAucunRepli( intitule, zone, brut, fragmentsOmis ) {
+	const texte = normaliserEspaces( brut );
+	const interdits = [
+		[ /\d{4}-\d{2}-\d{2}T/, 'un instant ISO brut' ],
+		[ /n\/a/i, 'la mention « n/a »' ],
+		[ /date indisponible/i, 'la mention « date indisponible »' ],
+		[ /inconnue?\b/i, 'la mention « inconnu(e) »' ],
+		[ /(^|\s)-(\s|$)/, 'un tiret court isolé' ],
+		[ /—\s*$/, 'un tiret cadratin suspendu' ],
+		[ /,\s*\./, 'une virgule orpheline devant le point' ],
+		[ /—\s*\./, 'un tiret cadratin orphelin devant le point' ],
+		[ /à\s*\./, 'une préposition orpheline devant le point' ],
+	];
+
+	for ( const fragment of fragmentsOmis ) {
+		interdits.push( [
+			new RegExp( fragment.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' ) ),
+			`le fragment « ${ fragment } » d’une proposition pourtant omise`,
+		] );
+	}
+
+	egal(
+		[],
+		interdits
+			.filter( ( [ motif ] ) => motif.test( texte ) )
+			.map( ( [ motif, description ] ) => `${ description } → « ${ ( motif.exec( texte ) ?? [ '' ] )[ 0 ] } »` ),
+		`${ intitule } : ${ zone } — aucune valeur de repli, aucun fragment omis, aucune ponctuation orpheline`
+	);
+
+	assert(
+		/[^.]\.$/.test( texte ),
+		`${ intitule } : ${ zone } — la phrase se termine par exactement un point`,
+		'un « . » final, unique',
+		texte.slice( -16 )
+	);
+
+	// Sur le texte BRUT : la normalisation ci-dessus écraserait précisément le
+	// double espace qu'une omission mal faite laisserait derrière elle.
+	assert(
+		! /[ \u00a0]{2}/.test( brut ),
+		`${ intitule } : ${ zone } — aucun double espace`,
+		'aucun',
+		JSON.stringify( brut.slice( 0, 200 ) )
+	);
+}
+
+/**
+ * Recette #70 — la ligne de fraîcheur : quatre combinaisons, et l'équivalence
+ * « horodatage corrompu ≡ horodatage absent ».
+ *
+ * CE SCÉNARIO PROUVE UN RÉSULTAT, PAS UN MÉCANISME. C'est écrit ici plutôt que
+ * caché, le contrat #29 l'exigeant en toutes lettres : « à écrire dans la
+ * recette, pas à cacher ».
+ *
+ * Le résultat prouvé : un horodatage corrompu en base ne produit jamais ni page
+ * tronquée, ni valeur inventée, et il rend le site PLUS prudent — le bandeau de
+ * péremption apparaît. C'est la règle produit « jamais un statut périmé comme
+ * courant », démontrée en positif et non par simple absence.
+ *
+ * Le mécanisme NON prouvé : les trois `try/catch ( \InvalidArgumentException )`
+ * de `front-page.php` restent NON EXERCÉS par cette fixture, et aucune fixture
+ * ne peut les exercer. Quatre barrages, tous hors du thème, neutralisent un
+ * horodatage malformé en `null` AVANT qu'il n'atteigne le gabarit :
+ * `RegistreReleves::entree()` re-parse chaque champ et supprime la clé au
+ * parsing raté, `Fraicheur::evaluer()` porte une seconde ceinture, et les deux
+ * fonctions d'écriture du domaine refusent un instant malformé en amont. Les
+ * atteindre supposerait d'affaiblir le code qui protège contre l'affichage d'une
+ * donnée inventée — marché perdant, interdit par le contrat #70 §9. Ce que la
+ * fixture exerce est donc l'ASSAINISSEUR de l'extension, et le rendu par
+ * omission qui en découle dans le thème.
+ *
+ * LA PREUVE, CE SONT LES PAIRES. Chaque combinaison est atteinte de deux façons
+ * — absence légitime, et corruption seedée puis neutralisée — et les deux
+ * doivent rendre exactement le même texte. Un cas isolé ne prouverait rien ;
+ * c'est l'égalité des jumeaux qui établit que la corruption ne crée AUCUN rendu
+ * nouveau.
+ *
+ * CE SCÉNARIO TOURNE SUR UNE BASE PARTAGÉE, ET SUR UN CODE PARTAGÉ. Trois
+ * chaînes écrivent dans la même base pendant ce lot, et `docker inspect
+ * massifs_wordpress` montre `wp-content/plugins/massifs-core` et
+ * `wp-content/themes/massifs` montés EN DIRECT (`rw=true`) depuis l'arbre de
+ * travail partagé : le code de production NON COMMITTÉ d'une chaîne voisine
+ * s'exécute donc pendant cette recette. La cause n'est pas une course sur la
+ * DONNÉE, c'est une course sur le CODE — aucune base par chaîne ne refermerait
+ * ce trou.
+ *
+ * RELEVÉ DU 2 SEPTEMBRE 2026, QUATRE EXÉCUTIONS DU FICHIER STRICTEMENT INCHANGÉ,
+ * sur des cas DIFFÉRENTS : sous écriture concurrente de la chaîne #19, 151 vertes
+ * / 7 rouges (cas 3, cas 6, jumeaux 2/3, jumeaux 6/7), puis 174 / 3 (cas 3,
+ * jumeaux 2/3) ; en fenêtre calme — 90 s sans writer, vérifiée avant et après —,
+ * 186 / 0 ; en fenêtre calme encore, après le correctif #19 sur
+ * `ProjecteurPrefecture`, 172 / 4 (cas 6 seul, jumeaux 6/7 par conséquence). Ces
+ * totaux sont antérieurs à l'assertion de jour civil des jumeaux ajoutée depuis,
+ * qui compte trois lignes de plus par exécution complète. La fixture, elle,
+ * rejouée trois fois de suite EN ISOLATION sur `fraicheur malforme malforme`,
+ * rend `etat=disponible bloc=1` à l'identique : elle est déterministe, et la
+ * non-reproductibilité vient de l'extérieur de ce fichier.
+ *
+ * CONSÉQUENCE DE MÉTHODE, OPPOSABLE : chaque cas pose sa propre précondition, UN
+ * ROUGE ISOLÉ SE REJOUE EN FENÊTRE CALME AVANT D'ÊTRE CRU, et un vert non
+ * reproductible n'est pas un vert — l'exécution à 186 / 0 n'est pas retenue comme
+ * preuve. La chaîne suivante qui touchera ce fichier doit le savoir — sans quoi
+ * elle « corrigera » un scénario sain, ou pire, assouplira une assertion qui
+ * rougissait légitimement, fabriquant très exactement le faux vert que l'issue
+ * #70 existe pour supprimer.
+ *
+ * LIMITATION CONSIGNÉE, JAMAIS CONTOURNÉE. Le contrat #29 exige que sa recette
+ * R-29 attende deux lignes de journal (J-1 puis J-0) par défaut d'horodatage.
+ * Elles ne sont écrites nulle part : `massifs_journaliser()` sort immédiatement
+ * sans `WP_DEBUG`, et `docker-compose.yml` fixe `WORDPRESS_DEBUG: 0` (vérifié
+ * dans le conteneur : `WP_DEBUG=false`). Ce fichier est hors empreinte et
+ * partagé par trois chaînes : le basculer changerait le comportement du test
+ * d'intégration de lot sous les pieds des autres. AUCUNE ligne de journal n'est
+ * donc assertée ici, et aucune assertion contournée n'est présentée comme
+ * vérifiée — à corriger dans le contrat #29 par une issue dédiée.
+ *
+ * PAS D'`attendreRechargement()`. Ce scénario n'écrit aucun fichier de gabarit :
+ * la barrière d'opcache de `s23` ne le concerne pas, et la stack ne porte ni
+ * cache de page ni drop-in `object-cache.php`. Une attente qui n'attend rien
+ * masquerait les vrais écarts au lieu de les révéler.
+ *
+ * @param {import('playwright-core').Browser} navigateur Navigateur.
+ */
+async function s34_ligneDeFraicheurQuatreCombinaisons( navigateur ) {
+	scenario( '34 — ligne de fraîcheur : les quatre combinaisons, et « horodatage corrompu ≡ horodatage absent » (issue #70)' );
+
+	// JavaScript DÉSACTIVÉ (§3 du brief) : l'information de fraîcheur vit dans le
+	// HTML rendu par PHP, et c'est cet HTML-là qui est jugé.
+	const contexte = await navigateur.newContext( { javaScriptEnabled: false } );
+	const rendus = new Map();
+
+	for ( const cas of FRAICHEUR_CAS ) {
+		const intitule = `cas ${ cas.rang }, ${ cas.combinaison } — fraicheur ${ cas.publication } ${ cas.releve } (${ cas.role })`;
+
+		// A-3 : chaque cas purge et repose son propre état, sans mutualisation. La
+		// disjonction d'empreintes protège les FICHIERS, jamais l'état runtime :
+		// trois chaînes partagent la base, et un état posé par une autre entre deux
+		// mesures produirait un vert sans valeur — le défaut même que ce lot combat.
+		//
+		// Les deux premiers arguments ne font pas doublon : le premier nomme le
+		// FICHIER de fabrique, le second le mode unique de sa grammaire.
+		const etat = executerFixture( 'fraicheur', 'fraicheur', cas.publication, cas.releve );
+		const lu = Object.fromEntries(
+			[ ...etat.matchAll( /(\w+)=([\w-]+)/g ) ].map( ( m ) => [ m[ 1 ], m[ 2 ] ] )
+		);
+		const v = {
+			jour_long: decoderB64u( lu.jour_long ),
+			pub_heure: decoderB64u( lu.pub_heure ),
+			rel_long: decoderB64u( lu.rel_long ),
+			rel_court: decoderB64u( lu.rel_court ),
+			rel_heure: decoderB64u( lu.rel_heure ),
+		};
+		const publicationRendue = 'valide' === cas.publication;
+		const releveRendu = 'valide' === cas.releve;
+
+		// --- Précondition anti-vacuité, AVANT toute assertion de rendu. Patron de
+		// `s22` : sans elle, une fixture muette rendrait tous les verts suivants
+		// sans valeur — et c'est très exactement le reproche de l'issue #70.
+		const precondition = [
+			egal( 'disponible', lu.etat, `${ intitule } : le domaine est en état « disponible »` ),
+			egal( '1', lu.bloc, `${ intitule } : le bloc de fraîcheur du gabarit est atteint` ),
+			egal(
+				{ axe_publication: cas.publication, axe_releve: cas.releve },
+				{ axe_publication: lu.axe_publication, axe_releve: lu.axe_releve },
+				`${ intitule } : la fixture a bien reçu les deux axes demandés`
+			),
+			egal( cas.combinaison, lu.combinaison, `${ intitule } : la fixture annonce la combinaison ${ cas.combinaison }` ),
+			egal(
+				{ validite: '1', publication: publicationRendue ? '1' : '0', releve: releveRendu ? '1' : '0' },
+				{ validite: lu.validite, publication: lu.publication, releve: lu.releve },
+				`${ intitule } : le triplet relu dans le DOMAINE s’accorde avec ${ cas.combinaison }`
+			),
+			egal(
+				{
+					jour_long: true,
+					pub_heure: publicationRendue,
+					rel_long: releveRendu,
+					rel_court: releveRendu,
+					rel_heure: releveRendu,
+				},
+				{
+					jour_long: '' !== v.jour_long,
+					pub_heure: '' !== v.pub_heure,
+					rel_long: '' !== v.rel_long,
+					rel_court: '' !== v.rel_court,
+					rel_heure: '' !== v.rel_heure,
+				},
+				`${ intitule } : le serveur transmet exactement les valeurs que la combinaison exige`
+			),
+		].every( Boolean );
+
+		// Une précondition en défaut vide de son sens TOUTE la suite du cas : les
+		// assertions de rendu sont abandonnées plutôt que rendues vacantes — c'est
+		// le reproche même de l'issue #70. Le cas est marqué manquant, et la
+		// comparaison des jumeaux le signalera au lieu de comparer deux vides.
+		if ( ! precondition ) {
+			note( `${ intitule } : précondition en défaut, assertions de rendu ABANDONNÉES pour ce cas` );
+			rendus.set( cas.rang, null );
+			continue;
+		}
+
+		const page = await contexte.newPage();
+		const reponse = await page.goto( BASE + '/', { waitUntil: 'load' } );
+		const html = await page.content();
+
+		egal( 200, reponse.status(), `${ intitule } : la page est servie` );
+		assert(
+			html.includes( '</main>' ) && html.includes( '</html>' ),
+			`${ intitule } : document complet (</main> et </html>)`,
+			'les deux',
+			html.slice( -60 )
+		);
+		egal( 1, await page.locator( '[id="liste"]' ).count(), `${ intitule } : l’ancre #liste existe exactement une fois` );
+
+		const fuite = /Fatal error|Warning:|Notice:|Deprecated:|rreur critique/.exec( html );
+		assert( ! fuite, `${ intitule } : aucune trace technique n’atteint le visiteur`, 'aucune', fuite ? fuite[ 0 ] : '' );
+
+		// --- L'ardoise : la phrase gelée, mot pour mot. Gabarit du scénario,
+		// valeurs du serveur, LES DEUX CÔTÉS normalisés par la même fonction.
+		//
+		// Le comptage précède la lecture, et la lecture lui est subordonnée : sur
+		// une ligne absente, `textContent()` attendrait trente secondes puis
+		// LÈVERAIT, emportant avec elle les cas suivants et le contre-témoin. Un
+		// cas en défaut doit rester un cas en défaut, jamais une recette amputée.
+		const ardoiseLoc = page.locator( '#ardoise .ardoise__fraicheur' );
+		const nbArdoise = await ardoiseLoc.count();
+		egal( 1, nbArdoise, `${ intitule } : une ligne de fraîcheur, et une seule` );
+
+		let ardoise = '';
+		if ( 1 === nbArdoise ) {
+			const brutArdoise = ( await ardoiseLoc.textContent() ) ?? '';
+			ardoise = normaliserEspaces( await texteSource( ardoiseLoc ) );
+			egal(
+				normaliserEspaces( FRAICHEUR_GABARITS[ cas.combinaison ]( v ) ),
+				ardoise,
+				`${ intitule } : l’ardoise rend la phrase de ${ cas.combinaison } mot pour mot`
+			);
+			verifierAucunRepli(
+				intitule,
+				'ardoise',
+				brutArdoise,
+				[
+					...( publicationRendue ? [] : [ 'publiés la veille' ] ),
+					...( releveRendu ? [] : [ 'relevés sur ce site' ] ),
+				]
+			);
+		}
+
+		// --- Le caption de la liste, mot pour mot lui aussi — et il ne suit pas
+		// l'ardoise : `date_courte`, et jamais la clause de publication.
+		const captionLoc = page.locator( '#liste caption.liste-statuts__resume' );
+		const nbCaption = await captionLoc.count();
+		egal( 1, nbCaption, `${ intitule } : la liste porte son résumé` );
+
+		let caption = '';
+		if ( 1 === nbCaption ) {
+			const brutCaption = ( await captionLoc.textContent() ) ?? '';
+			caption = normaliserEspaces( await texteSource( captionLoc ) );
+			egal(
+				normaliserEspaces( FRAICHEUR_CAPTIONS[ cas.combinaison ]( v ) ),
+				caption,
+				`${ intitule } : le caption rend son propre résumé mot pour mot (date_courte, jamais date_longue)`
+			);
+			verifierAucunRepli(
+				intitule,
+				'caption',
+				brutCaption,
+				[ 'publiés la veille', ...( releveRendu ? [] : [ 'relevés sur ce site' ] ) ]
+			);
+		}
+
+		// Garde du contrat #6, arbitrage H : la clause de publication ne fuit
+		// JAMAIS dans l'équivalent textuel, y compris quand l'ardoise la rend.
+		assert(
+			! caption.includes( 'publiés la veille' ),
+			`${ intitule } : la clause de publication ne fuit pas dans l’équivalent textuel`,
+			'absente du caption',
+			caption
+		);
+
+		// --- Le bandeau de péremption, dans les DEUX sens. C'est l'assertion la
+		// plus forte du lot : un horodatage de relevé corrompu neutralise
+		// `dernier_releve_le` en `null`, donc `perimee` bascule, donc le site
+		// devient plus prudent. Conditionnée à `actif` : hors période d'activité,
+		// `perimee` reste faux même sans relevé, et une assertion inconditionnelle
+		// rougirait tous les 1ers octobre pour une raison qui n'est pas un défaut.
+		const bandeaux = await page.locator( '.bandeau-alerte--peremption' ).count();
+		if ( '1' === lu.actif ) {
+			egal(
+				releveRendu ? '0' : '1',
+				lu.perimee,
+				`${ intitule } : ${ releveRendu ? 'un relevé exploitable laisse la donnée courante' : 'un relevé inexploitable rend le site PLUS prudent' }`
+			);
+			egal( Number( lu.perimee ), bandeaux, `${ intitule } : le bandeau de péremption est là si et seulement s’il est dû` );
+		} else {
+			note( `${ intitule } : dispositif inactif (actif=0) — hors saison, aucun bandeau n’est dû` );
+			egal( '0', lu.perimee, `${ intitule } : hors période d’activité, la péremption ne se déclenche pas` );
+			egal( 0, bandeaux, `${ intitule } : hors période d’activité, aucun bandeau de péremption` );
+		}
+
+		if ( 1 === bandeaux ) {
+			// Un bandeau qui NE PEUT PAS fabriquer de valeur est une garantie
+			// structurelle, pas une observation de circonstance : son texte est un
+			// littéral du gabarit, sans quantième, sans heure, sans âge.
+			egal(
+				'Donnée périmée.',
+				normaliserEspaces( await texteSource( page.locator( '.bandeau-alerte--peremption .bandeau-alerte__texte' ) ) ),
+				`${ intitule } : le bandeau ne porte aucune date interpolée`
+			);
+		}
+
+		// `jour` est mémorisé À CÔTÉ du rendu : c'est lui qui dira, au moment de
+		// comparer les jumeaux, si les deux cas ont bien été observés le même jour
+		// civil (voir `memeJour()`).
+		rendus.set( cas.rang, 1 === nbArdoise && 1 === nbCaption ? { ardoise, caption, jour: lu.jour } : null );
+		await page.close();
+	}
+
+	/**
+	 * Deux rendus observés, ou un rouge qui NOMME le cas manquant.
+	 *
+	 * Comparer deux chaînes vides serait vert et ne prouverait rien : un cas qui
+	 * n'a pas rendu sa ligne doit interdire la comparaison, pas la satisfaire.
+	 *
+	 * @param {number} a Premier rang.
+	 * @param {number} b Second rang.
+	 * @param {string} sujet Intitulé de la comparaison.
+	 * @return {boolean} Vrai si les deux rendus sont exploitables.
+	 */
+	function comparables( a, b, sujet ) {
+		if ( rendus.get( a ) && rendus.get( b ) ) {
+			return true;
+		}
+		ko(
+			`${ sujet } : comparaison impossible, un des deux cas n’a pas rendu`,
+			'deux rendus observés',
+			`cas ${ a } : ${ rendus.get( a ) ? 'observé' : 'manquant' }, cas ${ b } : ${ rendus.get( b ) ? 'observé' : 'manquant' }`
+		);
+		return false;
+	}
+
+	/**
+	 * Les deux cas d'une paire ont-ils été observés le MÊME jour civil ?
+	 *
+	 * Les jumeaux sont posés puis chargés à quelques secondes d'intervalle, mais
+	 * rien n'interdit que le jour civil bascule entre les deux. Les dates rendues
+	 * diffèrent alors LÉGITIMEMENT, et l'égalité « malformé ≡ absent » rougirait
+	 * en imputant à la corruption un écart qui n'est qu'un changement de
+	 * quantième. La comparaison n'est pas concluante : elle est refusée et NOMMÉE,
+	 * jamais sautée en silence — une paire non comparée doit se voir dans la
+	 * trace, au même titre qu'un cas manquant chez `comparables()`.
+	 *
+	 * C'est l'usage de la clé `jour`, que le contrat #70 §4 déclare « contrôle de
+	 * cohérence » : une clé produite que personne ne lit est exactement le motif
+	 * de défaut que ce lot combat.
+	 *
+	 * @param {number} a Premier rang.
+	 * @param {number} b Second rang.
+	 * @param {string} sujet Intitulé de la comparaison.
+	 * @return {boolean} Vrai si les deux cas partagent le même jour civil.
+	 */
+	function memeJour( a, b, sujet ) {
+		const jourA = rendus.get( a ).jour;
+		const jourB = rendus.get( b ).jour;
+		const lisibles = MOTIF_JOUR.test( jourA ) && MOTIF_JOUR.test( jourB );
+		const cause = lisibles
+			? 'la paire a franchi un basculement de minuit entre ses deux chargements'
+			: 'la clé « jour » manque ou est malformée sur une ligne ETAT dont le contrat #70 §4 gèle la forme';
+
+		return assert(
+			lisibles && jourA === jourB,
+			`${ sujet } : les deux cas ont été observés le même jour civil`,
+			'un seul et même quantième pour la paire',
+			`cas ${ a } : ${ jourA ?? '(absent)' }, cas ${ b } : ${ jourB ?? '(absent)' } — ${ cause } ; ` +
+				'les rendus diffèrent pour une raison qui n’est pas la corruption, et la comparaison ' +
+				'« malformé ≡ absent » n’est PAS concluante sur cette paire'
+		);
+	}
+
+	// --- L'ÉGALITÉ DES JUMEAUX : la démonstration même de l'issue. `malforme` et
+	// `absent` sur le même axe rendent le même texte — la corruption ne crée aucun
+	// rendu nouveau, la page est moins complète mais jamais fausse.
+	//
+	// Le jour civil est contrôlé AVANT de conclure à une inégalité : sans lui, un
+	// basculement de minuit entre les deux chargements ferait rougir l'assertion
+	// centrale de l'issue pour une raison qui n'est pas un défaut.
+	for ( const [ corrompu, absent ] of [ [ 2, 3 ], [ 4, 5 ], [ 6, 7 ] ] ) {
+		if ( ! comparables( corrompu, absent, `jumeaux ${ corrompu }/${ absent }` ) ) {
+			continue;
+		}
+		if ( ! memeJour( corrompu, absent, `jumeaux ${ corrompu }/${ absent }` ) ) {
+			continue;
+		}
+		egal(
+			rendus.get( corrompu ).ardoise,
+			rendus.get( absent ).ardoise,
+			`jumeaux ${ corrompu }/${ absent } : « malformé ≡ absent » sur l’ardoise`
+		);
+		egal(
+			rendus.get( corrompu ).caption,
+			rendus.get( absent ).caption,
+			`jumeaux ${ corrompu }/${ absent } : « malformé ≡ absent » sur le caption`
+		);
+	}
+
+	// --- Les deux invariances croisées : ardoise et caption sont bien deux rendus
+	// INDÉPENDANTS, et non deux vues d'un même calcul.
+	if ( comparables( 1, 2, 'de c1 à c2' ) ) {
+		assert(
+			rendus.get( 1 ).ardoise !== rendus.get( 2 ).ardoise,
+			'de c1 à c2 (la publication part, le relevé reste) : l’ardoise change',
+			'deux phrases différentes',
+			rendus.get( 1 ).ardoise
+		);
+		egal(
+			rendus.get( 1 ).caption,
+			rendus.get( 2 ).caption,
+			'de c1 à c2 : le caption, lui, reste IDENTIQUE — il ne lit jamais la publication'
+		);
+	}
+
+	if ( comparables( 1, 4, 'de c1 à c3' ) ) {
+		assert(
+			rendus.get( 1 ).ardoise !== rendus.get( 4 ).ardoise,
+			'de c1 à c3 (la publication reste, le relevé part) : l’ardoise change',
+			'deux phrases différentes',
+			rendus.get( 1 ).ardoise
+		);
+		assert(
+			rendus.get( 1 ).caption !== rendus.get( 4 ).caption,
+			'de c1 à c3 : le caption change AUSSI — il lit, lui, le relevé',
+			'deux résumés différents',
+			rendus.get( 1 ).caption
+		);
+	}
+
+	// --- CAS 8, LE CONTRE-TÉMOIN. Lui seul distingue « ligne de fraîcheur OMISE »
+	// de « état INDISPONIBLE ». Sans lui, la recette redeviendrait ce que l'issue
+	// #70 reproche à l'existant : verte sans rien prouver, parce que le bloc gardé
+	// n'est jamais atteint.
+	//
+	// La précondition s'inverse, et elle se lit SUR LA PAGE plutôt que sur la
+	// ligne `ETAT` : le mode `absente` d'`etats.php` émet « ETAT absente » sans
+	// clé `etat=`, et ce fichier est hors de l'empreinte de l'issue #70. Lire
+	// l'indisponibilité dans le HTML servi est de toute façon l'observation la
+	// plus forte — c'est ce que le visiteur reçoit.
+	const intitule8 = 'cas 8 — contre-témoin, état « indisponible » (etats.php absente)';
+	egal( 'ETAT absente', poserEtat( 'absente' ), `${ intitule8 } : la fabrique a bien purgé l’état` );
+
+	const page8 = await contexte.newPage();
+	const reponse8 = await page8.goto( BASE + '/', { waitUntil: 'load' } );
+	const html8 = await page8.content();
+
+	egal( 200, reponse8.status(), `${ intitule8 } : la page est servie` );
+	assert(
+		html8.includes( '</main>' ) && html8.includes( '</html>' ),
+		`${ intitule8 } : document complet (</main> et </html>)`,
+		'les deux',
+		html8.slice( -60 )
+	);
+	egal( 1, await page8.locator( '[id="liste"]' ).count(), `${ intitule8 } : l’ancre #liste existe exactement une fois` );
+
+	const fuite8 = /Fatal error|Warning:|Notice:|Deprecated:|rreur critique/.exec( html8 );
+	assert( ! fuite8, `${ intitule8 } : aucune trace technique n’atteint le visiteur`, 'aucune', fuite8 ? fuite8[ 0 ] : '' );
+
+	egal( 1, await page8.locator( 'h1' ).count(), `${ intitule8 } : un seul h1` );
+	assert(
+		( await texteSource( page8.locator( 'h1' ) ) ).startsWith( 'Information du jour non disponible.' ),
+		`${ intitule8 } : la page annonce l’indisponibilité, elle ne l’omet pas`,
+		'Information du jour non disponible.…',
+		await texteSource( page8.locator( 'h1' ) )
+	);
+	egal( 0, await page8.locator( '#ardoise .ardoise__chiffre' ).count(), `${ intitule8 } : aucun chiffre du jour` );
+	egal( 0, await page8.locator( '#ardoise .ardoise__fraicheur' ).count(), `${ intitule8 } : aucune ligne de fraîcheur` );
+
+	const caption8 = page8.locator( '#liste caption.liste-statuts__resume' );
+	const texteCaption8 = 1 === ( await caption8.count() ) ? normaliserEspaces( await texteSource( caption8 ) ) : '';
+	assert(
+		! texteCaption8.includes( 'publiés la veille' ),
+		`${ intitule8 } : la clause de publication ne fuit pas dans l’équivalent textuel`,
+		'absente du caption',
+		texteCaption8
+	);
+
+	// Ce que le contre-témoin établit, et qui n'est établi nulle part ailleurs :
+	// les deux causes d'absence de la ligne sont DISTINCTES, et le scénario les
+	// distingue. Le témoin, lui, avait bien rendu la phrase ; ici la page entière
+	// bascule sur « information non disponible ».
+	assert(
+		Boolean( rendus.get( 1 ) ) && '' !== rendus.get( 1 ).ardoise,
+		`${ intitule8 } : le témoin avait rendu la ligne — « omise » et « indisponible » sont deux états distincts`,
+		'une phrase rendue au cas 1',
+		rendus.get( 1 ) ? rendus.get( 1 ).ardoise : '(le cas 1 n’a pas rendu)'
+	);
+
+	await page8.close();
+	await contexte.close();
+}
+
 // ---------------------------------------------------------------- lancement
 
 const SCENARIOS = [
@@ -6365,6 +7004,7 @@ const SCENARIOS = [
 	[ 'carte-selection', s31_carteSelectionEtPaliers ],
 	[ 'csp', s32_cspReellementOpposee ],
 	[ 'pages', s33_pagesObligatoires ],
+	[ 'fraicheur', s34_ligneDeFraicheurQuatreCombinaisons ],
 ];
 
 const filtre = ( process.argv.find( ( a ) => a.startsWith( '--filtre=' ) ) ?? '' ).slice( 9 );
