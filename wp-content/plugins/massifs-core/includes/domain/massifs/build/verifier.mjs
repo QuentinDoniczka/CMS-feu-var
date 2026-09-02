@@ -425,9 +425,12 @@ function main() {
 		`${ entites.length }`
 	);
 	/*
-	 * `entites.length > 0 &&` n'est pas une précaution de style : `[].every()`
-	 * vaut `true`. Sans lui, une géométrie vidée de ses entités passerait ces
-	 * deux contrôles AU VERT. Un faux vert est pire que l'arrêt qu'on répare.
+	 * `entites.length > 0 &&` n'est pas une précaution de style, et cette garde
+	 * gouverne les QUATRE contrôles qui suivent. Sur un tableau vide, deux vacuités
+	 * distinctes rendent leur condition vraie sans que rien ait été mesuré :
+	 * `[].every()` vaut `true`, et `new Set( [] ).size === [].length` compare `0`
+	 * à `0`. Sans cette garde, une géométrie vidée de ses entités passerait les
+	 * quatre AU VERT. Un faux vert est pire que l'arrêt qu'on répare.
 	 */
 	controler(
 		'géométrie : properties limitées à `code`',
@@ -440,8 +443,14 @@ function main() {
 		'géométrie : aucune géométrie nulle',
 		entites.length > 0 && entites.every( ( f ) => f.geometry && f.geometry.coordinates )
 	);
-	controler( 'géométrie : codes uniques', new Set( codes ).size === codes.length );
-	controler( 'géométrie : codes conformes à la regex', codes.every( ( code ) => regex.test( code ) ) );
+	controler(
+		'géométrie : codes uniques',
+		entites.length > 0 && new Set( codes ).size === codes.length
+	);
+	controler(
+		'géométrie : codes conformes à la regex',
+		entites.length > 0 && codes.every( ( code ) => regex.test( code ) )
+	);
 	controler(
 		'géométrie : budget en octets bruts',
 		octets <= SEUILS.octets_bruts_max,
