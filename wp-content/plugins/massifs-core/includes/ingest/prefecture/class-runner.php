@@ -466,14 +466,25 @@ final class Runner {
 		}
 
 		/*
-		 * PERSONNE N'A RÉPONDU — ET C'EST UN ÉTAT TERMINAL, PAS UN ÉCHEC À
-		 * RÉESSAYER.
+		 * PERSONNE N'A CONCLU — ET C'EST UN TROISIÈME FAIT, NI UN ÉCHEC DE
+		 * PROJECTION NI UNE CONDAMNATION DE LA DATE.
 		 *
-		 * Si `domain/statuts` est absent de l'arbre ou désarmé, l'action est
-		 * émise dans le vide et aucun bilan ne revient — quel que soit le nombre
-		 * de fois où on la réémet. Confondre ce cas avec un `rejete` ferait
-		 * boucler le connecteur jusqu'à sa borne quotidienne, chaque jour, pour
-		 * rien. `sans_projecteur` interdit donc tout rejeu, définitivement.
+		 * Si `domain/statuts` est absent de l'arbre ou désarmé, l'action part
+		 * dans le vide et aucun bilan ne revient. C'est cela, et rien d'autre,
+		 * que `sans_projecteur` consigne ici.
+		 *
+		 * Ce n'est pas un `rejete` : rejouer tant que personne n'écoute
+		 * réémettrait dans le vide jusqu'à la borne quotidienne, chaque jour,
+		 * pour rien.
+		 *
+		 * Ce n'est pas terminal non plus : laisser la date sans statut jusqu'à
+		 * minuit alors que la donnée est en cache et le domaine réparé une heure
+		 * plus tard serait le défaut n°2 ci-dessus, simplement décalé dans le
+		 * temps. Ce qui tranche entre les deux est la PRÉSENCE D'UN ABONNÉ —
+		 * sonde exacte pour ce qu'elle décide et gratuite, fausse tant que le
+		 * domaine est réellement absent, donc aucune boucle n'est
+		 * représentable. La décision vit dans `etat_rejouable()`, et nulle part
+		 * ailleurs.
 		 */
 		SnapshotRepository::update_projection(
 			$date_ymd,

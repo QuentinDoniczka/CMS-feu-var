@@ -225,7 +225,7 @@ n'incrémente pas le compteur d'échecs consécutifs.
 
 ---
 
-## Re-contrôle, rejeu, et états terminaux
+## Re-contrôle, rejeu, et états de projection
 
 ### Pourquoi une date déjà couverte reste candidate
 
@@ -282,7 +282,7 @@ la sélection des dates, le rejeu direct, le chemin « corps inchangé » d'une
 récupération réussie. Elle vit dans **une seule fonction**, `Runner::rejeu_du()`.
 Une règle posée ailleurs serait contournable par les deux autres chemins.
 
-### Table des états terminaux
+### Table des états de projection
 
 | `projection.resultat` | Rejeu ? | Re-contrôle réseau ? | Pourquoi |
 |---|---|---|---|

@@ -19,8 +19,9 @@
  * Et les deux dangers de la correction, qui comptent autant que la correction :
  * ne pas polluer l'historique en ré-émettant un corps inchangé déjà projeté
  * (miroir de `13-jours-consecutifs-identiques.php`, lignes 110-115), et ne pas
- * boucler indéfiniment quand personne n'écoute — l'état `sans_projecteur` est
- * terminal.
+ * boucler indéfiniment quand personne n'écoute — l'état `sans_projecteur` n'est
+ * pas terminal, mais il ne redevient rejouable QUE lorsqu'un abonné est de
+ * nouveau présent.
  *
  * MÉTHODE — ÉTAT DE BASE PARTAGÉ. La stack Docker est partagée par les chaînes
  * du lot : la table des statuts peut être écrite par un autre processus PENDANT
@@ -481,8 +482,9 @@ t_egal( 'complet', SnapshotRepository::projection( $ymd )['resultat'], 'rattrapa
 // BILAN NON TABULAIRE : un projecteur CASSÉ n'est pas un projecteur ABSENT.
 //
 // Le domaine répond, mais sa charge est inexploitable. Rien ne doit être écrit
-// — et surtout pas `sans_projecteur`, qui est TERMINAL : le conclure ici
-// condamnerait la date à ne plus jamais être rejouée, au moment précis où le
+// — et surtout pas `sans_projecteur` : le conclure ici suspendrait le
+// rattrapage de la date à la seule présence d'un abonné, alors qu'un projecteur
+// A RÉPONDU et que c'est ce fait-là qu'il faut consigner, au moment précis où le
 // domaine signale qu'il va mal.
 t_reset();
 remove_all_actions( 'massifs_prefecture_snapshot_enregistre' );
@@ -514,8 +516,8 @@ t_assert(
 t_egal( 'inconnue', $resultat_difforme, 'bilan difforme : rien d\'exploitable, donc état « inconnue »' );
 
 // La conséquence qui compte : la date n'est pas condamnée. Dès que le domaine
-// conclut un échec exploitable, le rejeu repart — ce qu'un état terminal aurait
-// interdit pour toujours.
+// conclut un échec exploitable, le rejeu repart sur ce bilan-là, sans dépendre
+// de la sonde d'abonné qu'un `sans_projecteur` lui aurait imposée.
 do_action(
 	'massifs_projection_prefecture',
 	array(

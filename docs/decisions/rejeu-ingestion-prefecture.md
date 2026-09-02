@@ -1,9 +1,9 @@
-# Décision — Rejouer une date déjà instantanée : re-contrôle, rejeu de projection, états terminaux
+# Décision — Rejouer une date déjà instantanée : re-contrôle, rejeu de projection, états de projection
 
 **Domaines** `statuts`
 **Date de la décision** : 2 septembre 2026 · **Auteur** : chaîne de l'issue #19
 **Statut** : décision arrêtée · **Amendée le 2 septembre 2026** (§3 bis et §4 bis, passe corrective de
-revue de lot)
+revue de lot ; §4 bis *limites* et §4 ter, passe documentaire de fin de lot)
 
 > Ce document complète [`docs/decisions/source-prefecture.md`](source-prefecture.md), dont le §7.2 fixe la
 > règle « le hachage ne provoque jamais de rejet », et le README du connecteur
@@ -23,8 +23,8 @@ contrat gelé ne ferait que répéter le fichier qu'il est censé contraindre.
 
 Une décision est néanmoins écrite, parce que l'issue ne se contente pas de corriger un défaut : elle
 **renverse une propriété que deux fichiers du dépôt affirmaient explicitement** (§2), et elle introduit
-une **table d'états terminaux** dont un seul contresens rendrait le connecteur bouclant (§3). Ces deux
-choses doivent survivre à la lecture du diff.
+une **table d'états de projection** dont un seul contresens rendrait le connecteur bouclant (§3). Ces
+deux choses doivent survivre à la lecture du diff.
 
 ## 1. Les deux défauts
 
@@ -109,9 +109,10 @@ absent = `sans_projecteur`.
 Le drapeau signifie « le domaine a **répondu** », jamais « la réponse est **exploitable** ». Il est donc
 posé en **première instruction** du récepteur, avant tout contrôle de forme : un bilan non tabulaire, un
 `resultat` inconnu ou un `jour` illisible n'écrivent rien, mais comptent comme une réponse. **Un
-projecteur cassé n'est pas un projecteur absent.** Le confondre reviendrait à poser un état terminal sur
-la foi d'une réponse mal formée, et donc à condamner la date au moment précis où le domaine signale qu'il
-va mal — le garde-fou anti-boucle retourné contre le but qu'il sert.
+projecteur cassé n'est pas un projecteur absent.** Le confondre reviendrait à consigner
+`sans_projecteur` sur la foi d'une réponse mal formée, et donc à suspendre le rattrapage de la date à la
+seule présence d'un abonné (§3 bis) au moment précis où le domaine signale qu'il va mal — le garde-fou
+anti-boucle retourné contre le but qu'il sert.
 
 `sans_projecteur` n'ouvre pas le rejeu de lui-même, mais il n'empêche jamais le **re-contrôle réseau**.
 Les deux n'ont pas le même motif : le rejeu répond à une projection en échec, le re-contrôle à une
@@ -236,12 +237,73 @@ n'est possible, et transformer son absence en refus retirerait au connecteur sa 
   l'historique : une reprise légitime ajoute toujours ses lignes.
 - Le garde ne **répare** rien : il s'abstient, et laisse l'état de projection tel quel. Une projection
   restée `partiel` derrière une saisie manuelle le reste, et se voit sur l'écran d'exploitation.
+- **La frontière d'une seconde n'est pas protégée.** La comparaison de `class-runner.php:375` est
+  **stricte** (`$enregistre_le > $recupere_le`) et les deux horodatages sont **tronqués à la seconde** :
+  `gmdate( 'c' )` d'un côté, format de stockage MySQL de l'autre, et `Horloge::instant_depuis_chaine()`
+  ignore les fractions. Une saisie manuelle enregistrée **dans la même seconde** que la récupération de
+  l'instantané est donc lue comme antérieure, et le rejeu passe. La fenêtre réelle est d'**une seconde**,
+  entre deux actes qui ne se déclenchent pas ensemble : elle est quasi théorique. Elle est nommée parce
+  que c'est le **seul endroit où « doute → abstention » n'est pas appliqué à sa propre frontière**. Elle
+  n'est pas corrigée : passer à `>=` est un changement de comportement exécutable, et une seconde ne
+  justifie pas de rouvrir un code validé en revue et en recette. Le jour où ce fichier se rouvre pour
+  une autre raison, c'est la première ligne à reprendre.
+
+**Une dépendance cachée, nommée plutôt que découverte dans deux ans.** Deux chemins du garde **laissent
+passer** le rejeu au lieu de s'abstenir :
+
+- `class-runner.php:320` — le domaine est absent (`function_exists()` / `class_exists()` en échec) ;
+- `class-runner.php:357` — aucun code de rangement n'est dérivable du corps, donc « un rejeu n'écrirait
+  rien, il n'y a aucune décision humaine à protéger ».
+
+Ces deux « rien à protéger » ne sont vrais **que parce qu'un autre module refuse d'écrire dans ces
+états** : `ProjecteurPrefecture` rejette le lot quand l'instantané ne porte aucun massif
+(`ProjecteurPrefecture.php:87-91`) et quand le référentiel n'expose pas `massifs_code_depuis_source()`
+(`:100-106`). L'invariant est donc **« le projecteur n'écrit rien de ce que le garde n'a pas pu
+regarder »**, et il vit dans un fichier d'un **autre module** — il n'est nommé ni au garde, ni dans le
+projecteur.
+
+**Ce qui casse s'il disparaît** : rendre le projecteur plus tolérant — ranger un statut sous
+l'identifiant de la source faute de code, accepter un lot vide — transforme silencieusement ces deux
+« laisser passer » en trous du garde. Un rejeu écrirait alors des lignes que le garde n'a jamais
+examinées, et pourrait faire cesser d'être courante une saisie manuelle qu'il n'a pas pu voir. Les deux
+fichiers appartiennent à des modules dont les évolutions ne se relisent pas l'une l'autre : c'est le
+genre de couplage qui se paie deux ans plus tard.
 
 **Une seule porte, et c'est structurel.** La politique de rejeu est interrogée depuis **trois** chemins —
 la sélection des dates à traiter, le rejeu direct, et le chemin « corps inchangé » d'une récupération
 réussie. Elle vit donc dans **une seule fonction**, `Runner::rejeu_du()`, que les trois appellent. Une
 règle posée dans un seul de ces chemins serait contournable par les deux autres : c'est exactement le
 patron de duplication dénoncé au §1, un cran plus bas.
+
+## 4 ter. L'emprunt de CLASSE au domaine, exception nommée à la clause d'`api.php`
+
+Le §4 bis consigne l'emprunt **fonctionnel** du connecteur au domaine (`massifs_statuts_du_jour()`,
+`massifs_sources_statut()`, `massifs_code_depuis_source()`) : c'est exactement l'usage que les fonctions
+publiques prévoient. Il ne consignait pas le second emprunt, qui n'est pas de même nature.
+
+**Le fait.** `class-runner.php:44` porte `use Massifs\Domain\Fraicheur\Horloge;`. Or
+`domain/statuts/api.php:4-5` énonce l'inverse : « Seules ces fonctions sont publiques : aucun
+consommateur n'instancie ni n'appelle une classe `Massifs\` ». La clause souffre donc **une exception,
+et elle est nommée ici** au lieu de ne vivre que dans un commentaire d'implémentation.
+
+**Pourquoi cette exception est préférable au second parseur.** `domain/fraicheur/api.php` n'expose
+**aucune fonction publique qui parse un instant arbitraire en valeur comparable** :
+`massifs_horodatage()` met en forme pour l'affichage, `massifs_fraicheur()` répond sur le jour courant.
+Le garde du §4 bis, lui, compare deux horodatages d'origines différentes, dont l'un vient d'un format de
+stockage **sans fuseau**. Écrire un parseur local dans le connecteur aurait produit **deux lectures
+divergentes du même instant** — d'une heure entière en été — sur la comparaison même qui décide si une
+décision humaine est protégée. Sur une donnée de sécurité, un seul parseur. L'emprunt est en **lecture
+pure** : `Horloge` ne lit ni n'écrit aucune table.
+
+**Ce qu'il faudrait pour lever l'exception.** Exposer côté `domain/fraicheur` une fonction publique de
+**parsage** d'instant rendant une valeur comparable, puis remplacer l'emprunt de classe par son appel,
+gardé par `function_exists()` comme les trois autres. `domain/fraicheur/api.php` est **hors de
+l'empreinte de l'issue #19** : le suivi appartient à l'orchestrateur, au même titre que la correction de
+l'en-tête de `ProjecteurPrefecture` ouverte au §2.
+
+**Le connecteur préfecture n'est pas seul dans ce cas.** `includes/ingest/meteo/class-releve.php:69-74`
+atteint `Massifs\Domain\Fraicheur\RegistreReleves` en nom pleinement qualifié, et l'**instancie**.
+Lever la clause suppose donc de traiter les deux ensemble. Hors empreinte également.
 
 ## 5. Les bornes, et leur dérivation
 
