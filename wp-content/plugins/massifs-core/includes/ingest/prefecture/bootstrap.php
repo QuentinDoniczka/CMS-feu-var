@@ -32,6 +32,7 @@ foreach (
 		'class-source-calendar.php',
 		'class-state-repository.php',
 		'class-snapshot-repository.php',
+		'class-projection-listener.php',
 		'class-validator.php',
 		'class-fetcher.php',
 		'class-notifier.php',

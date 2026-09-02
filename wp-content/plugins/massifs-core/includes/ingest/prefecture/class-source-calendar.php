@@ -125,25 +125,29 @@ final class SourceCalendar {
 	/**
 	 * Dates candidates à la récupération pour un instant donné.
 	 *
-	 * - aujourd'hui, tant qu'aucun instantané ne le couvre : rattrapage
-	 *   délibéré du matin. Un site éteint toute la nuit doit encore pouvoir
-	 *   récupérer le fichier du jour, qui existe et reste servi ;
+	 * - aujourd'hui, toujours : rattrapage délibéré du matin — un site éteint
+	 *   toute la nuit doit encore pouvoir récupérer le fichier du jour, qui
+	 *   existe et reste servi — et surveillance d'une republication en cours de
+	 *   journée ;
 	 * - demain, dès l'heure de début de fenêtre : c'est la publication du soir.
 	 *
 	 * Les deux peuvent coexister : à 18 h le jour J on obtient J+1 alors que J
 	 * est toujours le statut courant.
 	 *
+	 * CE CALENDRIER NOMME LES CANDIDATES, IL NE DÉCIDE PAS DU TRAVAIL. Il a
+	 * porté un garde `SnapshotRepository::has()` qui écartait toute date déjà
+	 * couverte ; le `Runner` portait le même. Cette politique dupliquée en deux
+	 * endroits est ce qui a rendu une republication en cours de journée
+	 * structurellement invisible : assouplir l'un des deux gardes ne changeait
+	 * rien, l'autre écartait la date de toute façon. La politique — fraîcheur du
+	 * dernier re-contrôle, bornes quotidiennes, anti-rafale — vit désormais dans
+	 * le `Runner`, et à un seul endroit.
+	 *
 	 * @param \DateTimeImmutable $now Instant de référence.
 	 * @return \DateTimeImmutable[]
 	 */
 	public static function pending_dates( \DateTimeImmutable $now ): array {
-		$candidates = array();
-
-		$aujourdhui = self::today( $now );
-
-		if ( ! SnapshotRepository::has( $aujourdhui->format( 'Ymd' ) ) ) {
-			$candidates[] = $aujourdhui;
-		}
+		$candidates = array( self::today( $now ) );
 
 		$fenetre = Settings::fenetre();
 

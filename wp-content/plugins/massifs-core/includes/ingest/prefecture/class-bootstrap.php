@@ -45,6 +45,20 @@ final class Bootstrap {
 
 		register_deactivation_hook( self::plugin_file(), array( Schedule::class, 'unschedule' ) );
 
+		/*
+		 * LE RÉCEPTEUR DE BILANS EST BRANCHÉ AVANT LE COUPE-CIRCUIT, ET C'EST
+		 * VOULU.
+		 *
+		 * Il est purement passif : il n'émet rien, n'appelle rien, et ne
+		 * s'exécute que si le domaine publie un bilan de projection — ce qui
+		 * suppose qu'un instantané a été publié, donc qu'un connecteur armé l'a
+		 * enregistré. Le brancher sous le coupe-circuit ne protégerait de rien
+		 * et le rendrait absent dans le seul cas où il compte : celui d'un
+		 * connecteur armé APRÈS l'enregistrement des crochets (redéfinition
+		 * tardive du modèle d'URL, profil de recette).
+		 */
+		add_action( 'massifs_projection_prefecture', array( ProjectionListener::class, 'capter' ) );
+
 		if ( Settings::is_disabled() ) {
 			// Un profil de test qui aurait hérité d'un évènement planifié doit
 			// devenir réellement inerte, et pas seulement silencieux.

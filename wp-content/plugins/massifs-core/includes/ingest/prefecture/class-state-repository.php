@@ -34,6 +34,15 @@ final class StateRepository {
 
 	/**
 	 * Taille maximale du journal, en entrées (FIFO).
+	 *
+	 * CE PLAFOND N'EST DÉLIBÉRÉMENT PAS RELEVÉ. Il l'aurait fallu tant que le
+	 * garde anti-rafale dérivait sa mémoire du journal : à la cadence réelle
+	 * (une passe tous les quarts d'heure, 96 par jour, jusqu'à deux dates par
+	 * passe), 20 entrées couvrent une dizaine de minutes, et la dernière
+	 * tentative pour une date sortait du journal avant que le garde ait fini de
+	 * la protéger. La mémoire du garde vit désormais dans la carte `tentatives`,
+	 * indépendante du journal : ce plafond ne gouverne plus que la lisibilité de
+	 * l'écran d'exploitation, ce pour quoi 20 entrées suffisent.
 	 */
 	public const JOURNAL_MAX = 20;
 
@@ -49,6 +58,7 @@ final class StateRepository {
 		'rejet',
 		'hors_saison',
 		'desactive',
+		'rejeu',
 	);
 
 	/**
@@ -75,6 +85,15 @@ final class StateRepository {
 	private const ALERTES_RETENTION_JOURS = 30;
 
 	/**
+	 * Profondeur de rétention des cartes datées (tentatives, re-contrôles).
+	 *
+	 * Ces cartes ne servent qu'à freiner le travail d'aujourd'hui et de demain :
+	 * au-delà, elles ne répondent plus à aucune question. Trois jours bornent
+	 * l'option à une poignée d'entrées, quoi qu'il arrive.
+	 */
+	private const DATES_RETENTION_JOURS = 3;
+
+	/**
 	 * Structure vide.
 	 *
 	 * @return array<string,mixed>
@@ -89,6 +108,8 @@ final class StateRepository {
 			'echecs_consecutifs'    => 0,
 			'alertes'               => array(),
 			'journal'               => array(),
+			'tentatives'            => array(),
+			'recontroles'           => array(),
 		);
 	}
 
@@ -120,6 +141,8 @@ final class StateRepository {
 		$etat['echecs_consecutifs'] = absint( $etat['echecs_consecutifs'] );
 		$etat['alertes']            = is_array( $etat['alertes'] ) ? $etat['alertes'] : array();
 		$etat['journal']            = is_array( $etat['journal'] ) ? array_values( $etat['journal'] ) : array();
+		$etat['tentatives']         = is_array( $etat['tentatives'] ) ? $etat['tentatives'] : array();
+		$etat['recontroles']        = is_array( $etat['recontroles'] ) ? $etat['recontroles'] : array();
 
 		return $etat;
 	}
@@ -151,6 +174,88 @@ final class StateRepository {
 		$etat['derniere_tentative'] = self::maintenant();
 
 		self::save( $etat );
+	}
+
+	/**
+	 * Enregistre la tentative POUR UNE DATE CIBLE, dans une carte dédiée.
+	 *
+	 * Écrite avant tout octet réseau, comme `record_attempt()`, et pour la même
+	 * raison : la trace doit survivre à un processus qui meurt pendant l'appel.
+	 *
+	 * @param string $date_ymd Date de validité visée.
+	 */
+	public static function record_attempt_for( string $date_ymd ): void {
+		if ( 1 !== preg_match( '/^\d{8}$/', $date_ymd ) ) {
+			return;
+		}
+
+		$etat = self::get();
+
+		$etat['tentatives'][ $date_ymd ] = time();
+		$etat['tentatives']              = self::elaguer_dates( $etat['tentatives'] );
+
+		self::save( $etat );
+	}
+
+	/**
+	 * Nombre de re-contrôles réseau déjà consommés AUJOURD'HUI pour cette date.
+	 *
+	 * @param string $date_ymd Date de validité visée.
+	 */
+	public static function recontroles_for( string $date_ymd ): int {
+		$entree = self::get()['recontroles'][ $date_ymd ] ?? null;
+
+		if ( ! is_array( $entree ) || ( $entree['le'] ?? '' ) !== SourceCalendar::today()->format( 'Ymd' ) ) {
+			return 0;
+		}
+
+		return absint( $entree['n'] ?? 0 );
+	}
+
+	/**
+	 * Consomme un re-contrôle réseau pour cette date.
+	 *
+	 * Le compteur porte le jour auquel il appartient et se réarme donc de
+	 * lui-même au changement de jour, sans tâche de purge.
+	 *
+	 * @param string $date_ymd Date de validité visée.
+	 */
+	public static function record_recontrole( string $date_ymd ): void {
+		if ( 1 !== preg_match( '/^\d{8}$/', $date_ymd ) ) {
+			return;
+		}
+
+		$etat = self::get();
+
+		$etat['recontroles'][ $date_ymd ] = array(
+			'le' => SourceCalendar::today()->format( 'Ymd' ),
+			'n'  => self::recontroles_for( $date_ymd ) + 1,
+		);
+
+		$etat['recontroles'] = self::elaguer_dates( $etat['recontroles'] );
+
+		self::save( $etat );
+	}
+
+	/**
+	 * Élague une carte indexée par date de validité.
+	 *
+	 * Même principe que `elaguer_alertes()` : une carte alimentée à chaque passe
+	 * doit avoir une borne, sans quoi l'option grossit indéfiniment.
+	 *
+	 * @param array<string,mixed> $carte Carte courante.
+	 * @return array<string,mixed>
+	 */
+	private static function elaguer_dates( array $carte ): array {
+		$limite = SourceCalendar::today()->modify( '-' . self::DATES_RETENTION_JOURS . ' days' )->format( 'Ymd' );
+
+		foreach ( array_keys( $carte ) as $date ) {
+			if ( 1 !== preg_match( '/^\d{8}$/', (string) $date ) || (string) $date < $limite ) {
+				unset( $carte[ $date ] );
+			}
+		}
+
+		return $carte;
 	}
 
 	/**
@@ -186,8 +291,13 @@ final class StateRepository {
 	/**
 	 * Enregistre un marqueur d'état stable (désactivé, hors saison).
 	 *
-	 * Dédupliqué contre la dernière entrée : ces états durent des mois et
-	 * noieraient le journal FIFO à raison d'une entrée par heure.
+	 * DÉDOUBLONNÉ PAR DATE CIBLE, sur tout le journal — et non contre la seule
+	 * dernière entrée. Une passe hors saison marque aujourd'hui PUIS demain :
+	 * comparés à la seule dernière entrée, `hors_saison(J)` et `hors_saison(J+1)`
+	 * alternent et ne se dédoublonnent donc jamais. À la cadence réelle (96
+	 * passes par jour), cela écrivait 192 entrées par jour dans un journal de 20,
+	 * qui ne montrait plus que quatre mois de hors-saison — le seul état sur
+	 * lequel personne n'a rien à lire.
 	 *
 	 * @param string $date_ymd Date de validité visée, ou chaîne vide.
 	 * @param string $issue    Issue, parmi self::ISSUES.
@@ -200,12 +310,13 @@ final class StateRepository {
 
 		$etat    = self::get();
 		$journal = $etat['journal'];
-		$dernier = array() === $journal ? null : $journal[ count( $journal ) - 1 ];
 
-		if ( is_array( $dernier )
-			&& ( $dernier['issue'] ?? '' ) === $issue
-			&& ( $dernier['date_cible'] ?? '' ) === $date_ymd ) {
-			return;
+		foreach ( $journal as $entree ) {
+			if ( is_array( $entree )
+				&& ( $entree['issue'] ?? '' ) === $issue
+				&& ( $entree['date_cible'] ?? '' ) === $date_ymd ) {
+				return;
+			}
 		}
 
 		$etat['journal'] = self::empiler( $journal, $date_ymd, $issue, $detail );
@@ -347,15 +458,29 @@ final class StateRepository {
 	/**
 	 * Horodatage Unix de la dernière tentative pour une date cible.
 	 *
-	 * Dérivé du journal : il n'existe pas de compteur par date, et le journal
-	 * couvre très largement la fenêtre du garde-fou anti-rafale.
+	 * LA CARTE `tentatives` FAIT FOI. Elle est écrite à chaque tentative, ne
+	 * dépend d'aucun plafond FIFO, et c'est elle qui donne au garde anti-rafale
+	 * une mémoire de la durée qu'il prétend couvrir.
+	 *
+	 * Le balayage du journal reste comme REPLI, pour un état écrit avant
+	 * l'introduction de la carte : rétro-compatibilité, sans migration.
 	 *
 	 * @param string $date_ymd Date de validité visée.
 	 */
 	public static function last_attempt_for( string $date_ymd ): ?int {
+		$etat = self::get();
+
+		if ( isset( $etat['tentatives'][ $date_ymd ] ) ) {
+			$horodatage = (int) $etat['tentatives'][ $date_ymd ];
+
+			if ( $horodatage > 0 ) {
+				return $horodatage;
+			}
+		}
+
 		$dernier = null;
 
-		foreach ( self::get()['journal'] as $entree ) {
+		foreach ( $etat['journal'] as $entree ) {
 			if ( ! is_array( $entree ) || ( $entree['date_cible'] ?? '' ) !== $date_ymd ) {
 				continue;
 			}
@@ -369,5 +494,4 @@ final class StateRepository {
 
 		return $dernier;
 	}
-
 }

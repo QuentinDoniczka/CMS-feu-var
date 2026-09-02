@@ -17,7 +17,7 @@ figerait une invention.
 require_once MASSIFS_CORE_CHEMIN . 'includes/ingest/prefecture/bootstrap.php';
 ```
 
-C'est tout. `bootstrap.php` requiert les onze classes dans l'ordre de dépendance
+C'est tout. `bootstrap.php` requiert les douze classes dans l'ordre de dépendance
 puis appelle lui-même :
 
 ```php
@@ -123,8 +123,8 @@ aucun crochet d'activation.
 
 | Option | Contenu |
 |---|---|
-| `massifs_prefecture_snapshots` | Carte `Ymd` → instantané. Élaguée à l'écriture (`conserver_jours`, 7 par défaut) ; aujourd'hui et demain ne sont jamais élagués. |
-| `massifs_prefecture_etat` | Tentatives, réussites, échecs consécutifs, verrous d'alerte, journal FIFO de 20 entrées. |
+| `massifs_prefecture_snapshots` | Carte `Ymd` → instantané, plus sa clé `projection`. Élaguée à l'écriture (`conserver_jours`, 7 par défaut) ; aujourd'hui et demain ne sont jamais élagués. |
+| `massifs_prefecture_etat` | Tentatives (globale **et** carte par date), re-contrôles par date, réussites, échecs consécutifs, verrous d'alerte, journal FIFO de 20 entrées. |
 | `massifs_prefecture_reglages` | Mode, listes blanches, référentiel attendu, fenêtre de publication. **Amorcée paresseusement au premier usage**, jamais à l'inclusion ni à l'activation. |
 
 La carte d'instantanés n'est pas un instantané unique : à 18 h le jour J on
@@ -135,6 +135,33 @@ après validation complète : aucune écriture partielle n'est représentable.
 
 Les valeurs par défaut des réglages sont un **relevé du 2026-08-11, non
 officiel**, et sont commentées comme telles dans `class-settings.php`.
+
+### La clé `projection` d'un instantané
+
+Chaque instantané porte l'issue de sa projection par le domaine. C'est ce qui
+permet de distinguer « la donnée n'a pas été récupérée » de « la donnée est en
+cache mais personne n'a réussi à l'écrire ».
+
+```php
+'projection' => array(
+    'resultat'  => 'inconnue'|'complet'|'partiel'|'rejete'|'sans_projecteur',
+    'le'        => string|null,  // ISO 8601 UTC
+    'motif'     => string,       // motif du bilan, tronqué à 300 caractères
+    'rejeux'    => int,          // rejeux déjà consommés pour cette date
+    'rejeux_le' => string,       // `Ymd` du jour auquel le compteur appartient
+)
+```
+
+**Aucune migration, aucun bump de schéma.** `SnapshotRepository::all()` conserve
+les clés inconnues : un instantané écrit avant l'introduction de cette clé se
+relit tel quel, et **l'absence totale de la clé se lit `inconnue`**. La lecture
+normalisée passe par `SnapshotRepository::projection( string $date_ymd ): array`,
+qui rend toujours les cinq clés.
+
+L'écriture est **ciblée** : `SnapshotRepository::update_projection()` relit la
+carte, ne touche que la clé `projection` de la date visée, fusionne les clés
+fournies sur l'état courant, et réécrit l'option. Elle **ne crée jamais de
+date** : sur une date sans instantané, elle rend `false` sans rien écrire.
 
 ---
 
@@ -195,6 +222,93 @@ wp cron event run massifs_prefecture_recuperation
 
 Un **404 est le signal normal « pas encore publié »**, pas une erreur : il
 n'incrémente pas le compteur d'échecs consécutifs.
+
+---
+
+## Re-contrôle, rejeu, et états terminaux
+
+### Pourquoi une date déjà couverte reste candidate
+
+La préfecture peut republier en cours de journée. Le modèle de statuts est
+append-only et absorbe parfaitement une correction — mais le connecteur, qui
+écartait toute date déjà instantanée, n'en livrait jamais une. Une date couverte
+reste donc candidate, sous conditions cumulatives :
+
+- elle est **aujourd'hui ou demain** et **en saison** ;
+- le dernier re-contrôle remonte à plus de `RECONTROLE_SECONDES` ;
+- la **borne quotidienne** `RECONTROLES_MAX_PAR_JOUR` n'est pas épuisée ;
+- le garde `ANTI_RAFALE_SECONDES` est franchi.
+
+`SourceCalendar::pending_dates()` **nomme** les dates candidates ; le `Runner`
+**décide** du travail. La politique vit à un seul endroit — la duplication entre
+les deux est ce qui rendait le défaut invisible.
+
+### Ce qui déclenche une ré-émission
+
+Un instantané n'est ré-émis vers le domaine que si **le corps a réellement
+changé**, ou si **la projection précédente a échoué**. Jamais sur la seule foi
+d'un passage : le dépôt de statuts ne déduplique pas, donc chaque ré-émission
+acceptée ajoute une ligne d'historique par massif, et l'écran Historique est un
+livrable produit. Un corps inchangé dont la projection est `complet` **ne se
+rejoue jamais**.
+
+Le court-circuit « corps identique » **journalise son passage** (`succes`, avec
+une note distincte). Il ne sort plus en silence.
+
+### Table des états terminaux
+
+| `projection.resultat` | Rejeu ? | Re-contrôle réseau ? | Pourquoi |
+|---|---|---|---|
+| `inconnue` | non | oui | Rien ne dit que la projection a échoué ; rejouer doublerait l'historique d'une publication déjà projetée. |
+| `complet` | non | oui | Il n'y a rien à réparer. |
+| `partiel` | oui, borné | oui | Une partie du lot manque en base ; l'écrire est le seul remède. |
+| `rejete` | oui, borné | oui | Le lot entier a été refusé ; la cause peut être passagère. |
+| `sans_projecteur` | **jamais** | oui | **ÉTAT TERMINAL.** Personne n'a conclu de projection : le domaine est absent ou désarmé. Réémettre indéfiniment une action que personne n'écoute ne réparerait rien. |
+
+`sans_projecteur` interdit le **rejeu**, pas le **re-contrôle** : les deux n'ont
+pas le même motif. Le rejeu répond à une projection en échec ; le re-contrôle
+répond à une republication possible de la source. Le domaine peut être absent
+sans que cela justifie de cesser de surveiller la source.
+
+Le rejeu **ne coûte aucun octet réseau** : le corps vient du dépôt. Dans une
+passe planifiée, il **prime donc toujours** sur une requête sortante.
+`Runner::rejouer_projection( string $date_ymd ): bool` l'expose.
+
+### Constantes dérivées, et leur budget
+
+Cadence réelle : **96 passes par jour** (`DISABLE_WP_CRON` + tâche système au
+quart d'heure, cf. §Hébergement), dont **28 dans la fenêtre 16 h → 23 h**, avec
+au plus **2 dates par passe**.
+
+| Constante | Valeur | Dérivation |
+|---|---|---|
+| `Runner::ANTI_RAFALE_SECONDES` (privée) | 15 min | Une passe exactement. Empêche une passe cron doublée par une visite de sortir deux fois. |
+| `Runner::RECONTROLE_SECONDES` | 3 h | 12 passes. Une republication est captée en moins de trois heures, sans recharger une date couverte à chacune des 96 passes (192 requêtes par jour). |
+| `Runner::RECONTROLES_MAX_PAR_JOUR` | 4 | 4 × 3 h = 12 h, la plage entière où une republication a un sens. Coût plafond ajouté : 4 × 2 dates = **8 requêtes par jour**. |
+| `Runner::REJEUX_MAX_PAR_JOUR` | 3 | Traverse une cause passagère, borne une cause permanente (référentiel absent) à trois passages au lieu de 96. Zéro octet réseau, mais au plus 3 lots d'historique. |
+
+Budget total en saison : environ **8 requêtes par jour** avant, **16 au plus**
+après. Même ordre de grandeur, ce qui était la contrainte. **Zéro hors saison**,
+inchangé.
+
+Les deux compteurs quotidiens portent le jour auquel ils appartiennent et se
+**réarment d'eux-mêmes au changement de jour**, sans tâche de purge.
+
+Les trois dernières constantes sont **publiques à dessein** :
+`tests/scenarios/57-rejeu-republication-et-projection.php` les lit au lieu de
+recopier leurs valeurs, pour que la recette ne dérive pas du code. Les repasser
+en `private` casserait ce scénario.
+
+### Mémoire du garde anti-rafale
+
+`last_attempt_for()` lit une **carte dédiée par date** (`tentatives`), écrite
+avant tout octet réseau et élaguée à 3 jours. Elle ne dépend plus du journal :
+à 96 passes par jour et 2 dates par passe, un journal FIFO de 20 entrées couvre
+une dizaine de minutes, et la dernière tentative en sortait avant que le garde
+ait fini de la protéger. `JOURNAL_MAX` **reste à 20** — ce plafond ne gouverne
+plus que la lisibilité de l'écran d'exploitation. Le balayage du journal subsiste
+en **repli**, pour un état écrit avant l'introduction de la carte
+(rétro-compatibilité, sans migration).
 
 ---
 
@@ -324,16 +438,58 @@ source**.
 
 ## Actions
 
+### Émises
+
 | Action | Arguments |
 |---|---|
-| `massifs_prefecture_snapshot_enregistre` | `$instantane` |
+| `massifs_prefecture_snapshot_enregistre` | `array $instantane`, `string $motif` |
 | `massifs_prefecture_echec` | `WP_Error $erreur`, `array $etat` |
 | `massifs_prefecture_tentative` | `$date_ymd`, `$declencheur` |
 
-`massifs_prefecture_snapshot_enregistre` est l'**unique couture d'intégration**.
-Ce connecteur ne projette jamais dans un modèle de statut, n'invalide aucun cache
-de page et ne touche à aucune option d'une autre chaîne. C'est au domaine de s'y
+`massifs_prefecture_snapshot_enregistre` est la couture d'intégration : ce
+connecteur ne projette jamais dans un modèle de statut, n'invalide aucun cache de
+page et ne touche à aucune option d'une autre chaîne. C'est au domaine de s'y
 abonner.
+
+Son **second argument** `$motif` vaut `publication`, `republication` ou `rejeu`.
+Il est ajouté sans risque pour les abonnés existants : un `add_action` sans
+`accepted_args` n'en reçoit qu'un.
+
+### Écoutée — la frontière n'est plus à sens unique
+
+| Action | Arguments | Abonné |
+|---|---|---|
+| `massifs_projection_prefecture` | `array $bilan` | `ProjectionListener::capter()` |
+
+**Ce point renverse une propriété que ce README et l'en-tête de
+`ProjecteurPrefecture` décrivaient comme acquise.** La frontière avec
+`includes/domain/statuts/` était à sens unique ; elle ne pouvait pas le rester.
+Un instantané enregistré dont la projection échoue laisse le site sans statut
+sans que personne, côté ingestion, ne le sache — et donc sans que rien ne relance
+l'essai.
+
+Le récepteur est **strictement défensif et purement passif** : il n'émet rien,
+n'appelle rien, ne lit aucun statut, n'écrit dans aucune table du domaine. Il
+consigne le résultat sur l'instantané et pose un drapeau en mémoire pour la
+requête courante. **La décision de rejeu appartient au `Runner`, et à lui seul.**
+Un bilan non tabulaire, un `jour` illisible ou une date inconnue du dépôt
+n'écrivent rien et ne cassent rien.
+
+Le drapeau en mémoire répond à une question et une seule : « quelqu'un a-t-il
+conclu une projection pour l'instantané que je viens de publier ? ». Drapeau
+absent = `sans_projecteur`, état terminal. C'est ce qui empêche un connecteur
+dont le domaine est absent de réémettre en boucle.
+
+**« A répondu » et « a répondu de façon exploitable » sont deux choses
+distinctes**, et les confondre est un défaut grave. Le drapeau est posé en
+**première instruction** de `capter()`, avant tout contrôle de forme : un bilan
+non tabulaire, un `resultat` inconnu, un `jour` illisible n'écrivent rien, mais
+comptent tous comme une réponse. Un projecteur cassé n'est pas un projecteur
+absent — conclure `sans_projecteur` sur sa réponse difforme condamnerait la date
+à ne plus jamais être rejouée, et retournerait le garde-fou anti-boucle contre le
+but qu'il sert.
+
+Voir `docs/decisions/rejeu-ingestion-prefecture.md`.
 
 ---
 
@@ -357,6 +513,12 @@ jamais un enregistrement**. Il sert exactement à deux choses :
    l'instantané *déjà enregistré pour cette même date* ;
 2. **Journaliser** qu'un contenu est identique à celui d'une autre journée —
    information d'exploitation utile, sans aucun effet sur l'enregistrement.
+
+Le chemin « corps identique » **écrit désormais une entrée de journal**
+(`succes`, avec une note distincte) au lieu de sortir en silence. Sans cela, le
+seul chemin nominal d'une date déjà couverte serait devenu invisible à
+l'exploitation le jour où cette date est redevenue candidate d'une passe à
+l'autre.
 
 Le signal de « pas encore publié » n'est **pas** le hachage, c'est le **404** :
 la source répond 404 sur `{date}.json` tant que la journée n'est pas publiée, et
