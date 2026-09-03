@@ -1,11 +1,14 @@
-# Le .gitignore racine ignore `node_modules/` de façon ANCRÉE (`/node_modules/`)
-# et ne couvre donc pas ce répertoire : on le réignore ici.
+# Dépendances installées par npm dans ce dossier : jamais versionnées. Règle
+# locale et autosuffisante — elle vaut quoi que fasse le .gitignore racine.
 node_modules/
 
-# En revanche, sa ligne `package-lock.json` n'est PAS ancrée : elle exclurait
-# notre lockfile à cette profondeur. Or c'est lui qui rend l'import reproductible
-# (mapshaper est épinglé à l'octet près). On le réintègre explicitement.
-!package-lock.json
+# `package-lock.json` est versionné à dessein : il fige les versions exactes des
+# dépendances déclarées dans `package.json`, donc la reproductibilité de l'import
+# exigée au §11 du brief. Aucune règle locale n'est nécessaire pour cela :
+# `.gitignore` ne gouverne que les fichiers non suivis, et celui-ci est suivi.
+# Une chaîne qui ouvrira un autre dossier de build n'a donc pas de parade à
+# recopier d'ici. La règle qui fait autorité vit dans la section « Dépendances »
+# du .gitignore racine ; ne pas en transcrire l'état ici.
 
 # Fichiers de travail de l'import : le pipeline les supprime, un import
 # interrompu peut en laisser.
