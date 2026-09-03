@@ -1,0 +1,131 @@
+# Décision — Généraliser `.gitattributes` à `* text=auto eol=lf`
+
+**Domaines** `infra`
+**Date de la décision** : 3 septembre 2026 · **Auteur** : chaîne de l'issue #80
+**Statut** : décision arrêtée
+
+> Ce document clôt la promesse ouverte à l'issue #35 dans l'en-tête de
+> [`.gitattributes`](../../.gitattributes) — que #80 réécrit — et reprise par
+> [`fins-de-ligne-copie-de-travail.md`](fins-de-ligne-copie-de-travail.md) §7 : « la généralisation
+> `* text=auto eol=lf` […] sous forme d'issue dédiée, en lot solo sur arbre propre ». Il consigne
+> l'arbitrage re-litigé, les mesures qui l'autorisent, et **deux défauts découverts en chemin** que #80
+> n'avait pas le droit de corriger.
+
+---
+
+## 1. L'arbitrage de #35 n'est pas invalidé — il est purgé
+
+#35 écartait `* text=auto eol=lf` pour un motif **opérationnel**, jamais technique : la bascule marque
+d'un coup des centaines de fichiers comme candidats à conversion différée, et ce demi-état visible pousse
+au geste qui « nettoie » (`git checkout .`, `git reset --hard`), destructeur dans un arbre mono-branche
+partagé. #35 posait donc deux conditions pour lever son propre veto :
+
+1. **un lot solo sur arbre propre** ;
+2. **un geste de renormalisation sûr** — qui n'existait pas alors, d'où son « Ne pas tenter de
+   renormalisation en masse ».
+
+Les deux sont remplies : #80 a été menée en lot solo sur arbre propre, et #78 a depuis établi le geste
+manquant. Rien n'a changé qui invaliderait le raisonnement de #35 ; ce sont ses **préconditions** qui sont
+enfin réunies. Le demi-état qu'il redoutait n'a pas été laissé derrière : la copie de travail a été
+renormalisée dans la foulée, dans la même chaîne.
+
+## 2. Mesures (708 fichiers suivis, HEAD `c881cdf`)
+
+| | avant | après |
+|---|---|---|
+| `w/crlf` sur le disque | 335 | **0** |
+| `attr/-text` (contrat d'octets) | 308 | **308, inchangés** |
+| `attr/text eol=lf` (trois familles racine + règles positives des `build/`) | 38 | 38 |
+| recouvrement `attr/-text` ∩ `w/crlf` | 0 | 0 |
+
+Les 335 candidats étaient **tous** `i/lf w/crlf attr/` — index déjà en LF, aucun attribut. Aucun artefact à
+contrat d'octets n'était en CRLF sur le disque : c'est ce qui rendait l'opération nettement moins risquée
+que ne le craignait #35.
+
+**Innocuité prouvée AVANT le geste**, et non constatée après : pour chacun des 335 fichiers,
+`CRLF→LF(disque)` valait exactement le blob indexé. La renormalisation ne pouvait donc retirer que des CR,
+jamais un fragment de contenu. Cette garde a été posée comme **condition d'exécution** du geste, qui
+s'interrompait si un seul fichier divergeait autrement.
+
+Après le geste : `git diff --stat HEAD` ne porte que sur `.gitattributes`, HEAD est inchangé, et aucun
+contenu versionné n'a bougé d'un octet — conformément à #78 §6, cette classe d'opération **ne produit pas
+de commit de contenu**. Les seuls fichiers commités sont `.gitattributes` lui-même et ce document.
+
+## 3. `text=auto` protège les binaires, et c'est vérifié, pas supposé
+
+Sous la règle générale, les binaires rapportent `i/-text w/-text attr/text=auto eol=lf` : l'**attribut**
+dit `text=auto eol=lf`, mais la **détection de contenu** tranche, et ils ne sont convertis dans aucun sens.
+Vérifié à la bascule sur les `.woff2`, les PNG de `docs/recette/captures/` et `assets/img/carte-statique.png`.
+
+Corollaire qui vaut d'être écrit : **aucun fichier n'est à la fois `w/-text` et `w/crlf`**. Le sélecteur de
+#78 (`w/crlf` ET `eol=lf`) ne peut donc **structurellement** pas désigner un binaire — la propriété n° 1 de
+#78 §3 survit intacte au passage au fourre-tout.
+
+## 4. Précédence : le fourre-tout ne menace pas les fichiers imbriqués
+
+Mesuré après bascule : les 308 chemins `attr/-text` le sont restés, et les règles positives `text eol=lf`
+des deux `build/.gitattributes` continuent de primer. Un motif fourre-tout à la racine ne met pas les
+`.gitattributes` imbriqués plus en danger que trois motifs ciblés — la racine reste le maillon le plus
+faible, par construction de git.
+
+## 5. Pourquoi les trois familles survivent en queue
+
+Sous le fourre-tout seul, `*.sh`, `*.conf` et `.htaccess` hériteraient de `text=auto` — « texte **si** ça
+ressemble à du texte » — au lieu de `text`, inconditionnel. L'écart est étroit, et nul aujourd'hui : les 18
+fichiers concernés ne portent aucun octet NUL, donc la détection les classe texte avec certitude. Il porte
+sur l'avenir, et sur la seule famille dont la casse est **attestée** : un `.sh` que git jugerait binaire
+garderait ses CR et mourrait sur `then\r` — le sinistre exact de #78. Trois lignes pour rendre la garantie
+inconditionnelle là où l'échec est prouvé : le rapport coût/bénéfice ne se discute pas.
+
+## 6. Deux défauts découverts, hors empreinte de #80
+
+Ces deux points ne sont **pas** corrigés ici. Ils sont consignés pour ne pas être perdus.
+
+### 6.1 Trois artefacts à contrat d'octets ne sont gardés que par la détection
+
+`assets/fonts/atkinson-hyperlegible-next-var.woff2`, `assets/fonts/big-shoulders-display-var.woff2` et
+`assets/img/carte-statique.png` (sous `wp-content/themes/massifs/`) portent chacun un sha256 épinglé dans le
+dépôt, mais **aucun attribut** : ils ne doivent leur intégrité qu'à la détection de contenu. Or la doctrine
+du dépôt, écrite noir sur blanc dans `data/tuiles/.gitattributes`, dit l'inverse : « la détection porte sur
+le CONTENU : **on ne la laisse pas décider d'un contrat** ».
+
+Le comblement demande des `.gitattributes` **imbriqués** sous le thème — hors de l'empreinte de #80, qui se
+limite à la racine. Il n'a délibérément pas été posé dans le fichier racine : dans ce dépôt une protection
+d'octets vit toujours à côté de l'artefact qu'elle garde, et la placer dans le maillon le plus faible
+affaiblirait la convention au lieu de la servir. À traiter par une issue dédiée.
+
+*(Les 10 PNG de `docs/recette/captures/` sont dans le même cas mais sans empreinte épinglée : sans enjeu.)*
+
+### 6.2 `PROVENANCE.md` de Leaflet est incohérent, et l'était déjà
+
+`wp-content/themes/massifs/assets/vendor/leaflet/PROVENANCE.md` §1 mélange deux référentiels d'octets :
+
+| fichier | empreinte et taille consignées | correspondent à |
+|---|---|---|
+| `leaflet.js` | `dc71f8a6…`, 147 517 o | le **blob** (LF) |
+| `leaflet.css` | `a7837102…`, 14 806 o | le **disque CRLF** d'avant #80 |
+| `LICENSE` | `53e8dc25…`, 1 395 o | le **disque CRLF** d'avant #80 |
+
+Conséquence : la mention « sha256 amont … servi **identique** » pour `leaflet.css` et `LICENSE` était
+**déjà fausse sur tout clone Linux** avant #80 — le blob avait perdu les CR de l'amont au moment du commit
+sous `core.autocrlf=true`. #80 ne crée pas ce défaut : la renormalisation rend simplement le disque
+déterministe, et l'écart visible.
+
+Aucun test n'asserte ces valeurs : le seul contrôle du dépôt qui hache des octets sur disque porte sur
+`tokens.css` (recette, scénario 12). Les tables de `docs/contracts/issue-7.md` §11 et
+`docs/recette/preuves-a11y-et-perf.md` sont **descriptives** (« Brut mesuré »), et §11 rappelle que « le
+seul budget normatif est celui du §10 du brief » — un budget de 250 Ko que le retrait des CR ne peut que
+desserrer. Rien ne rougit ; c'est de la documentation à réaligner, par une issue dédiée. Deux options y
+seront à trancher : réécrire la table en octets **servis** (LF), ou re-vendoriser l'amont sous `-text` pour
+restaurer l'identité octet à octet.
+
+## 7. Effet résiduel, et ce que ce document ne dispense pas de faire
+
+`* text=auto eol=lf` éteint la classe pour tout **clone futur**. La règle ne touche pas une copie de
+travail déjà clonée : git n'applique jamais un attribut nouveau en balayant l'arbre, il ne convertit un
+fichier qu'en l'**écrivant**. Une copie clonée avant ce commit reste en CRLF et `git status` la voit
+propre. Le diagnostic (`git ls-files --eol | grep 'w/crlf'`) et le remède (`rm` puis `git checkout --`,
+jamais `git add --renormalize`) restent ceux de [#78](fins-de-ligne-copie-de-travail.md) — ce document ne
+les remplace pas, il en réduit la population future à zéro.
+
+Tranché à l'issue #80.

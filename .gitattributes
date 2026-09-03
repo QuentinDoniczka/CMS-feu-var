@@ -1,81 +1,120 @@
-# Fins de ligne — fichiers de configuration serveur et scripts shell.
+# Fins de ligne — règle générale du dépôt.
 #
 # LE PROBLÈME. Le poste de développement tourne sous Windows avec
-# `core.autocrlf=true`, et le dépôt n'avait jusqu'ici aucun `.gitattributes`
-# racine. Dans cette configuration git stocke des blobs en LF — l'index est
-# propre, il l'est resté — mais restitue les fichiers en CRLF à chaque
-# `git checkout`. La copie de travail dérive donc de l'index, silencieusement,
-# sans qu'aucun diff ne le signale. Constaté en fin de lot #30 :
-# 358 fichiers en `i/lf w/crlf` (`git ls-files --eol`).
+# `core.autocrlf=true`. Dans cette configuration git stocke des blobs en LF —
+# l'index est propre, il l'est resté — mais restitue les fichiers en CRLF à
+# chaque `git checkout`. La copie de travail dérive donc de l'index,
+# silencieusement, sans qu'aucun diff ne le signale : `git status` voit ces
+# fichiers PROPRES, puisque le blob indexé est déjà celui qu'il faut. Un CR
+# collé à un mot réservé (`then\r`) est une erreur de syntaxe, pas une
+# coquetterie — `docker/provision/provision.sh` en est mort, et avec lui toute
+# la recette d'intégration (issue #78).
 #
-# POURQUOI CES TROIS FAMILLES, ET POURQUOI ELLES SEULES.
+# LA RÈGLE. `* text=auto eol=lf` : tout fichier que git RECONNAÎT COMME TEXTE
+# est stocké en LF dans le blob et restitué en LF dans la copie de travail, sur
+# toute plateforme. C'est la forme idiomatique, et elle éteint la classe entière
+# de dérive pour tout clone futur.
 #
-#   `*.sh` — c'est la famille qui casse RÉELLEMENT. Deux de ces scripts ne
-#   s'exécutent que dans un conteneur Linux, montés en bind-mount et interprétés
-#   par l'ash de BusyBox — `provision.sh`
-#   (`docker compose run --rm wpcli sh /provision/provision.sh`) et
-#   `docs/recette/importer-pages.sh`. Les cinq autres — `docker/up.sh`,
-#   `docker/reset.sh`, les trois de `tests/` — sont lancés depuis le poste de
-#   développement, Git Bash compris : ceux-là s'exécutent bel et bien sous
-#   Windows, et depuis la copie de travail, celle qui est en CRLF. Dans les deux
-#   cas un CR collé à un mot réservé (`then\r`) ou à une affectation est une
-#   erreur de syntaxe, pas une coquetterie. Un shell ne pardonne pas ce
-#   qu'Apache pardonne.
+#   `text=auto` et non `text` — `text` forcerait le traitement texte sur TOUT,
+#   y compris un binaire, ce qui le corromprait. `auto` laisse git décider sur
+#   le CONTENU : un fichier porteur d'octets NUL est reconnu binaire et n'est
+#   converti dans aucun sens. C'est ce qui rend un motif fourre-tout sûr ici.
 #
-#   `*.conf` — quatre fichiers, deux modes de consommation. Les trois de
-#   `docker/wordpress/` sont des configurations Apache copiées dans l'image par
-#   son `Dockerfile` (`COPY … /etc/apache2/conf-enabled/`) ;
-#   `docker/tiles/nginx.conf` est monté en lecture seule dans le conteneur nginx
-#   par `docker-compose.yml`, donc lu à l'exécution depuis la copie de travail.
-#   Apache 2.4 supprime les blancs de fin de ligne, CR compris : de son côté le
-#   CRLF est toléré, l'image démarre. Mais les OCTETS diffèrent alors d'un poste
-#   à l'autre selon la plateforme qui a fait le clone — à commit égal, deux
-#   développeurs ne montent plus la même stack. C'est cette reproductibilité-là
-#   qu'on ancre ici, et elle vaut pour les quatre fichiers.
+#   `eol=lf` et non `eol=native` — `eol=lf` fixe la COPIE DE TRAVAIL, pas
+#   seulement le blob. C'est tout l'enjeu : à commit égal, deux développeurs
+#   doivent monter la même stack avec les mêmes octets. `docker/tiles/nginx.conf`
+#   est monté `:ro` dans nginx et les `.htaccess` sont lus à l'exécution depuis
+#   le bind-mount : ce sont les octets du DISQUE qui sont consommés, jamais ceux
+#   du blob.
 #
-#   `.htaccess` — ce sont AUSSI des fichiers de configuration Apache, et à la
-#   différence des trois `.conf` de `docker/wordpress/` ils sont lus À
-#   L'EXÉCUTION, depuis le bind-mount, donc depuis la copie de travail — celle
-#   qui est en CRLF. Les exclure aurait refermé l'issue sur la moitié
-#   inoffensive de la classe que son titre nomme. Un motif sans `/` matche le
-#   nom de base à n'importe quelle profondeur : les 7 fichiers sont couverts
-#   sans avoir à les énumérer, et ceux que les chaînes suivantes déposeront le
-#   seront aussi.
+# POURQUOI SEULEMENT MAINTENANT — l'arbitrage de #35, re-litigé et TRANCHÉ.
+# La rédaction initiale de ce fichier (issue #35) écartait délibérément cette
+# forme au profit de trois familles ciblées. Le motif n'était pas technique mais
+# opérationnel : la bascule marque d'un coup des centaines de fichiers de la
+# copie de travail comme candidats à une conversion différée, et ce demi-état
+# visible pousse au geste qui « nettoie » — `git checkout .`, `git reset --hard`
+# — DESTRUCTEUR dans un arbre mono-branche partagé par plusieurs chaînes en
+# parallèle. #35 posait donc deux conditions pour lever son propre veto : un LOT
+# SOLO SUR ARBRE PROPRE, et un geste de renormalisation sûr, qui n'existait pas
+# encore (« Ne pas tenter de renormalisation en masse »).
 #
-# CE QUE CE FICHIER NE FAIT DÉLIBÉRÉMENT PAS. Il ne contient pas
-# `* text=auto eol=lf`. C'est pourtant la forme idiomatique, et elle couvrirait
-# tout le dépôt au lieu de trois familles. Elle marquerait aussi, d'un coup, 358
-# fichiers de la copie de travail comme candidats à une conversion différée. Ce
-# demi-état est visible, il démange, et il pousse au geste qui « nettoie » —
-# `git checkout .`, `git reset --hard` — lequel est DESTRUCTEUR dans un arbre
-# mono-branche partagé par plusieurs chaînes travaillant en parallèle : il n'y a
-# pas de branche pour rattraper ce qu'il efface. La généralisation fera donc
-# l'objet d'une issue dédiée, menée en lot solo sur arbre propre.
+# Les deux conditions sont aujourd'hui remplies, et c'est ce qui autorise la
+# bascule : l'issue #80 a été menée en lot solo sur arbre propre, et #78 a
+# depuis établi le geste manquant. L'arbitrage de #35 n'est donc pas invalidé —
+# il est PURGÉ. Le demi-état n'a pas été laissé derrière : la copie de travail a
+# été renormalisée dans la foulée, par le geste de #78 (`rm` puis
+# `git checkout --` sur une liste dérivée de `git ls-files --eol`), JAMAIS par
+# `git add --renormalize`, qui est ici un no-op intégral et rend la main en
+# succès silencieux — voir `docs/decisions/fins-de-ligne-copie-de-travail.md` §2.
 #
-# PRÉCÉDENCE, NOIR SUR BLANC. Le `.gitattributes` du répertoire le plus profond
-# gagne ; celui-ci, à la racine, est le MAILLON LE PLUS FAIBLE des
-# `.gitattributes` versionnés — seuls les réglages hors dépôt
-# (`core.attributesFile`, gitattributes système) lui cèdent le pas, tandis que
-# `.git/info/attributes`, local et non versionné, prime au contraire sur tous.
-# Les 5 `.gitattributes` imbriqués sous `wp-content/plugins/massifs-core/` — qui
-# posent `-text` sur les artefacts à contrat d'octets, ceux dont un sha256 est
-# calculé au build sur les octets du fichier — l'emportent toujours sur ce qui
-# est écrit ici. Deux des `.htaccess` visés vivent d'ailleurs dans des
-# répertoires déjà pourvus d'un `.gitattributes` imbriqué (`data/tuiles/` et
-# `includes/domain/massifs/`) : ce n'est PAS un conflit, ces fichiers imbriqués
-# ne listent que des noms explicites et `*.png`, jamais `.htaccess`. Et de toute
-# façon `-text` court-circuite `eol` dans les deux sens : les fichiers à contrat
-# d'octets sont saufs quoi qu'il arrive.
+# MESURES DE LA BASCULE (issue #80, 708 fichiers suivis).
+#   Avant : 335 fichiers `i/lf w/crlf`, tous sans attribut ; 308 `attr/-text` ;
+#           38 `attr/text eol=lf`. Recouvrement entre `attr/-text` et `w/crlf` :
+#           ZÉRO — aucun artefact à contrat d'octets n'était en CRLF sur disque.
+#   Après  : 0 fichier `w/crlf`, et les 308 `attr/-text` inchangés.
+#   Innocuité PROUVÉE AVANT le geste : pour chacun des 335 fichiers,
+#   CRLF→LF(disque) donnait exactement le blob indexé. La renormalisation ne
+#   pouvait donc retirer que des CR, jamais un fragment de contenu.
 #
-# L'EFFET EST DIFFÉRÉ, PAR CONCEPTION. Git n'applique jamais un attribut nouveau
-# en balayant l'arbre : il ne convertit un fichier qu'au moment où il l'ÉCRIT
-# (clone, ou checkout de ce fichier précis). Les fichiers déjà présents en CRLF
-# sur le disque restent en CRLF et continuent d'être vus PROPRES par
-# `git status` — l'index, lui, est déjà en LF. La copie de travail convergera au
-# prochain clone. NE PAS tenter de renormalisation en masse pendant un lot
-# parallèle : c'est exactement le geste que proscrit le paragraphe « CE QUE CE
-# FICHIER NE FAIT DÉLIBÉRÉMENT PAS ».
+# CE QUE `text=auto` PROTÈGE SANS QU'ON LUI DEMANDE RIEN. Sous la règle
+# générale, les binaires rapportent `i/-text w/-text` : l'ATTRIBUT dit
+# `text=auto eol=lf`, mais la DÉTECTION DE CONTENU tranche, et ils ne sont
+# convertis dans aucun sens. Vérifié à la bascule sur les polices `.woff2`, les
+# PNG de `docs/recette/captures/` et `assets/img/carte-statique.png`. Aucun
+# fichier n'est à la fois `w/-text` et `w/crlf` : le sélecteur de #78 ne peut
+# donc STRUCTURELLEMENT pas désigner un binaire.
+#
+# POURQUOI LES TROIS FAMILLES SURVIVENT EN QUEUE, malgré le fourre-tout.
+# Sous `* text=auto` seul, elles hériteraient de `text=auto` — « texte SI ça
+# ressemble à du texte » — au lieu de `text`, qui est inconditionnel. L'écart est
+# étroit mais il porte sur la seule famille dont la casse est ATTESTÉE : un `.sh`
+# que git jugerait binaire garderait ses CR et mourrait sur `then\r`, ce qui est
+# exactement le sinistre de #78. Les 18 fichiers concernés sont aujourd'hui du
+# texte avec certitude (aucun ne porte d'octet NUL, vérifié) : ces trois lignes
+# ne changent donc rien maintenant, elles garantissent l'avenir. On paie trois
+# lignes pour rendre inconditionnelle la garantie là où l'échec est prouvé.
+#
+# PRÉCÉDENCE, NOIR SUR BLANC — inchangée par la bascule, et vérifiée après elle.
+# Le `.gitattributes` du répertoire le plus profond gagne ; celui-ci, à la
+# racine, est le MAILLON LE PLUS FAIBLE des `.gitattributes` versionnés — seuls
+# les réglages hors dépôt (`core.attributesFile`, gitattributes système) lui
+# cèdent le pas, tandis que `.git/info/attributes`, local et non versionné,
+# prime au contraire sur tous. Les 5 `.gitattributes` imbriqués sous
+# `wp-content/plugins/massifs-core/` — qui posent `-text` sur les artefacts à
+# contrat d'octets, ceux dont un sha256 est calculé au build sur les octets du
+# fichier — l'emportent toujours sur ce qui est écrit ici. Un motif fourre-tout
+# à la racine ne les met pas plus en danger que trois motifs ciblés : mesuré à
+# la bascule, les 308 chemins `attr/-text` le sont restés, et les règles
+# positives `text eol=lf` des deux `build/.gitattributes` (`*.mjs`,
+# `package.json`…) continuent de primer. `-text` court-circuite `eol` dans les
+# deux sens : les fichiers à contrat d'octets sont saufs quoi qu'il arrive.
+#
+# CE QUE CE FICHIER NE FAIT TOUJOURS PAS, ET POURQUOI C'EST DÉLIBÉRÉ. Il ne pose
+# aucun `-text` sur un artefact à contrat d'octets. Ce n'est pas sa place : dans
+# ce dépôt, une protection d'octets vit TOUJOURS dans un `.gitattributes`
+# imbriqué, à côté de l'artefact qu'elle garde et de la note qui dit quelle
+# empreinte en dépend. La poser ici, dans le maillon le plus faible et loin de
+# son objet, affaiblirait la convention au lieu de la servir. L'issue #80 a
+# relevé au passage trois artefacts à contrat d'octets qui ne sont gardés
+# aujourd'hui que par la détection de contenu, sans attribut — les deux polices
+# de `wp-content/themes/massifs/assets/fonts/` et
+# `wp-content/themes/massifs/assets/img/carte-statique.png` — alors que la
+# doctrine de `massifs-core/data/tuiles/.gitattributes` dit qu'« on ne laisse
+# pas [la détection] décider d'un contrat ». Le comblement demande des fichiers
+# imbriqués sous le thème, hors de l'empreinte de #80 : il fait l'objet d'un
+# signalement dédié, pas d'une exception ici.
+#
+# L'EFFET RESTE DIFFÉRÉ POUR LES CLONES DÉJÀ FAITS. Git n'applique jamais un
+# attribut nouveau en balayant l'arbre : il ne convertit un fichier qu'au moment
+# où il l'ÉCRIT (clone, ou checkout de ce fichier précis). Une copie de travail
+# clonée AVANT ce commit reste donc en CRLF, et `git status` la voit propre. La
+# dérive se lit par `git ls-files --eol | grep 'w/crlf'`, jamais dans un diff, et
+# se corrige par le geste de #78 — pas par `git add --renormalize`.
 
+* text=auto eol=lf
+
+# Inconditionnel là où un CR est fatal, cf. « POURQUOI LES TROIS FAMILLES
+# SURVIVENT EN QUEUE » ci-dessus.
 *.conf    text eol=lf
 *.sh      text eol=lf
 .htaccess text eol=lf
