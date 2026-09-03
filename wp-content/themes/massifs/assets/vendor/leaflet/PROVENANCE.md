@@ -102,8 +102,8 @@ interne au document. Elle ne déclenche aucune requête réseau, sur aucun navig
 ```
 assets/vendor/leaflet/
 ├── leaflet.js       — 1.9.4 dist minifié, ligne sourceMappingURL retirée
-├── leaflet.css      — 1.9.4 dist, octet pour octet
-├── LICENSE          — BSD 2-Clause, verbatim
+├── leaflet.css      — 1.9.4 dist, contenu inchangé, fins de ligne en LF (§1)
+├── LICENSE          — BSD 2-Clause, contenu inchangé, fins de ligne en LF (§1)
 └── PROVENANCE.md    — ce fichier
 ```
 
@@ -118,7 +118,13 @@ dépend pas de `docker/plugins-guard.conf`, qui vit dans `docker/` et n'existe p
 1. Récupérer `dist/leaflet.js`, `dist/leaflet.css` et `LICENSE` de la nouvelle version, depuis `unpkg.com`,
    et contre-vérifier le sha256 sur une seconde origine.
 2. Retirer la dernière ligne `//# sourceMappingURL=` de `leaflet.js`, et **rien d'autre**.
-3. Réécrire le tableau du §1 avec les deux nouvelles empreintes et la nouvelle date.
+3. Réécrire le tableau du §1 : **six empreintes**, une « amont » et une « servi » pour chacun des trois
+   fichiers, plus la nouvelle date.
+   **L'empreinte « servi » se calcule après `git add` et checkout, jamais sur le fichier téléchargé.**
+   `.gitattributes` porte `* text=auto eol=lf` : `leaflet.css` et `LICENSE`, qui arrivent de l'amont en
+   CRLF, perdront leurs CR à l'entrée dans git. Hacher le téléchargement et l'inscrire en colonne
+   « servi » recréerait très exactement l'incohérence corrigée au §1 — c'est la manière dont elle est née.
+   `leaflet.js`, lui, arrive en LF et n'est pas concerné.
 4. Revérifier le §3 : si la nouvelle version instancie une image par une API que nous appelons, la preuve
    par les API non appelées tombe et il faut alors traiter le cas explicitement.
 5. Rejouer les assertions de recette 1, 2 et 6 du §12 de `docs/contracts/issue-7.md`.

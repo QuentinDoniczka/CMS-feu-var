@@ -79,9 +79,10 @@ inconditionnelle là où l'échec est prouvé : le rapport coût/bénéfice ne s
 
 ## 6. Deux défauts découverts, hors empreinte de #80
 
-Ces deux points ne sont **pas** corrigés ici. Ils sont consignés pour ne pas être perdus.
+Aucun des deux n'était corrigé par le commit de #80. Le second (§6.2) l'a été à la review du lot ; le
+premier (§6.1) reste ouvert et attend son issue.
 
-### 6.1 Cinq artefacts à contrat d'octets ne portent aucun attribut — et deux d'entre eux ne sont pas gardés du tout
+### 6.1 Six artefacts à contrat d'octets ne portent aucun attribut — et deux d'entre eux ne sont gardés par rien
 
 `assets/fonts/atkinson-hyperlegible-next-var.woff2`, `assets/fonts/big-shoulders-display-var.woff2` et
 `assets/img/carte-statique.png` (sous `wp-content/themes/massifs/`) portent chacun un sha256 épinglé dans le
@@ -95,6 +96,12 @@ et aucun attribut — mais, contrairement aux trois premiers, git les classe **t
 protège donc **pas du tout** : ils faisaient partie des 335 fichiers renormalisés, et leurs empreintes
 consignées ne correspondaient plus à leurs octets. C'est le sinistre décrit au §6.2, et il s'est produit
 précisément là où cet inventaire, dans sa première rédaction, ne regardait pas.
+
+**Un sixième, gardé celui-là.** `assets/css/tokens.css` remplit le même critère — sha256 épinglé par le
+contrat #4, aucun attribut, classé texte — mais il est le seul de la classe à être **surveillé** : le
+scénario 12 de la recette de rendu hache ses octets sur disque. C'est d'ailleurs le seul qui a réellement
+rougi à la renormalisation, puis reverdi. Il montre à quoi ressemble le cas nominal, et par contraste ce
+qui manque aux cinq autres.
 
 **Corollaire, à porter au crédit de l'inventaire plutôt qu'à celui du sélecteur.** La propriété de sûreté
 n° 1 de [`fins-de-ligne-copie-de-travail.md`](fins-de-ligne-copie-de-travail.md) — « les artefacts dont un
@@ -111,33 +118,35 @@ affaiblirait la convention au lieu de la servir. À traiter par une issue dédi�
 
 *(Les 10 PNG de `docs/recette/captures/` sont dans le même cas mais sans empreinte épinglée : sans enjeu.)*
 
-### 6.2 `PROVENANCE.md` de Leaflet est incohérent, et l'était déjà
+### 6.2 `PROVENANCE.md` de Leaflet mélangeait deux référentiels d'octets — **corrigé depuis**
 
-`wp-content/themes/massifs/assets/vendor/leaflet/PROVENANCE.md` §1 mélange deux référentiels d'octets :
+Le document d'audit de la bibliothèque vendorisée annonçait `leaflet.css` et `LICENSE` « identiques » à
+l'amont, avec les octets de l'amont, alors que le contenu **versionné** ne l'a jamais été : ces deux
+fichiers arrivent en CRLF et leurs CR ont quitté le blob au commit, sous `core.autocrlf=true`.
+L'affirmation était **déjà fausse sur tout clone Linux** avant #80 ; elle n'était vraie que par accident,
+sur une copie de travail Windows. #80 n'a pas créé ce défaut : la renormalisation a rendu le disque
+déterministe, donc l'écart visible partout.
 
-| fichier | empreinte et taille consignées | correspondent à |
-|---|---|---|
-| `leaflet.js` | `dc71f8a6…`, 147 517 o | le **blob** (LF) |
-| `leaflet.css` | `a7837102…`, 14 806 o | le **disque CRLF** d'avant #80 |
-| `LICENSE` | `53e8dc25…`, 1 395 o | le **disque CRLF** d'avant #80 |
+**Corrigé à la review de ce lot** : la table de
+[`vendor/leaflet/PROVENANCE.md`](../../wp-content/themes/massifs/assets/vendor/leaflet/PROVENANCE.md) §1
+porte désormais les empreintes **servies**, l'explication de l'écart, et l'interdiction de « réparer » en
+re-vendorisant l'amont — ce qui réintroduirait des CR dans des fichiers servis sans restaurer une identité
+que l'historique a déjà perdue. **Les valeurs font foi là-bas, et ne sont pas recopiées ici** : c'est
+précisément leur transcription en deux endroits qui a permis à l'écart de vivre.
 
-Conséquence : la mention « sha256 amont … servi **identique** » pour `leaflet.css` et `LICENSE` était
-**déjà fausse sur tout clone Linux** avant #80 — le blob avait perdu les CR de l'amont au moment du commit
-sous `core.autocrlf=true`. #80 ne crée pas ce défaut : la renormalisation rend simplement le disque
-déterministe, et l'écart visible.
+Ce que ce document garde, parce que `PROVENANCE.md` n'a pas à le porter : **aucun contrôle du dépôt ne
+regarde l'identité des octets de `leaflet.css` ni de `LICENSE`.** C'est pourquoi l'écart a pu vivre sans
+être signalé, et pourquoi rien n'a rougi à la renormalisation. Le contrôle 12 de la recette de rendu, lui,
+hache bien des octets sur disque — `tokens.css` — et il a rougi puis reverdi. Les deux vérificateurs de
+build en hachent d'autres, et **tous ne sont pas protégés** : `carte-statique.png` et la police
+`.woff2` (`ingest/tuiles/build/verifier.mjs`) ne portent aucun attribut et ne doivent leur survie qu'à la
+détection de contenu — ce sont deux des six artefacts du §6.1. Ceux de `domain/massifs/build/verifier.mjs`
+(géométrie, source archivée, lookup communes) portent `-text` et sont protégés par construction.
 
-Aucun test n'asserte ces valeurs. Le seul contrôle de **recette** qui hache des octets sur disque porte sur
-`tokens.css` (scénario 12) — et il a bien rougi, puis reverdi après la renormalisation. Les deux
-vérificateurs de build en hachent d'autres (`ingest/tuiles/build/verifier.mjs`,
-`domain/massifs/build/verifier.mjs` : géométrie, source archivée, lookup communes, fond statique), mais
-tous leurs artefacts portent `-text` et sont donc restés intacts. Aucun contrôle du dépôt ne regarde les
-octets de `leaflet.css` ni de `LICENSE` : c'est pourquoi l'écart a pu vivre sans être signalé, et c'est
-aussi pourquoi rien n'a rougi ici. Les tables de `docs/contracts/issue-7.md` §11 et
-`docs/recette/preuves-a11y-et-perf.md` sont **descriptives** (« Brut mesuré »), et §11 rappelle que « le
-seul budget normatif est celui du §10 du brief » — un budget de 250 Ko que le retrait des CR ne peut que
-desserrer. Rien ne rougit ; c'est de la documentation à réaligner, par une issue dédiée. Deux options y
-seront à trancher : réécrire la table en octets **servis** (LF), ou re-vendoriser l'amont sous `-text` pour
-restaurer l'identité octet à octet.
+Les tables de `docs/contracts/issue-7.md` §11 et `docs/recette/preuves-a11y-et-perf.md` restent
+**descriptives** (« Brut mesuré ») et portent encore les anciennes tailles ; §11 rappelle que « le seul
+budget normatif est celui du §10 du brief » — un budget de 250 Ko que le retrait des CR ne peut que
+desserrer. Contrats gelés et preuves de recette : à réaligner par une issue dédiée, pas ici.
 
 ## 7. Effet résiduel, et ce que ce document ne dispense pas de faire
 
