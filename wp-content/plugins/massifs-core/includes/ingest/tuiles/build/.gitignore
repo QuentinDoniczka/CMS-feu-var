@@ -3,12 +3,16 @@
 node_modules/
 
 # `package-lock.json` est versionné à dessein : il fige les versions exactes des
-# dépendances déclarées dans `package.json`, donc la reproductibilité du fond de
-# carte exigée au §11 du brief. Aucune règle locale n'est nécessaire pour cela :
-# `.gitignore` ne gouverne que les fichiers non suivis, et celui-ci est suivi.
-# Une chaîne qui ouvrira un autre dossier de build n'a donc pas de parade à
-# recopier d'ici. La règle qui fait autorité vit dans la section « Dépendances »
-# du .gitignore racine ; ne pas en transcrire l'état ici.
+# dépendances déclarées dans `package.json`, donc la reproductibilité de
+# l'installation exigée au §11 du brief. Aucune règle locale n'est nécessaire
+# pour cela : `.gitignore` ne gouverne que les fichiers non suivis, et celui-ci
+# est suivi.
+#
+# Une chaîne qui ouvrira un autre dossier de build n'a pas de parade à recopier
+# d'ici — son lockfile, lui, sera non suivi à sa création, donc le motif ci-dessus
+# ne vaudra pas pour lui. Ce qui décidera de son sort se lit dans la section
+# « Dépendances » du .gitignore racine, qui fait autorité ; ne pas en transcrire
+# l'état ici, cette transcription est précisément ce qui avait dérivé.
 
 # Fichiers de travail du build : les pipelines les suppriment, un build
 # interrompu peut en laisser.

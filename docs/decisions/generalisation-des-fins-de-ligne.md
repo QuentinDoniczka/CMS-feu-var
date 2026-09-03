@@ -81,13 +81,28 @@ inconditionnelle là où l'échec est prouvé : le rapport coût/bénéfice ne s
 
 Ces deux points ne sont **pas** corrigés ici. Ils sont consignés pour ne pas être perdus.
 
-### 6.1 Trois artefacts à contrat d'octets ne sont gardés que par la détection
+### 6.1 Cinq artefacts à contrat d'octets ne portent aucun attribut — et deux d'entre eux ne sont pas gardés du tout
 
 `assets/fonts/atkinson-hyperlegible-next-var.woff2`, `assets/fonts/big-shoulders-display-var.woff2` et
 `assets/img/carte-statique.png` (sous `wp-content/themes/massifs/`) portent chacun un sha256 épinglé dans le
 dépôt, mais **aucun attribut** : ils ne doivent leur intégrité qu'à la détection de contenu. Or la doctrine
-du dépôt, écrite noir sur blanc dans `data/tuiles/.gitattributes`, dit l'inverse : « la détection porte sur
-le CONTENU : **on ne la laisse pas décider d'un contrat** ».
+du dépôt, écrite noir sur blanc dans `massifs-core/data/tuiles/.gitattributes`, dit l'inverse : « la
+détection porte sur le CONTENU : **on ne la laisse pas décider d'un contrat** ».
+
+**Deux artefacts de plus sont dans ce cas, et leur situation est pire** : `assets/vendor/leaflet/leaflet.css`
+et `assets/vendor/leaflet/LICENSE` portent eux aussi un sha256 épinglé (`vendor/leaflet/PROVENANCE.md` §1)
+et aucun attribut — mais, contrairement aux trois premiers, git les classe **texte**. La détection ne les
+protège donc **pas du tout** : ils faisaient partie des 335 fichiers renormalisés, et leurs empreintes
+consignées ne correspondaient plus à leurs octets. C'est le sinistre décrit au §6.2, et il s'est produit
+précisément là où cet inventaire, dans sa première rédaction, ne regardait pas.
+
+**Corollaire, à porter au crédit de l'inventaire plutôt qu'à celui du sélecteur.** La propriété de sûreté
+n° 1 de [`fins-de-ligne-copie-de-travail.md`](fins-de-ligne-copie-de-travail.md) — « les artefacts dont un
+sha256 est calculé au build sur leurs octets sont protégés **par construction du sélecteur** » — est
+**réfutée par ce cas**. Elle n'est vraie que des artefacts explicitement marqués `-text`. Le constat
+« aucun fichier n'est à la fois `w/-text` et `w/crlf` » reste exact et structurel, mais il ne protège que
+les fichiers **déjà marqués** : il ne dit rien de ceux qui auraient dû l'être. Le geste de renormalisation
+de #78 n'est sûr que dans la mesure où l'inventaire `-text` est complet — et il ne l'était pas.
 
 Le comblement demande des `.gitattributes` **imbriqués** sous le thème — hors de l'empreinte de #80, qui se
 limite à la racine. Il n'a délibérément pas été posé dans le fichier racine : dans ce dépôt une protection
@@ -111,8 +126,13 @@ Conséquence : la mention « sha256 amont … servi **identique** » pour `leafl
 sous `core.autocrlf=true`. #80 ne crée pas ce défaut : la renormalisation rend simplement le disque
 déterministe, et l'écart visible.
 
-Aucun test n'asserte ces valeurs : le seul contrôle du dépôt qui hache des octets sur disque porte sur
-`tokens.css` (recette, scénario 12). Les tables de `docs/contracts/issue-7.md` §11 et
+Aucun test n'asserte ces valeurs. Le seul contrôle de **recette** qui hache des octets sur disque porte sur
+`tokens.css` (scénario 12) — et il a bien rougi, puis reverdi après la renormalisation. Les deux
+vérificateurs de build en hachent d'autres (`ingest/tuiles/build/verifier.mjs`,
+`domain/massifs/build/verifier.mjs` : géométrie, source archivée, lookup communes, fond statique), mais
+tous leurs artefacts portent `-text` et sont donc restés intacts. Aucun contrôle du dépôt ne regarde les
+octets de `leaflet.css` ni de `LICENSE` : c'est pourquoi l'écart a pu vivre sans être signalé, et c'est
+aussi pourquoi rien n'a rougi ici. Les tables de `docs/contracts/issue-7.md` §11 et
 `docs/recette/preuves-a11y-et-perf.md` sont **descriptives** (« Brut mesuré »), et §11 rappelle que « le
 seul budget normatif est celui du §10 du brief » — un budget de 250 Ko que le retrait des CR ne peut que
 desserrer. Rien ne rougit ; c'est de la documentation à réaligner, par une issue dédiée. Deux options y

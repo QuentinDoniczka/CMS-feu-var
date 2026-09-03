@@ -16,7 +16,8 @@
 Le poste de développement tourne sous Windows avec `core.autocrlf=true`. Git stocke donc des blobs en LF
 — l'index est propre et l'est resté — mais restitue les fichiers en CRLF à chaque écriture.
 
-`.gitattributes` (livré par #35) pose `text eol=lf` sur `*.sh`, `*.conf` et `.htaccess`. Mais **git
+`.gitattributes` posait alors, depuis #35, `text eol=lf` sur `*.sh`, `*.conf` et `.htaccess` — et rien
+d'autre ; il porte depuis #80 un fourre-tout `* text=auto eol=lf` en tête. Mais **git
 n'applique jamais un attribut nouveau en balayant l'arbre : il ne convertit un fichier qu'au moment où il
 l'écrit** — clone, ou checkout de ce fichier précis. Les fichiers déjà présents sur le disque avant #35
 restent donc en CRLF, et `git status` les voit **propres**, puisque le blob indexé, lui, est déjà celui
@@ -86,9 +87,13 @@ xargs -d '\n' -a /tmp/eol.txt git checkout --
 Trois propriétés font préférer ce sélecteur calculé à une liste écrite à la main :
 
 1. **Un fichier `-text` ne peut structurellement pas être sélectionné** — il rapporte `attr/-text`, jamais
-   `eol=lf`. Les artefacts dont un sha256 est calculé au build sur leurs octets sont protégés **par
-   construction du sélecteur**, pas par la vigilance de l'opérateur.
-2. Le sélecteur voit les `.gitattributes` **imbriqués**, pas seulement les trois familles de la racine.
+   `eol=lf`. Les artefacts dont un sha256 est calculé au build sur leurs octets sont protégés **s'ils
+   portent `-text`** — par construction du sélecteur pour ceux-là, et par rien du tout pour les autres.
+   *Corrigé à l'issue #80 : cette propriété était énoncée sans sa condition. Deux artefacts épinglés
+   classés texte (`vendor/leaflet/leaflet.css` et `LICENSE`) ne portaient aucun attribut et ont été
+   renormalisés ; voir [`generalisation-des-fins-de-ligne.md`](generalisation-des-fins-de-ligne.md) §6.1.
+   Le geste n'est sûr que si l'inventaire `-text` est complet.*
+2. Le sélecteur voit les `.gitattributes` **imbriqués**, pas seulement les règles de la racine.
 3. **La commande de sélection est aussi la commande de vérification** : avant elle liste les chemins,
    après elle en liste zéro. Le contrôle n'est pas une commande différente qu'on espère cohérente.
 
@@ -103,9 +108,10 @@ sur une poignée de fichiers.
 
 ## 4. Préconditions
 
-- **Lot solo, arbre propre** — l'en-tête de `.gitattributes` proscrit toute renormalisation de masse
-  pendant un lot parallèle, et réserve la généralisation à un lot solo sur arbre propre. En arbre
-  mono-branche partagé, il n'y a pas de branche pour rattraper ce qu'un geste de masse efface.
+- **Lot solo, arbre propre** — l'en-tête de `.gitattributes` proscrivait alors toute renormalisation de
+  masse pendant un lot parallèle, et réservait la généralisation à un lot solo sur arbre propre. Elle a
+  été menée ainsi à l'issue #80. En arbre mono-branche partagé, il n'y a pas de branche pour rattraper ce
+  qu'un geste de masse efface : la précondition vaut pour toute renormalisation à venir.
 - `git status --porcelain` vide et `git rev-list --left-right --count HEAD...@{u}` à `0 0`. Sinon, on ne
   fait rien.
 - **Pile Docker descendue** (`docker compose down`, jamais `-v`). `docker/tiles/nginx.conf` est monté en
@@ -165,9 +171,13 @@ Ce document décrit un **rattrapage de poste**, pas un correctif de dépôt. Il 
   règle.** `provision.sh` meurt avant qu'une garde puisse s'exécuter, et `docker/up.sh` comme
   `tests/run.sh` sont eux-mêmes concernés. Une garde ne survit que dans un hôte insensible aux fins de
   ligne.
-- Le correctif durable reste la **généralisation `* text=auto eol=lf`** que l'en-tête de `.gitattributes`
-  a déjà promise sous forme d'issue dédiée, en lot solo sur arbre propre. Elle seule fait disparaître la
-  classe entière pour les clones futurs. Elle n'a pas été absorbée dans #78 : elle modifie un fichier
-  versionné et re-litige un arbitrage de #35, ce qui est une autre issue.
+- Le correctif durable était la **généralisation `* text=auto eol=lf`**, que l'en-tête de
+  `.gitattributes` promettait alors sous forme d'issue dédiée. Elle n'a pas été absorbée dans #78 : elle
+  modifie un fichier versionné et re-litige un arbitrage de #35, ce qui est une autre issue. **Elle a été
+  livrée depuis, à l'issue #80** — voir [`generalisation-des-fins-de-ligne.md`](generalisation-des-fins-de-ligne.md).
+  Le fourre-tout est en place, les trois familles de #35 sont conservées en surcharge inconditionnelle,
+  et la copie de travail a été renormalisée : 335 fichiers, `w/crlf` ramené à 0. La classe entière est
+  donc éteinte pour les clones futurs. Le geste de rattrapage décrit ci-dessus reste valable pour toute
+  copie de travail clonée avant #80 et jamais renormalisée.
 
 Tranché à l'issue #78.
