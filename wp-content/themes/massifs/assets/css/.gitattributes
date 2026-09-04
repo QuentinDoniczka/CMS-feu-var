@@ -1,0 +1,33 @@
+# Les octets SONT le contrat.
+#
+# `tokens.css` est le seul artefact d'octets de ce répertoire : son empreinte
+# sha256 est gelée par le contrat #4 (`docs/contracts/issue-4.md`, amendement
+# v2.4, chaîne #50), et le scénario 12 de `tests/rendu/recette-rendu.mjs` hache
+# ses octets SUR LE DISQUE contre elle.
+#
+# Rouge deux fois, pas une : le même scénario assied aussi, par-dessus les
+# dénombrements de jetons, l'identité TEXTUELLE du fichier avec le bloc normatif
+# de `design-system/MASTER.md` §12. Une dérive d'octets fait tomber les deux.
+#
+# PAS de motif `*.css` : `layout.css`, `composants.css`, `carte.css` et
+# `print.css` ne portent AUCUNE empreinte et restent normalisés. Un fourre-tout
+# serait un piège pour les chaînes qui les éditent tous les jours, pour zéro
+# bénéfice. Devoir réciproque : une chaîne qui épinglerait demain une empreinte
+# sur l'une d'elles DOIT ajouter sa ligne ici — l'absence de ligne est une
+# affirmation sur l'absence d'empreinte, pas un oubli.
+#
+# C'est le SEUL `-text` du dépôt posé sur un fichier édité à la main : tous les
+# autres gardent une sortie de build ou un téléchargement vendorisé, celui-ci
+# s'ouvre dans un éditeur. Il garantit disque == blob, et retire à `git status`
+# le droit de cacher les octets que la recette hache. Le prix, sans l'adoucir :
+# une sauvegarde en CRLF entrerait telle quelle dans le blob au lieu d'être
+# normalisée en silence. Il est accepté parce que l'échec est BRUYANT et que le
+# remède est connu — re-sauvegarder en LF, JAMAIS ré-épingler l'empreinte, ce
+# qui ratifierait le CRLF et désynchroniserait le fichier de MASTER §12.
+#
+# `-text` et non `binary` : `binary` implique `-diff`, et le diff d'une feuille
+# de jetons est ce qu'une revue de design regarde en premier. `-text` et non
+# `text eol=lf` : celui-ci absorberait la conversion au commit et découplerait
+# les octets du disque — ceux que la recette hache — de ceux du blob. Et ici
+# plutôt qu'à la racine : une protection d'octets vit à côté de son artefact.
+tokens.css -text

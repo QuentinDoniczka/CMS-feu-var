@@ -1,0 +1,31 @@
+# Les octets SONT le contrat.
+#
+# Deux fichiers, deux gardes inégales. `atkinson-hyperlegible-next-var.woff2`
+# est une ENTRÉE DE BUILD : `commun.mjs` la déclare sous `CHEMINS.police_texte`,
+# `construire.mjs` en cuit les contours de glyphes dans les tuiles ET dans
+# l'image statique, un octet qui bouge se propage donc dans tout l'aval et dans
+# ses empreintes. La sienne vit dans le bloc `toponymes.police` de
+# `includes/ingest/tuiles/build/manifeste.json`, recalculée sur le disque par le
+# contrôle correspondant de `verifier.mjs`. `big-shoulders-display-var.woff2`
+# n'est épinglée que dans `./PROVENANCE.md` et rappelée en forme courte en
+# en-tête de `./fonts.css` : AUCUN contrôle automatique ne hache ses octets.
+#
+# Toutes deux sont des woff2, donc compressées, donc classées binaires par la
+# détection de contenu : elles ont traversé #80 par cette PROPRIÉTÉ, pas par une
+# garantie. Or « on ne laisse pas la détection décider d'un contrat »
+# (`massifs-core/data/tuiles/.gitattributes`) : la garantie devient déclarative.
+#
+# `-text` et non `binary`, sans faux-semblant : `binary` vaut `-text -diff`, et
+# seule la moitié `-text` sert ici. Fermer `-diff` sur un fichier que `git diff`
+# rapporte déjà binaire n'achète rien et sortirait ces deux lignes du régime
+# commun aux autres artefacts — on ne relit pas un diff de woff2. `-text` et non
+# `text eol=lf`, qui découplerait les octets du disque de ceux du blob.
+#
+# PAS de motif `*.woff2` : le budget de faces est dur et déjà saturé (D-20, et
+# une assertion de recette qui les dénombre), un fourre-tout ne couvrirait donc
+# jamais que des fichiers QUI NE DOIVENT PAS EXISTER ; les nommer coûte deux
+# lignes et rend délibéré l'ajout d'une face de plus. `fonts.css`,
+# `LICENSE-atkinson-hyperlegible-next.txt`, `LICENSE-big-shoulders-display.txt`
+# et `PROVENANCE.md` restent normalisés, et la garde vit ici, à côté d'eux.
+atkinson-hyperlegible-next-var.woff2 -text
+big-shoulders-display-var.woff2      -text

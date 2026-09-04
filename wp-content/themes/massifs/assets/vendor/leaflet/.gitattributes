@@ -1,0 +1,43 @@
+# Les octets SONT le contrat.
+#
+# `leaflet.js`, `leaflet.css` et `LICENSE` portent chacun une empreinte sha256
+# consignée dans `./PROVENANCE.md` §1, colonne « servi » — la seule qui fasse
+# foi, jamais « amont ». Aucune valeur n'est recopiée ici : c'est la
+# transcription d'une empreinte en deux endroits qui a laissé l'écart vivre
+# (`docs/decisions/generalisation-des-fins-de-ligne.md` §6.2).
+#
+# C'est ici que le défaut s'est matérialisé. `leaflet.css` et `LICENSE` arrivent
+# de l'amont en CRLF, leurs CR ont quitté le blob au commit sous
+# `core.autocrlf=true`, et les empreintes annoncées étaient donc fausses depuis
+# l'origine : fausses sur tout clone Linux, vraies par accident sur une copie de
+# travail Windows. #80 ne l'a pas créé, elle l'a rendu visible partout. Ne pas
+# « réparer » en re-vendorisant : des CR reviendraient dans des fichiers SERVIS,
+# et l'identité amont n'est de toute façon plus récupérable.
+#
+# AUCUN contrôle du dépôt ne regarde l'identité de ces octets : ni
+# `verifier.mjs`, ni aucun scénario de recette. Rien ne rougira jamais ici ;
+# l'attribut est leur seule garde.
+#
+# `leaflet.js` y figure bien qu'il arrive en LF et n'ait jamais été converti :
+# même répertoire, même bibliothèque livrée, même table du §1, même colonne
+# « servi », même attribut manquant. En marquer deux sur trois reproduirait,
+# dans le fichier qui supprime le défaut, la logique qui l'a créé. Et arriver en
+# LF est une propriété de la version amont COURANTE : la suivante pourrait
+# arriver en CRLF, et être convertie en silence.
+#
+# `-text` et non `binary` : `binary` implique `-diff`, or une montée de version
+# se relit ligne à ligne — le §5 de `PROVENANCE.md` impose de revérifier le §3,
+# la preuve par les API non appelées.
+#
+# `-text` et non `text eol=lf` : celui-ci absorberait la conversion au commit et
+# découplerait les octets du DISQUE de ceux du blob. Or ce qui part au
+# navigateur, ce sont ceux du disque — bind-mount en développement, racine de
+# document en production.
+#
+# PAS de fourre-tout : `PROVENANCE.md` ne porte aucune empreinte DE LUI-MÊME, il
+# porte celles des trois autres. Prose éditée à la main, il doit rester
+# normalisé ; le figer contre la convention qu'il documente serait absurde. Et
+# ici plutôt qu'à la racine : la garde vit à côté de ce qu'elle garde.
+leaflet.js  -text
+leaflet.css -text
+LICENSE     -text

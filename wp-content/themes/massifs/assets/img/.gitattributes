@@ -1,0 +1,27 @@
+# Les octets SONT le contrat.
+#
+# `carte-statique.png` est une SORTIE, pas un visuel déposé : `construireStatique()`
+# le produit dans `includes/ingest/tuiles/build/construire.mjs` — on ne l'édite
+# pas, on le reconstruit. Ses octets et son sha256 sont consignés dans le bloc
+# `statique` de `build/manifeste.json` et de `build/reference.json`, et
+# `verifier.mjs` les contrôle sur le disque : octets annoncés contre octets
+# réels, empreinte contre manifeste, plafond de transfert, dimensions annoncées
+# contre dimensions réelles — avant d'enchaîner, du même tampon, sur la palette
+# et les chunks PNG. Aucune de ces valeurs n'est recopiée.
+#
+# Enjeu produit : c'est le repli sans JavaScript, contrainte n° 3. Pour un
+# visiteur sans JS, cette image est le SEUL support de lecture de la carte ; des
+# octets abîmés lui retirent le dernier chemin qui lui reste.
+#
+# Le flux PNG est protégé par CRC : une conversion ne le dégraderait pas en
+# silence, elle casserait l'image franchement — et casserait la recette de build
+# d'abord. `-text` et non `binary`, dont seule la moitié `-text` sert ; `-text`
+# et non `text eol=lf`, qui découplerait les octets du disque de ceux du blob.
+#
+# `carte-statique.png` et non `*.png`, par contraste explicite avec
+# `massifs-core/data/tuiles/.gitattributes` : là-bas le fourre-tout est légitime,
+# chaque fichier capturé étant une tuile de la pyramide publiée, donc sous
+# contrat. Ici c'est le répertoire d'images ordinaire du thème, et la première
+# illustration décorative déposée serait attrapée sans porter d'empreinte. La
+# garde vit donc ici, à côté de son artefact.
+carte-statique.png -text
