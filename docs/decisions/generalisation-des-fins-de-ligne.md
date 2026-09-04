@@ -8,8 +8,8 @@
 > [`.gitattributes`](../../.gitattributes) — que #80 réécrit — et reprise par
 > [`fins-de-ligne-copie-de-travail.md`](fins-de-ligne-copie-de-travail.md) §7 : « la généralisation
 > `* text=auto eol=lf` […] sous forme d'issue dédiée, en lot solo sur arbre propre ». Il consigne
-> l'arbitrage re-litigé, les mesures qui l'autorisent, et **deux défauts découverts en chemin** que #80
-> n'avait pas le droit de corriger.
+> l'arbitrage re-litigé, les mesures qui l'autorisent, et **deux défauts découverts en chemin**, hors de
+> l'empreinte du commit de bascule. La review du lot en a fait corriger un (§6.2) ; l'autre reste ouvert.
 
 ---
 
@@ -82,26 +82,35 @@ inconditionnelle là où l'échec est prouvé : le rapport coût/bénéfice ne s
 Aucun des deux n'était corrigé par le commit de #80. Le second (§6.2) l'a été à la review du lot ; le
 premier (§6.1) reste ouvert et attend son issue.
 
-### 6.1 Six artefacts à contrat d'octets ne portent aucun attribut — et deux d'entre eux ne sont gardés par rien
+### 6.1 Six artefacts à contrat d'octets ne portent aucun `-text` — et deux d'entre eux ne sont gardés par rien
+
+**Précision de vocabulaire, qui compte ici.** Depuis #80, plus aucun fichier du dépôt n'est « sans
+attribut » : le fourre-tout leur donne à tous `text=auto eol=lf`. Ce qui manque aux six artefacts
+ci-dessous, c'est le **`-text` explicite** que la doctrine du dépôt réserve aux contrats d'octets. Pour les
+deux derniers, l'attribut hérité n'est d'ailleurs pas neutre : c'est lui qui les convertit.
 
 `assets/fonts/atkinson-hyperlegible-next-var.woff2`, `assets/fonts/big-shoulders-display-var.woff2` et
 `assets/img/carte-statique.png` (sous `wp-content/themes/massifs/`) portent chacun un sha256 épinglé dans le
-dépôt, mais **aucun attribut** : ils ne doivent leur intégrité qu'à la détection de contenu. Or la doctrine
+dépôt, mais **aucun `-text`** : ils ne doivent leur intégrité qu'à la détection de contenu. Or la doctrine
 du dépôt, écrite noir sur blanc dans `massifs-core/data/tuiles/.gitattributes`, dit l'inverse : « la
-détection porte sur le CONTENU : **on ne la laisse pas décider d'un contrat** ».
+détection porte sur le CONTENU : **on ne la laisse pas décider d'un contrat** ». Deux d'entre eux —
+`carte-statique.png` et la police — sont pourtant bel et bien **surveillés**, hachés contre une empreinte
+épinglée par `ingest/tuiles/build/verifier.mjs` (§6.2) : ce qui leur manque est l'attribut, pas le contrôle.
 
 **Deux artefacts de plus sont dans ce cas, et leur situation est pire** : `assets/vendor/leaflet/leaflet.css`
 et `assets/vendor/leaflet/LICENSE` portent eux aussi un sha256 épinglé (`vendor/leaflet/PROVENANCE.md` §1)
-et aucun attribut — mais, contrairement aux trois premiers, git les classe **texte**. La détection ne les
+et aucun `-text` — mais, contrairement aux trois premiers, git les classe **texte**. La détection ne les
 protège donc **pas du tout** : ils faisaient partie des 335 fichiers renormalisés, et leurs empreintes
 consignées ne correspondaient plus à leurs octets. C'est le sinistre décrit au §6.2, et il s'est produit
 précisément là où cet inventaire, dans sa première rédaction, ne regardait pas.
 
-**Un sixième, gardé celui-là.** `assets/css/tokens.css` remplit le même critère — sha256 épinglé par le
-contrat #4, aucun attribut, classé texte — mais il est le seul de la classe à être **surveillé** : le
-scénario 12 de la recette de rendu hache ses octets sur disque. C'est d'ailleurs le seul qui a réellement
-rougi à la renormalisation, puis reverdi. Il montre à quoi ressemble le cas nominal, et par contraste ce
-qui manque aux cinq autres.
+**Un sixième, et c'est le cas nominal.** `assets/css/tokens.css` remplit le même critère — sha256 épinglé
+par le contrat #4, aucun `-text`, classé texte — mais il est le seul dont le contrôle **regarde les octets
+qui ont bougé** : le scénario 12 de la recette de rendu hache ses octets sur disque contre une empreinte
+figée. Son empreinte épinglée n'a jamais changé et vaut celle du blob ; tant que la copie de travail était
+en CRLF il rougissait donc, et la renormalisation l'a fait reverdir. C'est la seule alerte que le dépôt
+ait réellement émise sur cette classe de défaut — et par contraste, la mesure de ce qui manque aux cinq
+autres.
 
 **Corollaire, à porter au crédit de l'inventaire plutôt qu'à celui du sélecteur.** La propriété de sûreté
 n° 1 de [`fins-de-ligne-copie-de-travail.md`](fins-de-ligne-copie-de-travail.md) — « les artefacts dont un
@@ -111,10 +120,10 @@ sha256 est calculé au build sur leurs octets sont protégés **par construction
 les fichiers **déjà marqués** : il ne dit rien de ceux qui auraient dû l'être. Le geste de renormalisation
 de #78 n'est sûr que dans la mesure où l'inventaire `-text` est complet — et il ne l'était pas.
 
-Le comblement demande des `.gitattributes` **imbriqués** sous le thème — hors de l'empreinte de #80, qui se
-limite à la racine. Il n'a délibérément pas été posé dans le fichier racine : dans ce dépôt une protection
-d'octets vit toujours à côté de l'artefact qu'elle garde, et la placer dans le maillon le plus faible
-affaiblirait la convention au lieu de la servir. À traiter par une issue dédiée.
+Le comblement demande des `.gitattributes` **imbriqués** sous le thème, hors de l'empreinte du commit de
+bascule, qui se limitait à la racine. Il n'a délibérément pas été posé dans le fichier racine : dans ce
+dépôt une protection d'octets vit toujours à côté de l'artefact qu'elle garde, et la placer dans le maillon
+le plus faible affaiblirait la convention au lieu de la servir. À traiter par une issue dédiée.
 
 *(Les 10 PNG de `docs/recette/captures/` sont dans le même cas mais sans empreinte épinglée : sans enjeu.)*
 
@@ -139,14 +148,28 @@ regarde l'identité des octets de `leaflet.css` ni de `LICENSE`.** C'est pourquo
 être signalé, et pourquoi rien n'a rougi à la renormalisation. Le contrôle 12 de la recette de rendu, lui,
 hache bien des octets sur disque — `tokens.css` — et il a rougi puis reverdi. Les deux vérificateurs de
 build en hachent d'autres, et **tous ne sont pas protégés** : `carte-statique.png` et la police
-`.woff2` (`ingest/tuiles/build/verifier.mjs`) ne portent aucun attribut et ne doivent leur survie qu'à la
+`.woff2` (`ingest/tuiles/build/verifier.mjs`) ne portent aucun `-text` et ne doivent leur survie qu'à la
 détection de contenu — ce sont deux des six artefacts du §6.1. Ceux de `domain/massifs/build/verifier.mjs`
-(géométrie, source archivée, lookup communes) portent `-text` et sont protégés par construction.
+(géométrie, source archivée, communes limitrophes, lookup communes) portent `-text` et sont protégés par
+construction.
 
-Les tables de `docs/contracts/issue-7.md` §11 et `docs/recette/preuves-a11y-et-perf.md` restent
-**descriptives** (« Brut mesuré ») et portent encore les anciennes tailles ; §11 rappelle que « le seul
+**Ce qui reste à réaligner, et qui n'est pas seulement une affaire de tailles.** La phrase retirée de
+`PROVENANCE.md` §4 survit **mot pour mot** à deux autres endroits, et c'est la plus dangereuse des
+mentions parce qu'elle est **prescriptive**, non descriptive :
+
+- `docs/contracts/issue-7.md:807-808` — « `leaflet.css` ← 1.9.4 dist, **octet pour octet, JAMAIS édité** »
+  et « `LICENSE` ← BSD-2-Clause, **verbatim** ». C'est le contrat gelé de la vendorisation, donc la source
+  d'autorité qu'une chaîne aval consultera en premier ;
+- `tests/rendu/recette-rendu.mjs:305` — un commentaire qui relaie la même affirmation en citant ce contrat.
+
+Une chaîne qui les lit y trouve une identité octet à octet qui n'existe pas, et son réflexe — re-vendoriser
+l'amont — réintroduirait des CR dans des fichiers servis. La garde opérationnelle tient déjà, elle est
+co-localisée avec le risque (`PROVENANCE.md` §1 et §5) ; mais **ces deux mentions sont à réaligner**.
+Le contrat est gelé et ne se réécrit pas ici (« pas de contrat rétroactif ») : c'est l'objet de l'issue
+dédiée, avec les tables de `docs/contracts/issue-7.md` §11 et de `docs/recette/preuves-a11y-et-perf.md`,
+qui portent encore les anciennes tailles. Ces dernières sont **descriptives** ; §11 rappelle que « le seul
 budget normatif est celui du §10 du brief » — un budget de 250 Ko que le retrait des CR ne peut que
-desserrer. Contrats gelés et preuves de recette : à réaligner par une issue dédiée, pas ici.
+desserrer.
 
 ## 7. Effet résiduel, et ce que ce document ne dispense pas de faire
 
