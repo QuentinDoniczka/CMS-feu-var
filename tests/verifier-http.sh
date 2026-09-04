@@ -168,6 +168,8 @@ fi
 verifier '/wp-content/plugins/massifs-core/includes/domain/massifs/build/source/massifs-13.full.geojson' 403
 verifier '/wp-content/plugins/massifs-core/includes/domain/massifs/build/identites.json' 403
 verifier '/wp-content/plugins/massifs-core/includes/domain/statuts/legende.config.php' 403
+# Sentinelle nominative sur le fichier qui porte les bornes de la saison.
+verifier '/wp-content/plugins/massifs-core/includes/domain/fraicheur/saison.config.php' 403
 verifier '/wp-content/plugins/massifs-core/includes/ingest/prefecture/class-connector.php' 403
 verifier '/wp-content/plugins/massifs-core/massifs-core.php' 403
 verifier '/wp-content/plugins/massifs-core/data/massifs-13.php' 403

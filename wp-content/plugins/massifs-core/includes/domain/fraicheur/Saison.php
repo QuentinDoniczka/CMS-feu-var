@@ -18,9 +18,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Cette classe ne consulte aucune donnée : elle répond « le calendrier dit
  * actif / inactif », rien de plus. La résolution d'un statut fait primer la
- * donnée sur le calendrier (voir `Statuts`) : si la préfecture prolonge le
- * dispositif au-delà de la borne de fin, le vrai statut est affiché plutôt
- * qu'un mensonge « hors saison ».
+ * donnée sur le calendrier : si la préfecture prolonge le dispositif au-delà de
+ * la borne de fin, le vrai statut est affiché plutôt qu'un mensonge « hors
+ * saison ».
  *
  * Les bornes sont injectées à la construction : `officielle()` les lit dans
  * `saison.config.php`, seule source de configuration du dispositif réel.

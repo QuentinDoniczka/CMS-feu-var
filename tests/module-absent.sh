@@ -16,12 +16,12 @@
 #
 # PAS DE CAS `domain/fraicheur` ICI, ET C'EST DÉLIBÉRÉ.
 #
-# L'arête `statuts -> fraicheur` est STRUCTURELLE : `Horloge` est nommée dans
-# `statuts/api.php`, `EntreeHistorique.php`, `ProjecteurPrefecture.php` et
-# `Statuts.php`, `Saison` dans `Statuts.php`. Masquer `fraicheur` fait donc
-# toujours tomber le site À TRAVERS `statuts`, y compris après le correctif de
-# l'issue #94. Ajouter ce cas ici, c'est commiter une assertion rouge à demeure.
-# C'est un défaut réel et distinct, à traiter par une issue de suivi.
+# L'arête `statuts -> fraicheur` est STRUCTURELLE : le module `statuts` nomme des
+# symboles de `fraicheur` à même son code, et non derrière un chargeur tolérant.
+# Masquer `fraicheur` fait donc toujours tomber le site À TRAVERS `statuts`, y
+# compris après le correctif de l'issue #94. Ajouter ce cas ici, c'est commiter
+# une assertion rouge à demeure. C'est un défaut réel et distinct, à traiter par
+# une issue de suivi.
 #
 # L'ARBRE DOIT ÊTRE RENDU TEL QU'IL A ÉTÉ TROUVÉ, et c'est ce qu'on affirme —
 # jamais qu'il est propre. Trois chaînes partagent cet arbre et y ont du travail
@@ -74,8 +74,10 @@ nettoyer() {
 	# légitimement recréé entre-temps.
 	if [ -n "$EN_COURS_PARQUE" ] && [ -d "$EN_COURS_PARQUE" ] && [ ! -e "$EN_COURS_SOURCE" ]; then
 		mv "$EN_COURS_PARQUE" "$EN_COURS_SOURCE"
+		# Rien à écrire dans `$statut` : ce gestionnaire ne tourne qu'APRÈS que le
+		# code de sortie a été figé, et tout chemin qui arrive ici est déjà sorti
+		# non nul. Le signal, ici, est la ligne imprimée ci-dessus.
 		echo "!! restauration de secours : $EN_COURS_SOURCE"
-		statut=1
 	fi
 
 	# MÊME RAISONNEMENT QUE DANS `essai`, ET IL S'APPLIQUE AUSSI ICI : le `mv` de
@@ -109,15 +111,22 @@ trap 'exit 143' TERM
 # déplacés. Les trois `essai` ci-dessous ne déplacent que des chemins sous ce
 # répertoire ; rien d'autre n'est à leur portée.
 #
-# RESSERREMENT DE LA PORTÉE, PAS AFFAIBLISSEMENT DE L'ASSERTION. L'instantané
-# couvrait tout `wp-content`, donc aussi le sous-arbre du thème, qu'une chaîne
-# sœur indexe pendant l'exécution — l'arbre de travail est partagé et le
-# parallélisme s'arrête à la porte du conteneur, pas à celle du disque
-# (`CLAUDE.md`, §Conventions, isolation à l'exécution). L'assertion virait donc
-# au rouge pour le travail de quelqu'un d'autre, ce qui apprend à l'ignorer :
-# le vice même que l'issue #94 retire de cette recette. Tout ce que ce script
-# peut abîmer reste couvert — un module qu'il ne restaure pas le rend toujours
-# rouge, et c'est la seule chose qu'il ait jamais eu le pouvoir de casser.
+# CETTE ASSERTION EST UN AJOUT, PAS UN RESSERREMENT. Jusqu'à cette issue, ce
+# script n'affirmait rien du tout : il imprimait l'état de l'arbre et sortait 0
+# en toutes circonstances. Le commit qui porte cette ligne est le premier à faire
+# de l'intégrité de l'arbre une condition de sortie — il n'y avait aucune portée
+# antérieure à réduire, et personne ne doit lire celle-ci comme le vestige d'une
+# portée plus large.
+#
+# POURQUOI CE RÉPERTOIRE ET PAS TOUT `wp-content` : l'arbre de travail est
+# partagé entre chaînes de développement (`CLAUDE.md`, §Conventions, isolation à
+# l'exécution). Une chaîne sœur qui écrit ailleurs pendant l'exécution ferait
+# rougir une assertion large pour un travail qui n'est pas le sujet de ce script
+# — et une assertion qui rougit pour autrui est une assertion qu'on apprend à
+# ignorer, c'est-à-dire le vice que cette issue retire d'ici. L'état large de
+# `wp-content` reste imprimé plus bas, en note : du contexte, jamais un juge.
+# Tout ce que ce script peut abîmer reste couvert — un module qu'il ne rend pas
+# le fait rougir.
 git status --porcelain -- "$INCLUDES_REL" > "$TRAVAIL/git-avant.txt"
 
 # TROIS SIGNAUX INDÉPENDANTS, ET CE QU'ILS COUVRENT CHACUN.
@@ -127,8 +136,8 @@ git status --porcelain -- "$INCLUDES_REL" > "$TRAVAIL/git-avant.txt"
 #                        défaut, et survit si un jour le code n'était plus 500.
 #  3. le </html>       — NE DÉTECTE PAS le défaut #94. Mesuré le 4 septembre 2026
 #                        sur la stack : `WP_Fatal_Error_Handler` rend un document
-#                        COMPLET et bien formé, `</html>` compris, sur ses 500.
-#                        La page de 5 365 octets n'était pas tronquée. Cette
+#                        COMPLET et bien formé, `</html>` compris, sur ses 500 —
+#                        la page d'erreur n'était pas tronquée. Cette
 #                        sonde vaut pour une VRAIE troncature — crash hors du
 #                        gestionnaire d'erreurs, OOM, mandataire qui coupe le
 #                        flux — où ni la ligne de statut ni le marqueur textuel
