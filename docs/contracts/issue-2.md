@@ -10,6 +10,11 @@ empreinte. **Aucune signature, aucune route, aucune clé de réponse ne change**
 — seules les *valeurs* de `geometrie.{version, sha256, octets}` bougent, ce qui est précisément ce que le
 jeton de cache-busting existe pour absorber.
 
+**Erratum du 4 septembre 2026 (issue #93)** — la **dépendance hors empreinte n° 3** est close. Son texte
+était **exact au gel** et a été **périmé** par deux commits ultérieurs ; il reste lisible, barré, avec le
+verdict à sa suite. **Aucune décision n'est rouverte** : aucune clause, aucun invariant, aucun arbitrage,
+aucune signature, aucune clé ne bouge, et aucun consommateur n'a rien à changer.
+
 Ce contrat est la frontière entre le module `Massifs\Domain\Massifs` de l'extension `massifs-core` (qui
 possède l'identité, les libellés et la géométrie des massifs) et tout consommateur — thème, portail,
 future couche REST, chaînes sœurs #1 (ingestion préfecture) et #3 (statuts). Une divergence constatée en
@@ -310,9 +315,16 @@ Le build **refuse d'émettre** si une feature source n'y a pas d'entrée.
 |---|---|---|---|
 | 1 | Chargeur de `massifs-core.php` | Découvrir `includes/domain/massifs/module.php`. Le module est inerte et sans hook : l'ordre de chargement est indifférent | chaîne #3 |
 | 2 | Compression HTTP | ~~`AddOutputFilterByType DEFLATE application/json` absent de l'image `wordpress:php8.3-apache` et du `Dockerfile`~~ — **SATISFAITE** (`docker/wordpress/deflate.conf`). Mesuré le 13 août 2026 : 278 894 o → 74 023 o transférés, `Content-Encoding: gzip`, `Vary: Accept-Encoding`. Voir B-11 : cela ne change pas le budget, qui reste exprimé en octets bruts | ~~`docker-cms`~~ — clos par #20 |
-| 3 | `.gitignore` racine | Ligne 33 `package-lock.json` est un motif **non ancré** : il exclut le lockfile à toute profondeur. **Toujours ouverte.** Neutralisée pour nous — `build/.gitignore` l. 8 réintègre explicitement le verrou, et `git check-ignore -v` le confirme — mais **la prochaine chaîne qui créera un lockfile ailleurs devra refaire la négation** ou le perdra en silence | hors chaîne |
+| 3 | `.gitignore` racine | ~~Ligne 33 `package-lock.json` est un motif **non ancré** : il exclut le lockfile à toute profondeur. **Toujours ouverte.** Neutralisée pour nous — `build/.gitignore` l. 8 réintègre explicitement le verrou, et `git check-ignore -v` le confirme — mais **la prochaine chaîne qui créera un lockfile ailleurs devra refaire la négation** ou le perdra en silence~~ — **CLOSE** (erratum du 4 septembre 2026, issue #93). Le texte barré était **exact au gel** : il a été **périmé** par deux commits ultérieurs. `09fd99d` (#33) a ancré le motif à la racine sous la forme `/package-lock.json` ; `c881cdf` (#77) a retiré la négation `!package-lock.json` des deux `build/.gitignore`. **Aucune chaîne future n'a de négation à refaire — la prescription barrée ne doit pas être suivie.** Erratum jumeau à la couture hors empreinte C-8 de [`issue-9.md`](issue-9.md). | ~~hors chaîne~~ — clos par #93 |
 | 4 | Fins de ligne du reste du dépôt | Les `.conf` et `.sh` de `docker/` restent sous le régime `core.autocrlf` (git avertit « LF will be replaced by CRLF »). Défaut **pré-existant et sans conséquence connue** — Apache tolère CRLF et la stack fonctionne. Le remède général serait un `.gitattributes` racine (`* text=auto eol=lf`), qui fermerait cette classe de panne pour tout le dépôt et pas seulement pour les trois artefacts empreintés de #20. Hors empreinte de #20 | hors chaîne |
 | 5 | `tests/verifier-http.sh` | Ajouter `403` sur `build/massifs-13.fidelite.json` et `build/reference.json` : même `DirectoryMatch` que les gardes déjà assérés, donc même résultat, mais **la non-exposition de l'artefact de recette est l'objet même de #20** et mérite d'être épinglée. Ajouter aussi deux `200` sur `themes/massifs/assets/css/tokens.css` et une police `.woff2`, qui verrouilleraient l'épargne d'`assets/` face au nouveau `DirectoryMatch`. Aucune assertion existante ne casse : rien dans `tests/` ne référence `fidelite` | `test-integration-cms` (niveau lot) |
 | 6 | `docker/README.md` — section « Garde-fou » | Le paragraphe compression et la description du garde-fou ont été réalignés par #20. Le reste du document n'a pas été relu | `docker-cms` |
 | 7 | Communes concernées | Second import IGN ADMIN EXPRESS + jointure spatiale, avec sa propre attribution §9 | issue de suivi |
 | 8 | Attribution §9 des périmètres | À afficher en pied de carte **et** en mentions légales via `massifs_attribution()` | chaîne front |
+
+**Règle que la dépendance hors empreinte n° 3 laisse au dépôt** — `.gitignore` ne gouverne que les
+fichiers **non suivis** : une négation locale posée sur un lockfile déjà commité ne protège rien, et
+c'est le motif du retrait opéré par `c881cdf` (#77). Un lockfile créé plus tard sera, lui, non suivi à sa
+naissance ; ce qui décidera de son sort est la section « Dépendances » du `.gitignore` racine, qui fait
+autorité et dont aucun contrat ne transcrit l'état. Aucun numéro de ligne n'est réintroduit ci-dessus :
+c'est le numéro, et non le fait, qui avait péri.

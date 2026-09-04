@@ -7,6 +7,11 @@ JavaScript, en entier) · §9 (attribution OSM)
 produits en aveugle l'un de l'autre. Ce document est le point de réconciliation ; en cas de divergence
 entre un plan et ce contrat, **c'est ce contrat qui fait foi**.
 
+**Erratum du 4 septembre 2026 (issue #93)** — la **couture hors empreinte C-8** est close. Son texte était
+**exact au gel** et a été **périmé** par deux commits ultérieurs ; il reste lisible, barré, avec le verdict
+à sa suite. **Aucune décision n'est rouverte** : aucune clause, aucun invariant, aucun arbitrage, aucune
+signature, aucune clé ne bouge, et aucun consommateur n'a rien à changer.
+
 > Règle de lecture reprise de `MASTER.md` : ce document décrit des **décisions**, pas des suggestions.
 > Une divergence constatée en revue est un défaut, pas une variante. Les blocs marqués **`OUVERT`** sont
 > des trous de connaissance assumés — on ne les comble jamais par déduction (§4.2 du brief).
@@ -499,7 +504,14 @@ Aucune n'est écrite par cette chaîne. Elles remontent à l'orchestrateur.
 | **C-5** | **Recette.** `tests/rendu/recette-rendu.mjs` l. 417-420 porte le GAP en toutes lettres (« VIDE — aucune image de repli, aucun lien vers la liste ») ; l. 415 affirme `0 script[src]`, assertion qui deviendra fausse avec #7 | `tests/**` hors empreinte | `test-integration-cms`, au niveau du lot |
 | **C-6** | **CSP future.** Le §9 du brief promet des en-têtes de sécurité stricts ; aucun `Content-Security-Policy` n'existe aujourd'hui. Un `style-src` strict **casserait** l'attribut de style en ligne : il faudra `style-src-attr 'unsafe-inline'`, ou avoir résolu C-2 entre-temps | domaine `securite` | Issue CSP, avec ce contrat en référence |
 | **C-7** | **`docker/tiles/`, le chemin `/tiles/` et `docker/tiles/data/README.md`** deviennent sans emploi. Le README y oriente encore la chaîne carte vers un chemin **sans équivalent en production o2switch** | `docker/**` hors empreinte | `docker-cms`, en fin de lot |
-| **C-8** | **`.gitignore` racine l. 33**, `package-lock.json` non ancré — dépendance hors empreinte n° 3 du contrat #2, toujours ouverte. Contournée localement par `!package-lock.json` dans `build/.gitignore`, comme #2 | racine hors empreinte | Issue `infra` ultérieure |
+| **C-8** | ~~**`.gitignore` racine l. 33**, `package-lock.json` non ancré — dépendance hors empreinte n° 3 du contrat #2, toujours ouverte. Contournée localement par `!package-lock.json` dans `build/.gitignore`, comme #2~~ — **CLOSE** (erratum du 4 septembre 2026, issue #93). Le texte barré était **exact au gel** : il a été **périmé** par deux commits ultérieurs. `09fd99d` (#33) a ancré le motif à la racine sous la forme `/package-lock.json` ; `c881cdf` (#77) a retiré la négation `!package-lock.json` des deux `build/.gitignore`. **Aucune chaîne future n'a de négation à refaire — la prescription barrée ne doit pas être suivie.** Erratum jumeau à la dépendance hors empreinte n° 3 de [`issue-2.md`](issue-2.md). | racine hors empreinte | ~~Issue `infra` ultérieure~~ — c'était **#93**, close |
+
+**Règle que la couture C-8 laisse au dépôt** — `.gitignore` ne gouverne que les fichiers **non suivis** :
+une négation locale posée sur un lockfile déjà commité ne protège rien, et c'est le motif du retrait opéré
+par `c881cdf` (#77). Un lockfile créé plus tard sera, lui, non suivi à sa naissance ; ce qui décidera de
+son sort est la section « Dépendances » du `.gitignore` racine, qui fait autorité et dont aucun contrat ne
+transcrit l'état. Aucun numéro de ligne n'est réintroduit ci-dessus : c'est le numéro, et non le fait, qui
+avait péri.
 
 **Écriture hors empreinte assumée et notifiée** : `wp-content/plugins/massifs-core/data/tuiles/**`.
 L'empreinte de l'issue nomme `includes/ingest/tuiles/**`, qui est **403 par construction** et ne peut donc
