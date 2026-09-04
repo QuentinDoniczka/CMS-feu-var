@@ -330,25 +330,6 @@ final class Legende {
 	}
 
 	/**
-	 * Bornes calendaires du dispositif.
-	 *
-	 * @return array{debut_mois: int, debut_jour: int, fin_mois: int, fin_jour: int, confirme: bool}
-	 */
-	public function bornes_saison(): array {
-		$saison = isset( $this->configuration['saison'] ) && is_array( $this->configuration['saison'] )
-			? $this->configuration['saison']
-			: array();
-
-		return array(
-			'debut_mois' => (int) ( $saison['debut_mois'] ?? 6 ),
-			'debut_jour' => (int) ( $saison['debut_jour'] ?? 1 ),
-			'fin_mois'   => (int) ( $saison['fin_mois'] ?? 9 ),
-			'fin_jour'   => (int) ( $saison['fin_jour'] ?? 30 ),
-			'confirme'   => true === ( $saison['confirme'] ?? false ),
-		);
-	}
-
-	/**
 	 * États hors niveau : structure seulement, aucune phrase.
 	 *
 	 * `jeton_encre_css` est l'encre du MOTIF, jamais une encre de texte. Elle est

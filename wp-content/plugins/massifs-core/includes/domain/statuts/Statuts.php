@@ -70,9 +70,7 @@ final class Statuts {
 	 * Service prêt à l'emploi.
 	 */
 	public static function service(): self {
-		$legende = Legende::chargee();
-
-		return new self( new Depot(), $legende, Saison::depuis_bornes( $legende->bornes_saison() ) );
+		return new self( new Depot(), Legende::chargee(), Saison::officielle() );
 	}
 
 	/**

@@ -22,9 +22,18 @@ if ( ! defined( 'ABSPATH' ) ) {
  * dispositif au-delà de la borne de fin, le vrai statut est affiché plutôt
  * qu'un mensonge « hors saison ».
  *
- * Les bornes sont injectées depuis la légende, seule source de configuration.
+ * Les bornes sont injectées à la construction : `officielle()` les lit dans
+ * `saison.config.php`, seule source de configuration du dispositif réel.
  */
 final class Saison {
+
+	/**
+	 * Calendrier officiel mémoïsé pour la durée du processus.
+	 *
+	 * `Saison` est un objet-valeur à propriétés `readonly` : le partager entre
+	 * appelants ne peut donc rien altérer.
+	 */
+	private static ?self $officielle = null;
 
 	/**
 	 * Construit le calendrier du dispositif.
@@ -44,9 +53,39 @@ final class Saison {
 	) {}
 
 	/**
-	 * Construit le calendrier depuis les bornes de la légende.
+	 * Calendrier officiel du dispositif.
 	 *
-	 * @param array<string, bool|int> $bornes Bornes issues de `Legende::bornes_saison()`.
+	 * SEULE fabrique du calendrier officiel : aucun appelant ne compose ses
+	 * propres bornes. La configuration est `require`ée ICI, au point d'usage, et
+	 * jamais par l'amorce du module — un `require_once` sur un fichier qui
+	 * RETOURNE un tableau rendrait `true` au second appel.
+	 *
+	 * Configuration qui ne RETOURNE PAS un tableau ⇒ dates par défaut SANS
+	 * `confirme` : le calendrier répond « bornes non confirmées », la réponse
+	 * honnête. Un fichier ABSENT, lui, reste une erreur fatale — le `require` est
+	 * nu, comme au chargement de la légende. Un module amputé de sa propre
+	 * configuration ne se rattrape pas, il se voit.
+	 */
+	public static function officielle(): self {
+		if ( null !== self::$officielle ) {
+			return self::$officielle;
+		}
+
+		$bornes = require __DIR__ . '/saison.config.php';
+
+		if ( ! is_array( $bornes ) ) {
+			$bornes = array();
+		}
+
+		self::$officielle = self::depuis_bornes( $bornes );
+
+		return self::$officielle;
+	}
+
+	/**
+	 * Construit le calendrier depuis un jeu de bornes explicite.
+	 *
+	 * @param array<string, bool|int> $bornes Bornes du dispositif.
 	 */
 	public static function depuis_bornes( array $bornes ): self {
 		return new self(

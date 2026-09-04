@@ -42,11 +42,21 @@ define( 'MASSIFS_CORE_FILE', MASSIFS_CORE_FICHIER );
  * les segments de répertoire sont en minuscules, le nom de fichier conserve la
  * casse de la classe.
  *
- * La garde `is_file()` est vitale : l'arbre de travail est partagé entre
- * plusieurs chaînes de développement, et une classe `Massifs\` peut être
- * référencée alors que son fichier n'existe pas encore. Sans la garde, `require`
- * émet une erreur fatale non rattrapable ; avec elle, PHP lève un
- * `Error: Class not found` rattrapable et lisible, et le site continue de booter.
+ * La garde `is_file()` BORNE le mode de panne, elle ne l'annule pas. L'arbre de
+ * travail est partagé entre plusieurs chaînes de développement, et une classe
+ * `Massifs\` peut être référencée alors que son fichier n'existe pas encore.
+ * Sans la garde, `require` émet une erreur fatale NON RATTRAPABLE ; avec elle,
+ * PHP lève un `Error: Class not found`, rattrapable et lisible.
+ *
+ * ELLE NE SUFFIT PAS À FAIRE BOOTER LE SITE. Un `Error` que personne ne rattrape
+ * reste une erreur fatale, donc un HTTP 500 servi par `WP_Fatal_Error_Handler`.
+ * C'est ce qui est arrivé le 4 septembre 2026 (issue #94) : `domain/fraicheur`
+ * nommait en dur `Massifs\Domain\Statuts\Legende`, et masquer `domain/statuts`
+ * rendait 500 sur tout le site. Seule l'ABSENCE de référence dure d'un module
+ * vers un module frère fait booter le site sans lui — c'est la propriété que
+ * `tests/module-absent.sh` mesure, module par module, et la seule raison pour
+ * laquelle `domain/massifs`, `ingest/prefecture` et, depuis cette issue,
+ * `domain/statuts` passent aujourd'hui.
  */
 spl_autoload_register(
 	static function ( string $classe ): void {
@@ -60,8 +70,11 @@ spl_autoload_register(
 		// EXCLUSION EXPLICITE. Ce sous-arbre suit le nommage WPCS `class-*.php`,
 		// délibérément non résolvable en PSR-4, et se charge lui-même depuis son
 		// amorce. Tenter de le résoudre ici produirait un chemin qui n'existe pas.
-		// C'est un `return`, jamais un `require` : nommer cet espace de noms ne
-		// peut donc provoquer aucune erreur fatale si le répertoire est absent.
+		// C'est un `return`, jamais un `require` : comme la garde `is_file()`
+		// ci-dessous, il BORNE le mode de panne sans l'annuler. Répertoire absent,
+		// nommer une de ces classes lève un `Error: Class not found` rattrapable
+		// et lisible, jamais l'erreur fatale non rattrapable du `require` — mais
+		// un `Error` que personne ne rattrape reste un 500, cf. l'issue #94.
 		if ( str_starts_with( $classe, 'Massifs\\Ingest\\Prefecture\\' ) ) {
 			return;
 		}

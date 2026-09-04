@@ -18,7 +18,6 @@ use Massifs\Domain\Fraicheur\Horloge;
 use Massifs\Domain\Fraicheur\Horodatage;
 use Massifs\Domain\Fraicheur\RegistreReleves;
 use Massifs\Domain\Fraicheur\Saison;
-use Massifs\Domain\Statuts\Legende;
 
 if ( ! function_exists( 'massifs_jour_courant' ) ) {
 	/**
@@ -59,7 +58,7 @@ if ( ! function_exists( 'massifs_saison' ) ) {
 	function massifs_saison( ?string $jour = null ): array {
 		$jour_demande = Horloge::jour_demande( $jour );
 
-		return Saison::depuis_bornes( Legende::chargee()->bornes_saison() )
+		return Saison::officielle()
 			->evaluer( $jour_demande )
 			->en_tableau();
 	}
@@ -80,7 +79,7 @@ if ( ! function_exists( 'massifs_fraicheur' ) ) {
 	 */
 	function massifs_fraicheur( ?string $jour = null ): array {
 		$jour_demande = Horloge::jour_demande( $jour );
-		$saison       = Saison::depuis_bornes( Legende::chargee()->bornes_saison() );
+		$saison       = Saison::officielle();
 
 		return ( new Fraicheur( new RegistreReleves(), $saison ) )->evaluer( $jour_demande )->en_tableau();
 	}

@@ -1,11 +1,11 @@
 <?php
 /**
- * Source UNIQUE de la légende — sémantique des niveaux et bornes du dispositif.
+ * Source UNIQUE de la légende — sémantique des niveaux du dispositif.
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
  * │  LÉGENDE OFFICIELLE RELEVÉE — révision 2                                 │
  * │                                                                          │
- * │  Les libellés, les bornes de saison, l'heure de publication et la table  │
+ * │  Les libellés, l'heure de publication et la table                        │
  * │  de correspondance ci-dessous sont ceux du dispositif des                │
  * │  Bouches-du-Rhône, établis par trois relevés concordants et consignés    │
  * │  dans docs/decisions/source-prefecture.md §4.                            │
@@ -74,16 +74,6 @@ return array(
 	// le fichier de traduction réellement appliqué, le bulletin PDF et l'en-tête
 	// `Last-Modified` du flux disent tous les trois 17 h 00.
 	'publication_heure'            => '17:00',
-
-	// 1er juin – 30 septembre INCLUS. Établi par le titre officiel de la carte,
-	// le texte de la page, et le comportement du flux lui-même.
-	'saison'                       => array(
-		'confirme'   => true,
-		'debut_mois' => 6,
-		'debut_jour' => 1,
-		'fin_mois'   => 9,
-		'fin_jour'   => 30,
-	),
 
 	// ACCÈS AU MASSIF — liste ORDONNÉE PAR SÉVÉRITÉ CROISSANTE.
 	// `cle` est une clé TEXTE stable, persistée telle quelle : un entier de
