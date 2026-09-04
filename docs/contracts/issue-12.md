@@ -272,7 +272,7 @@ Gardes dans cet **ordre exact**, chacune en sortie anticipée :
 |---|---|---|
 | 0 | `Planificateur::est_armee()` | `false` ⇒ `return` |
 | 1 | `function_exists( 'massifs_fraicheur' )` | `false` ⇒ `return` (S-3) |
-| 2 | `try { $f = massifs_fraicheur( $jour ); } catch ( \Throwable )` | exception ⇒ `return`. `massifs_fraicheur()` traverse `Legende::chargee()` (module `statuts`, chaîne sœur) et peut lever. **Un rappel cron ne fait jamais tomber la requête d'un visiteur.** |
+| 2 | `try { $f = massifs_fraicheur( $jour ); } catch ( \Throwable )` | exception ⇒ `return`. ~~`massifs_fraicheur()` traverse `Legende::chargee()` (module `statuts`, chaîne sœur) et peut lever.~~ — **PÉRIMÉ** (erratum du 4 septembre 2026, issue #94) : `69c52f4` a repointé `massifs_fraicheur()` sur `Saison::officielle()` et retiré de `domain/fraicheur` toute mention d'un symbole `Massifs\Domain\Statuts\`. **La règle opposable ne bouge pas** : le `try`/`catch` de la colonne de gauche reste prescrit. **Un rappel cron ne fait jamais tomber la requête d'un visiteur.** |
 | 3 | `true !== $f['dispositif_actif']` | ⇒ `return` — **hors saison, silence total** |
 | 4 | `true !== $f['perimee']` | ⇒ `return` — **unique prédicat d'incident** |
 | 5 | — | `do_action( 'massifs_donnee_perimee_constatee', $f );` |

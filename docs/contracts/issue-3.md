@@ -15,6 +15,16 @@
 > `À CONFIRMER` de la révision 1 sont **caducs** pour les libellés, les couleurs, les bornes de saison
 > et l'heure de publication ; ils restent ouverts pour les consignes.
 
+**Erratum du 4 septembre 2026 (issue #94)** — deux mentions de l'**adresse** des bornes du dispositif sont
+closes : la ligne « Dates du dispositif » du tableau des valeurs `À CONFIRMER`, et l'énumération de la
+« Source unique de la légende ». Le commit `69c52f4` (#94) a **déplacé** la configuration des bornes de
+`includes/domain/statuts/legende.config.php` vers un nouveau `includes/domain/fraicheur/saison.config.php`,
+chargé par `Saison::officielle()`, et a **supprimé `Legende::bornes_saison()`** sans compatibilité. **Le
+fait de domaine ne bouge pas** — mêmes cinq clés, mêmes valeurs, 1er juin – 30 septembre inclus : seule
+l'adresse a changé. **Aucune décision n'est rouverte** : aucune clause, aucun invariant, aucune clé, aucune
+signature ne bouge, et **l'arbitrage A-22 n'est ni réécrit ni annoté** — son objet est le fait établi, pas
+le fichier qui le porte ; le chemin de clé `saison.confirme` qu'il cite a suivi le même déplacement.
+
 Ce contrat est la frontière entre l'extension `massifs-core` (qui possède la donnée et les chaînes) et
 tout consommateur — thème, portail, future couche REST, chaînes sœurs #1 (ingestion préfecture) et #2
 (référentiel des massifs). Une divergence constatée en revue est un défaut, pas une variante.
@@ -381,7 +391,7 @@ strict (« mardi 11 août 2026 », « 19 h 04 » avec espace insécable, jamais 
 | 1 | Nombre de niveaux | **ÉTABLI — 2** (accès autorisé / interdit) + dimension ZAPEF | `legende.config.php` |
 | 2 | Libellés officiels exacts | **ÉTABLI**, verbatim depuis le `fr.json` officiel | `legende.config.php` |
 | 3 | Codes couleur exacts | **ÉTABLI** — vert `#22B14C`, rouge `#E63A3C` | **Hors extension** — `tokens.css`, chaîne front |
-| 7 | Dates du dispositif | **ÉTABLI** — 1er juin au 30 septembre **inclus** | `legende.config.php`, `saison.confirme => true` |
+| 7 | Dates du dispositif | **ÉTABLI** — 1er juin au 30 septembre **inclus** | ~~`legende.config.php`, `saison.confirme => true`~~ — **DÉPLACÉ** (erratum du 4 septembre 2026, issue #94) : `69c52f4` a sorti les bornes de `legende.config.php` vers `includes/domain/fraicheur/saison.config.php`, chargé par `Saison::officielle()`, et supprimé `Legende::bornes_saison()`. **Valeurs inchangées.** |
 | — | Heure de publication | **ÉTABLI — 17 h 00 Paris**, la veille | `legende.config.php` |
 | — | Correspondance `level` → niveau | **ÉTABLIE** par le code de rendu officiel | `legende.config.php` |
 | 4 | **Consignes officielles** | **TOUJOURS OUVERT** — la légende officielle n'en publie aucune, et l'arrêté préfectoral est un PDF numérisé sans couche de texte (illisible). `consigne` = **chaîne vide**, `consignes_publiees => false` | Décision doc §9-Q4 |
@@ -396,9 +406,14 @@ strict (« mardi 11 août 2026 », « 19 h 04 » avec espace insécable, jamais 
 **Source unique de la légende** : `wp-content/plugins/massifs-core/includes/domain/statuts/legende.config.php`
 pour la sémantique (nombre de niveaux, clés, libellés officiels, consignes, sévérité, motifs, noms de
 jetons, dimension ZAPEF, table de correspondance `level` → niveau, listes blanches `level`/`procedure`,
-bornes de saison, heure de publication, drapeaux de confirmation) et
+~~bornes de saison,~~ heure de publication, drapeaux de confirmation) et
 `wp-content/themes/massifs/assets/css/tokens.css` pour le pigment. Deux fichiers, deux préoccupations
 disjointes, **aucune valeur dupliquée entre les deux**.
+
+**Erratum du 4 septembre 2026 (issue #94)** — les bornes de saison sont barrées ci-dessus : `69c52f4` les a
+sorties de `legende.config.php` vers `includes/domain/fraicheur/saison.config.php` et a supprimé
+`Legende::bornes_saison()`. Les valeurs n'ont pas changé, et la propriété « aucune valeur dupliquée » reste
+entière — le déplacement n'a créé aucune copie.
 
 ## Dépendances hors empreinte — signalées, non traitées par cette chaîne
 
