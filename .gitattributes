@@ -79,10 +79,10 @@
 # racine, est le MAILLON LE PLUS FAIBLE des `.gitattributes` versionnés — seuls
 # les réglages hors dépôt (`core.attributesFile`, gitattributes système) lui
 # cèdent le pas, tandis que `.git/info/attributes`, local et non versionné,
-# prime au contraire sur tous. Les 5 `.gitattributes` imbriqués sous
-# `wp-content/plugins/massifs-core/` — qui posent `-text` sur les artefacts à
-# contrat d'octets, ceux dont un sha256 est calculé au build sur les octets du
-# fichier — l'emportent toujours sur ce qui est écrit ici. Un motif fourre-tout
+# prime au contraire sur tous. Les `.gitattributes` imbriqués — ceux qui posent
+# `-text` sur les artefacts à contrat d'octets, ceux dont un sha256 est calculé
+# au build sur les octets du fichier — l'emportent toujours sur ce qui est écrit
+# ici, où qu'ils vivent dans l'arbre et quel qu'en soit le nombre. Un motif fourre-tout
 # à la racine ne les met pas plus en danger que trois motifs ciblés : mesuré à
 # la bascule, les 308 chemins `attr/-text` le sont restés, et les règles
 # positives `text eol=lf` des deux `build/.gitattributes` (`*.mjs`,

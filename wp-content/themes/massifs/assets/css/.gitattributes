@@ -16,10 +16,11 @@
 # sur l'une d'elles DOIT ajouter sa ligne ici — l'absence de ligne est une
 # affirmation sur l'absence d'empreinte, pas un oubli.
 #
-# C'est le SEUL `-text` du dépôt posé sur un fichier édité à la main : tous les
-# autres gardent une sortie de build ou un téléchargement vendorisé, celui-ci
-# s'ouvre dans un éditeur. Il garantit disque == blob, et retire à `git status`
-# le droit de cacher les octets que la recette hache. Le prix, sans l'adoucir :
+# `tokens.css` s'ouvre dans un ÉDITEUR, quand un artefact à contrat d'octets est
+# d'ordinaire une sortie de build ou un téléchargement vendorisé que personne ne
+# rouvre. C'est ce qui rend son `-text` inhabituel. L'attribut garantit
+# disque == blob, et retire à `git status` le droit de cacher les octets que la
+# recette hache. Le prix, sans l'adoucir :
 # une sauvegarde en CRLF entrerait telle quelle dans le blob au lieu d'être
 # normalisée en silence. Il est accepté parce que l'échec est BRUYANT et que le
 # remède est connu — re-sauvegarder en LF, JAMAIS ré-épingler l'empreinte, ce
