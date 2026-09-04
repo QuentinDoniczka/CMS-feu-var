@@ -94,15 +94,15 @@
 # ce dépôt, une protection d'octets vit TOUJOURS dans un `.gitattributes`
 # imbriqué, à côté de l'artefact qu'elle garde et de la note qui dit quelle
 # empreinte en dépend. La poser ici, dans le maillon le plus faible et loin de
-# son objet, affaiblirait la convention au lieu de la servir. L'issue #80 a
-# relevé au passage trois artefacts à contrat d'octets qui ne sont gardés
-# aujourd'hui que par la détection de contenu, sans attribut — les deux polices
-# de `wp-content/themes/massifs/assets/fonts/` et
-# `wp-content/themes/massifs/assets/img/carte-statique.png` — alors que la
-# doctrine de `massifs-core/data/tuiles/.gitattributes` dit qu'« on ne laisse
-# pas [la détection] décider d'un contrat ». Le comblement demande des fichiers
-# imbriqués sous le thème, hors de l'empreinte de #80 : il fait l'objet d'un
-# signalement dédié, pas d'une exception ici.
+# son objet, affaiblirait la convention au lieu de la servir. L'issue #80 avait
+# relevé au passage, sous `wp-content/themes/massifs/`, des artefacts à contrat
+# d'octets que seule la détection de contenu gardait, alors que la doctrine de
+# `massifs-core/data/tuiles/.gitattributes` dit qu'« on ne laisse pas [la
+# détection] décider d'un contrat ». Le comblement demandait des fichiers
+# imbriqués sous le thème, hors de l'empreinte de #80 : l'issue #92 les a
+# livrés (`540b677`), en posant l'attribut auprès de chaque artefact plutôt
+# qu'ici — ce paragraphe reste donc vrai, et il l'est désormais par
+# application, non par report.
 #
 # L'EFFET RESTE DIFFÉRÉ POUR LES CLONES DÉJÀ FAITS. Git n'applique jamais un
 # attribut nouveau en balayant l'arbre : il ne convertit un fichier qu'au moment

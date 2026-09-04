@@ -9,7 +9,8 @@
 > [`fins-de-ligne-copie-de-travail.md`](fins-de-ligne-copie-de-travail.md) §7 : « la généralisation
 > `* text=auto eol=lf` […] sous forme d'issue dédiée, en lot solo sur arbre propre ». Il consigne
 > l'arbitrage re-litigé, les mesures qui l'autorisent, et **deux défauts découverts en chemin**, hors de
-> l'empreinte du commit de bascule. La review du lot en a fait corriger un (§6.2) ; l'autre reste ouvert.
+> l'empreinte du commit de bascule. La review du lot en a fait corriger un (§6.2) ;
+> ~~l'autre reste ouvert~~ — l'autre a été clos depuis, voir l'erratum daté en tête du §6.1.
 
 ---
 
@@ -80,9 +81,31 @@ inconditionnelle là où l'échec est prouvé : le rapport coût/bénéfice ne s
 ## 6. Deux défauts découverts, hors empreinte de #80
 
 Aucun des deux n'était corrigé par le commit de #80. Le second (§6.2) l'a été à la review du lot ; le
-premier (§6.1) reste ouvert et attend son issue.
+premier (§6.1) ~~reste ouvert et attend son issue~~ **est clos depuis — voir l'erratum en tête du §6.1**.
 
 ### 6.1 Six artefacts à contrat d'octets ne portent aucun `-text` — et deux d'entre eux ne sont gardés par rien
+
+> **Erratum — 4 septembre 2026, chaîne de l'issue #92. Ce défaut est CLOS.** L'issue #92 a livré
+> (`540b677`) les `.gitattributes` imbriqués que ce paragraphe appelait, sous
+> `wp-content/themes/massifs/`, en posant l'attribut à côté de chaque artefact plutôt que dans le
+> fichier racine — c'est-à-dire de la manière exacte que ce paragraphe prescrivait.
+>
+> Le constat ci-dessous **reste lisible tel qu'il fut écrit** : il était exact au moment où il a été
+> dressé. Il était en revanche **incomplet d'un artefact**. `assets/vendor/leaflet/leaflet.js` porte
+> une empreinte dans la même table de `PROVENANCE.md` §1 que les deux fichiers voisins relevés ici,
+> et n'était pas mieux gardé qu'eux ; #92 l'a traité avec eux plutôt que de laisser un tiers de ce
+> répertoire à la détection de contenu.
+>
+> Le corollaire du présent §6.1 s'applique donc **à l'inventaire lui-même**, et c'est la leçon à en
+> retenir : la sûreté du geste de #78 dépend de la complétude de l'inventaire `-text`, et un
+> inventaire ne prouve jamais sa propre complétude. Le titre et le décompte ci-dessous sont
+> conservés pour cette raison — les corriger effacerait la seule trace de ce que l'inventaire
+> d'origine n'avait pas vu.
+>
+> **Cette clôture ne porte que sur le présent §6.1**, c'est-à-dire sur les `.gitattributes`
+> imbriqués. Le réalignement annoncé en fin de §6.2 — les mentions prescriptives qui affirment
+> encore une identité amont que l'historique a perdue — reste entier et attend son issue : « l'issue
+> dédiée » qu'il désigne n'est pas celle-ci.
 
 **Précision de vocabulaire, qui compte ici.** Depuis #80, plus aucun fichier du dépôt n'est « sans
 attribut » : le fourre-tout leur donne à tous `text=auto eol=lf`. Ce qui manque aux six artefacts
@@ -123,7 +146,8 @@ de #78 n'est sûr que dans la mesure où l'inventaire `-text` est complet — et
 Le comblement demande des `.gitattributes` **imbriqués** sous le thème, hors de l'empreinte du commit de
 bascule, qui se limitait à la racine. Il n'a délibérément pas été posé dans le fichier racine : dans ce
 dépôt une protection d'octets vit toujours à côté de l'artefact qu'elle garde, et la placer dans le maillon
-le plus faible affaiblirait la convention au lieu de la servir. À traiter par une issue dédiée.
+le plus faible affaiblirait la convention au lieu de la servir. ~~À traiter par une issue dédiée.~~
+**CLOS par #92 (`540b677`), 4 septembre 2026 — l'issue dédiée annoncée ici.**
 
 *(Les 10 PNG de `docs/recette/captures/` sont dans le même cas mais sans empreinte épinglée : sans enjeu.)*
 
@@ -147,9 +171,10 @@ Ce que ce document garde, parce que `PROVENANCE.md` n'a pas à le porter : **auc
 regarde l'identité des octets de `leaflet.css` ni de `LICENSE`.** C'est pourquoi l'écart a pu vivre sans
 être signalé, et pourquoi rien n'a rougi à la renormalisation. Le contrôle 12 de la recette de rendu, lui,
 hache bien des octets sur disque — `tokens.css` — et il a rougi puis reverdi. Les deux vérificateurs de
-build en hachent d'autres, et **tous ne sont pas protégés** : `carte-statique.png` et la police
-`.woff2` (`ingest/tuiles/build/verifier.mjs`) ne portent aucun `-text` et ne doivent leur survie qu'à la
-détection de contenu — ce sont deux des six artefacts du §6.1. Ceux de `domain/massifs/build/verifier.mjs`
+build en hachent d'autres, et **tous n'étaient pas protégés** : `carte-statique.png` et la police
+`.woff2` (`ingest/tuiles/build/verifier.mjs`) ne portaient aucun `-text` et ne devaient leur survie qu'à
+la détection de contenu — ils figuraient à l'inventaire du §6.1, clos depuis par #92 (voir l'erratum qui
+l'ouvre). Ceux de `domain/massifs/build/verifier.mjs`
 (géométrie, source archivée, communes limitrophes, lookup communes) portent `-text` et sont protégés par
 construction.
 
