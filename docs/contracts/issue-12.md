@@ -7,6 +7,15 @@ données*, en entier)
 produits **en aveugle l'un de l'autre**. Ce document est le point de réconciliation ; en cas de
 divergence entre un plan et ce contrat, **c'est ce contrat qui fait foi**.
 
+**Erratum du 4 septembre 2026 (issue #94)** — la **garde n° 2 du rappel cron** porte un erratum : la
+justification de dépendance qu'elle donnait est barrée, avec le verdict à sa suite. Elle était **exacte au
+gel** et a été **périmée** par le commit `69c52f4` (#94), qui a repointé `massifs_fraicheur()` sur
+`Saison::officielle()` et retiré de `domain/fraicheur` toute mention d'un symbole `Massifs\Domain\Statuts\`.
+**Aucune décision n'est rouverte** : aucune clause, aucun invariant, aucune clé, aucune signature ne bouge,
+et **la règle opposable de la garde n° 2 est intacte** — le `try`/`catch` reste prescrit, et un rappel cron
+ne fait jamais tomber la requête d'un visiteur. Paragraphe d'en-tête ajouté le 5 septembre 2026 à la revue
+du lot, pour que l'annotation soit visible dès l'ouverture du document.
+
 > Règle de lecture reprise des contrats #8 et #9 : ce document décrit des **décisions**, pas des
 > suggestions. Une divergence constatée en revue est un défaut, pas une variante. Les points marqués
 > **`OUVERT`** sont des trous de connaissance assumés — on ne les comble **jamais** par déduction
